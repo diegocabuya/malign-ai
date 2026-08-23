@@ -1,10 +1,18 @@
 # MALIGN-AI
 
-MALIGN-AI is a fidelity-first, multiplayer web implementation of the Malign serious game. The current state is **PR-0 Repository Bootstrap**: architecture and executable tooling only; game rules are not implemented.
+MALIGN-AI is a fidelity-first, multiplayer web implementation of the Malign serious game. Milestone M0 is **IMPLEMENTED AND APPROVED**:
+
+- PR-0 — Repository Bootstrap: **APPROVED**;
+- PR-1 — Rule Kernel: **IMPLEMENTED AND APPROVED**;
+- PR-2 — Command Safety + Campaign Slice: **IMPLEMENTED AND CODE APPROVED**;
+- selected M0 oracle: **35/35 PASS, 0 skips**;
+- complete suite at M0 close: **55/55 PASS**.
 
 ## Architecture
 
 Five players and one facilitator share a game session. The server is authoritative. The codebase is a TypeScript modular monolith with separate web and server applications, a framework-independent domain and Game Engine, server-side security projections, and persistence behind ports.
+
+The implemented M0 baseline consists of a pure deterministic Rule Kernel plus in-memory command safety and a minimal campaign construction, modification, and activation-eligibility slice. Production PostgreSQL, production realtime, final UI, and OpenAI/RAG are **NOT STARTED / NOT AUTHORIZED**. M1 is **NOT AUTHORIZED**.
 
 > **LLM != Game Engine.** AI may eventually explain or suggest actions from an authorized projection, but it never adjudicates deterministic rules.
 
@@ -33,4 +41,5 @@ The approved specifications are versioned under `docs/`. Documentary precedence 
 - `rules` depends on `domain` and `shared`.
 - `game-engine` depends on `domain`, `rules`, `contracts`, and `shared`.
 - `apps/web` never imports persistence or authoritative domain internals.
-- AI, production PostgreSQL, production realtime, final UI, and PR-1 rules are outside PR-0.
+- Production PostgreSQL, production realtime, final UI, and OpenAI/RAG remain outside completed M0 and are not authorized.
+- M1 work must not begin without explicit authorization.
