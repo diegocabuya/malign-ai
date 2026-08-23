@@ -43,5 +43,5 @@ export type GameCommandType = 'SET_ACTION_PLAN' | 'LOCK_ACTION_PLAN' | 'CONSTRUC
 export interface SetActionPlanPayload { readonly actionSlots: readonly PlanSlot[]; }
 export interface ConstructCampaignPayload { readonly campaignId: string; readonly intentCardInstanceId: string; readonly methodCardInstanceId?: string; readonly amplifierCardInstanceId?: string; readonly targetDtId: string; }
 export interface ModifyCampaignPayload { readonly campaignId: string; readonly slot: CampaignSlot; readonly replacementCardInstanceId: string; }
-export interface ActivateCampaignPayload { readonly campaignId: string; readonly requestedTargetPdId: string; readonly extraActivation?: boolean; }
+export interface ActivateCampaignPayload { readonly campaignId: string; readonly requestedTargetPdId: string; }
 export type GameCommandPayload = SetActionPlanPayload | Record<string, never> | ConstructCampaignPayload | ModifyCampaignPayload | ActivateCampaignPayload;
