@@ -26,7 +26,8 @@ describe('PR-2 campaign construction and modification slice', () => {
   it('GE-CAM-005 retains selected slot and uses its slot-specific IV', () => {
     const { dispatcher, store } = harness();
     dispatcher.dispatch(envelope('CONSTRUCT_CAMPAIGN', { ...constructPayload, methodCardInstanceId: 'multi1' }));
-    const result = dispatcher.dispatch(envelope('ACTIVATE_CAMPAIGN', { campaignId: 'campaign-1', requestedTargetPdId: 'pdAsian' }, 1));
+    const resolutionState = store.snapshot(); resolutionState.phase = 'RESOLUTION_STAGE'; const resolution = harness(resolutionState);
+    const result = resolution.dispatcher.dispatch(envelope('ACTIVATE_CAMPAIGN', { campaignId: 'campaign-1', requestedTargetPdId: 'pdAsian' }, 1));
     expect(store.snapshot().campaigns['campaign-1']?.assignments[1]).toEqual({ slot: 'METHOD', cardInstanceId: 'multi1' }); expect(result.resultPayload).toMatchObject({ baseCv: 6 });
   });
 
