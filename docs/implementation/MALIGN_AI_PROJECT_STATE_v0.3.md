@@ -1,83 +1,50 @@
-# MALIGN-AI — PROJECT STATE v0.3
+# MALIGN-AI — PROJECT STATE v0.4
 
-**Fecha:** 2026-08-22  
-**Fase actual:** TRANSICIÓN FASE 2 DISEÑO -> IMPLEMENTACIÓN CONTROLADA  
-**Código:** NO iniciado todavía  
-**Gate arquitectónico:** APROBADO  
-**Codex handoff:** READY
+**Fecha:** 2026-08-23  
+**Fase actual:** IMPLEMENTACIÓN CONTROLADA — PR-1 CERRADO  
+**Gate arquitectónico:** APPROVED  
+**Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
-## Gate aprobado
+## Estado de entregas
 
-El Product Owner aprobó expresamente `ARC-01` a `ARC-12`.
+| Entrega | Estado |
+|---|---|
+| PR-0 — Repository Bootstrap | **APPROVED** |
+| IQ-PR0-001 | **RESOLVED mediante DEC-060** |
+| PR-1 — Rule Kernel | **IMPLEMENTED AND APPROVED** |
+| M0A Rule Kernel | **15/15 PASS, 0 skips** |
+| Suite reportada al cierre de PR-1 | **21/21 PASS** |
+| PR-2 | **NOT AUTHORIZED** |
 
-Baseline:
+PR-1 fue aprobado técnicamente contra el commit `69ded64d912fc0231b82046fecad024baf8ec67e`. No requiere correcciones de código.
 
-- aplicación web multijugador;
-- 5 jugadores + facilitador;
-- misma GameSession;
+## Baseline vigente
+
+- aplicación web multijugador para 5 jugadores + 1 facilitador;
 - backend autoritativo;
-- realtime;
-- modular monolith TypeScript;
-- monorepo;
-- `apps/web` + `apps/server`;
-- Game Engine framework-agnostic;
-- Next.js/React/TypeScript;
-- PostgreSQL futuro;
-- HTTP commands/queries;
-- WebSocket realtime;
-- game version/concurrency;
-- transaction-per-command + outbox;
+- modular monolith TypeScript en monorepo;
+- `apps/web` y `apps/server` separados;
+- Game Engine puro e independiente de frameworks;
 - Ports & Adapters;
-- server-side projections;
-- audit history;
-- Rule Kernel/test-first;
-- AI fuera del Game Engine.
+- proyecciones y filtrado de secretos server-side;
+- Rule Kernel determinístico y test-first;
+- IA fuera del Game Engine.
 
-Ver `MALIGN_AI_DECISIONS_v0.3.md`.
+El Product Owner mantiene aprobadas `ARC-01` a `ARC-12`. Las decisiones canónicas están en `MALIGN_AI_DECISIONS_v0.3.md`.
 
-## Entregables de handoff creados
+## Estado de componentes diferidos
 
-- `MALIGN_AI_REPOSITORY_BOOTSTRAP_SPEC_v0.1.md`
-- `MALIGN_AI_CODEX_IMPLEMENTATION_PLAN_v0.1.md`
-- `CODEX_HANDOFF_PROMPT_v0.1.md`
-- `MALIGN_AI_CODEX_HANDOFF_MANIFEST_v0.1.md`
-- paquete `.zip` de handoff.
+| Componente | Estado |
+|---|---|
+| PostgreSQL productivo | **NOT STARTED / NOT AUTHORIZED** |
+| Realtime productivo | **NOT STARTED / NOT AUTHORIZED** |
+| UI final | **NOT STARTED / NOT AUTHORIZED** |
+| OpenAI/RAG | **NOT STARTED / NOT AUTHORIZED** |
 
-## Primer milestone autorizado para Codex
+## Próximo gate
 
-**PR-0 — Repository Bootstrap exclusivamente.**
+PR-2 permanece **NOT AUTHORIZED**. Ningún trabajo de Command Safety, Campaign Slice u otro alcance de PR-2 puede comenzar sin autorización expresa posterior.
 
-Al terminar PR-0, Codex debe detenerse para revisión antes de PR-1.
+## Continuidad documental
 
-## Subset M0 seleccionado
-
-35 tests P0:
-
-- M0A Rule Kernel: 15
-- M0B Command Safety: 10
-- M0C Campaign Slice: 10
-
-Los IDs exactos están en Bootstrap Spec / Implementation Plan.
-
-## Siguiente acción del Product Owner
-
-1. Crear un repositorio GitHub vacío llamado preferentemente `malign-ai`.
-2. Abrir Codex sobre ese repositorio/workspace.
-3. Proporcionarle el paquete de handoff o los documentos del paquete.
-4. Pegar `CODEX_HANDOFF_PROMPT_v0.1.md`.
-5. Autorizar **sólo PR-0 Bootstrap**.
-6. Regresar con el resultado/diff/repo para revisión antes de PR-1.
-
-## Aún NO autorizado
-
-- PR-1 Rule Kernel, hasta que PR-0 sea revisado.
-- PR-2.
-- PostgreSQL productivo.
-- multiplayer realtime productivo.
-- UI final.
-- OpenAI/RAG.
-- hosting productivo.
-
-## Continuidad
-
-La conversación deja de ser la única fuente de verdad. El repositorio deberá incorporar las specs y decisiones aprobadas bajo `docs/`.
+Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. Este cierre documental no cambia reglas, código, tests, oracle, configuración, dependencias ni arquitectura.
