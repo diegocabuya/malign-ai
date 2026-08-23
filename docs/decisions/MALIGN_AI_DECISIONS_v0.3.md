@@ -659,3 +659,13 @@ Quedan aprobadas como baseline de implementación:
 12. AI Orchestration fuera del Game Engine y limitada a Authorized Projections.
 
 **ESTADO DEL GATE:** APPROVED
+
+---
+
+## DEC-060 — Incorporación incremental de tests M0
+**FECHA:** 2026-08-23  
+**TEMA:** Resolución de `IQ-PR0-001`.  
+**DECISIÓN:** El inventario ejecutable y validado de los 35 IDs M0 satisface PR-0. Los tests funcionales se incorporan junto con el comportamiento probado: 15 M0A durante PR-1 y 20 M0B/M0C durante PR-2. No se crean tests deliberadamente fallidos o falsamente verdes, no se usa `skip` y CI permanece verde.  
+**JUSTIFICACIÓN:** Conserva TDD incremental sin adelantar comportamiento fuera del PR autorizado.  
+**IMPACTO:** PR-1 implementa exclusivamente Rule Kernel y sus 15 tests P0.  
+**ESTADO:** APPROVED
