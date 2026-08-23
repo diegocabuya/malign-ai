@@ -25,6 +25,8 @@ pnpm build
 
 The approved specifications are versioned under `docs/`. Documentary precedence is: official Gamebooks/formalized components, approved decisions, adjudication specification, interface contract, test oracle, data model/data dictionary, then architecture/bootstrap specifications. Contradictions must become an `IMPLEMENTATION_QUESTION`; they must not be silently reconciled.
 
+`ActorContext` is a verified application-layer boundary. A future UI may submit credentials or intent, but it must never construct authoritative `actorId`, `participantId`, `gameId`, country, or permissions values; the application layer authenticates and derives that context before invoking the Game Engine. Productive authentication remains outside M0.
+
 ## Package boundaries
 
 - `domain` depends only on `shared`.
