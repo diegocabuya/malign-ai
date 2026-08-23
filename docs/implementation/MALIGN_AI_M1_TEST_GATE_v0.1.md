@@ -1,33 +1,34 @@
 # MALIGN-AI — M1 TEST GATE v0.1
 
 **Fecha:** 2026-08-23  
-**Estado:** M1 PLANNING GATE COMPLETED / PENDING APPROVAL  
+**Estado:** M1 PLANNING GATE AMENDED / PENDING FINAL REVIEW  
 **Oracle:** `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_SPEC_v0.1.md`  
+**Addendum canónico:** `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md`  
 **Implementación M1:** **NOT AUTHORIZED**
 
-> Este documento asigna casos existentes del oracle y propone obligaciones complementarias sin modificar el oracle. Las obligaciones sin ID canónico no reciben un identificador inventado; requieren resolución de `IQ-M1-001` antes de convertirse en tests ejecutables de un PR autorizado.
+> Este documento asigna casos existentes del oracle v0.1 y los 38 casos canónicos del addendum M1 v0.1 sin modificar el oracle. `DEC-065` aprueba la enmienda documental, pero no autoriza implementar M1 ni M1-0.
 
 ## 1. Reglas del gate
 
 1. Los IDs `GE-*` se conservan byte-for-byte y existen en el oracle v0.1.
 2. Un ID tiene un único PR owner. M1-3 sólo repite siete IDs marcados expresamente `[REGRESSION]`.
 3. Los 55 tests existentes de M0 se ejecutan completos en cada PR y no se cuentan otra vez como nuevos casos M1.
-4. Las pruebas complementarias propuestas no sustituyen ningún caso nominal del oracle.
+4. Los casos del addendum no sustituyen ningún caso nominal del oracle.
 5. Todo test expresa fixture/versiones, Given/When/Then, post-state, event order, ledgers, trace, projection e invariantes que apliquen.
 6. Gate binario: 100% PASS, 0 skips, 0 todo y ningún P0 suavizado.
 7. No se modifica el oracle para acomodar código.
 
 ## 2. Conteo y asignación
 
-| PR propuesto | IDs oracle owner | Complementarios propuestos sin ID | Regresiones explícitas | Ejecuciones del gate |
+| PR propuesto | IDs oracle v0.1 owner | IDs addendum M1 owner | Regresiones explícitas | Ejecuciones del gate |
 |---|---:|---:|---:|---:|
 | M1-0 | 15 | 10 | 0 | 25 |
-| M1-1 | 16 | 9 | 0 | 25 |
+| M1-1 | 17 | 9 | 0 | 26 |
 | M1-2 | 17 | 9 | 0 | 26 |
 | M1-3 | 0 | 10 | 7 | 17 |
-| **Total** | **48 únicos** | **38** | **7 reejecuciones** | **93** |
+| **Total** | **49 únicos** | **38 únicos** | **7 reejecuciones** | **94** |
 
-Total lógico M1 propuesto: **86 casos únicos** (48 oracle + 38 complementarios). Total de ejecuciones asignadas a gates: **93**, porque M1-3 reejecuta siete casos de seguridad/concurrencia. La suite M0 completa se suma como regresión global, sin alterar este conteo.
+Baseline M1: **87 casos únicos** (49 oracle v0.1 + 38 addendum M1 v0.1). Total de ejecuciones asignadas a gates: **94**, porque M1-3 reejecuta siete casos de seguridad/concurrencia. La suite M0 55/55 se ejecuta adicionalmente en cada PR y no altera este conteo.
 
 ## 3. M1-0 — Session, seats y setup
 
@@ -51,22 +52,24 @@ Total lógico M1 propuesto: **86 casos únicos** (48 oracle + 38 complementarios
 | `GE-CORE-010` | Dos locks concurrentes, misma expected version y payload distinto | ambos intentan commit | sólo uno confirma; el segundo stale/equivalente; no mezcla planes |
 | `GE-FAC-001` | Partida activa | F1 pausa y reanuda | overlay bloquea/desbloquea, fase subyacente preservada y auditada |
 
-### 3.2 Pruebas complementarias propuestas — 10, sin ID canónico
+### 3.2 IDs exactos del addendum M1 — 10
 
-1. Given F1 autenticado y versions válidas; when `CREATE_GAME`; then estado `SETUP`, facilitator único y versions/turn-limit del command fijados.
-2. Given caller PLAYER; when intenta `CREATE_GAME` o `ASSIGN_PLAYER_SEAT`; then rechazo seguro, cero state/event/version.
-3. Given membership autenticada P1; when join se materializa; then `GameParticipant` activo enlazado a la sesión, sin autoridad derivada de payload.
-4. Given actor autenticado A y payload que suplanta participant/country B; when command; then la capa de aplicación ignora/rechaza el spoof antes del Engine.
-5. Given P1 ya seated; when segundo seat para P1; then rechazo atómico.
-6. Given ARDEN ya asignado; when segundo participante solicita ARDEN; then rechazo atómico.
-7. Given clockwise/seat index duplicado; when assignment; then rechazo sin alterar seats existentes.
-8. Given actor/member de juego G1; when usa envelope de G2; then `GAME_ID_MISMATCH`/`NOT_AUTHORIZED` seguro.
-9. Given version N; when cualquier query M1-0; then state/version/events/idempotency permanecen idénticos.
-10. Given retry exacto de create/seat/setup command; when se reenvía; then mismo result/ref, sin duplicar participante, seat ni evento.
+| ID | Given | When | Expected result |
+|---|---|---|---|
+| `GE-M1-SES-001` | F1 autenticado y versions válidas | `CREATE_GAME` | estado `SETUP`, facilitator único y versions/turn-limit del command fijados |
+| `GE-M1-SES-002` | Caller PLAYER | intenta `CREATE_GAME` o `ASSIGN_PLAYER_SEAT` | rechazo seguro, cero state/event/version |
+| `GE-M1-SES-003` | Membership autenticada P1 | join se materializa | `GameParticipant` activo enlazado a la sesión, sin autoridad derivada de payload |
+| `GE-M1-SES-004` | Actor autenticado A y payload que suplanta participant/country B | command | application boundary ignora/rechaza el spoof antes del Engine |
+| `GE-M1-SES-005` | P1 ya seated | segundo seat para P1 | rechazo atómico |
+| `GE-M1-SES-006` | ARDEN ya asignado | segundo participante solicita ARDEN | rechazo atómico |
+| `GE-M1-SES-007` | `seat_index` o `clockwise_index` duplicado | assignment | rechazo sin alterar seats existentes |
+| `GE-M1-SES-008` | Actor/member de juego G1 | usa envelope de G2 | `GAME_ID_MISMATCH`/`NOT_AUTHORIZED` seguro |
+| `GE-M1-SES-009` | Version N | cualquier query M1-0 | state/version/events/idempotency permanecen idénticos |
+| `GE-M1-SES-010` | Retry exacto de create/seat/setup command | se reenvía | mismo result/ref, sin duplicar participante, seat ni evento |
 
 ## 4. M1-1 — Initiative, hidden planning y projections
 
-### 4.1 IDs exactos del oracle — 16
+### 4.1 IDs exactos del oracle — 17
 
 | ID | Given | When | Expected result |
 |---|---|---|---|
@@ -79,6 +82,7 @@ Total lógico M1 propuesto: **86 casos únicos** (48 oracle + 38 complementarios
 | `GE-INI-009` | Fixture base sin otros ingresos | aplicar income | Arden+2, Fluma+1, Ursaria+2, Presque+2, Dinesia+3 en ledger |
 | `GE-PLAN-001` | P1 sin efectos extra | lock de cuatro acciones de 1 AP | `INSUFFICIENT_AP`; no lock |
 | `GE-PLAN-003` | P1 lock con cards/targets | P2 consulta antes de reveal | ve status permitido, no payload/card IDs/target/DT |
+| `GE-PLAN-004` | P1 lockea tres acciones y luego primera es vetada | resolver turno | AP_available=0; no refund por Veto |
 | `GE-PLAN-005` | P1 ya locked | intenta cambiar slot 2 | rechazo; sólo override F1 auditado podría reabrir |
 | `GE-SEC-001` | HAND P1 con IDs/nombres | projections P1/P2/F1 | P1/F1 ven autorizado; P2 no contents |
 | `GE-SEC-002` | Cada país con Secret VO | P2 consulta P1 y se construye AI-P2 context | no condición/progress/metadata P1; F1 sí |
@@ -87,17 +91,19 @@ Total lógico M1 propuesto: **86 casos únicos** (48 oracle + 38 complementarios
 | `GE-CORE-001` | INITIATIVE; P1 intenta construct | command con version actual | `WRONG_PHASE`; cero mutación/version |
 | `GE-CORE-008` | ACTION_STAGE_PLAN | intento directo de end-game scoring | rechazo; fase intacta |
 
-### 4.2 Pruebas complementarias propuestas — 9, sin ID canónico
+### 4.2 IDs exactos del addendum M1 — 9
 
-1. Owner projection de draft contiene exactamente sus slots privados y no incrementa version.
-2. Rival projection de draft/locked no varía al cambiar card IDs, target o DT secretos; sólo cambia el status/conteo permitido.
-3. Facilitator projection contiene payload completo de cinco planes y no expone future deck order.
-4. `ACTION_REVEALED` se emite al iniciar cada slot, nunca al lock global ni para slots futuros.
-5. `RandomProvider` consume exactamente la secuencia de seats/attempts; exhaustion/out-of-range falla sin fallback aleatorio.
-6. El quinto lock produce una única transición a `ACTION_STAGE_LOCKED/RESOLUTION_STAGE`, un version increment y events contiguos.
-7. Property de redacción: para cualquier state válido, serializar una rival projection no contiene valores marcados `OWNER_ONLY`, `OWNER_AND_FACILITATOR` o `SYSTEM_ONLY`.
-8. Al bloquear un plan válido se consume exactamente un AP por slot y un fallo posterior del slice no reembolsa el AP comprometido.
-9. Un plan M1 `[CONSTRUCT_CAMPAIGN, ACTIVATE_CAMPAIGN]` conserva y expone al scheduler `sequence_index` 1→2 sin requerir Action Cards, Regime Abilities o Veto.
+| ID | Given | When | Expected result |
+|---|---|---|---|
+| `GE-M1-IPL-001` | Draft autoritativo de P1 y version N | P1 solicita owner projection | contiene exactamente sus slots privados y no incrementa version |
+| `GE-M1-IPL-002` | Dos drafts P1 que sólo difieren en card IDs, target o DT secretos | P2 solicita rival projection | proyecciones equivalentes salvo status/conteo permitido |
+| `GE-M1-IPL-003` | Cinco planes draft/locked y deck order técnico | F1 solicita facilitator projection | payload completo de cinco planes, sin future deck order |
+| `GE-M1-IPL-004` | Plan locked con slots futuros | scheduler inicia un slot | `ACTION_REVEALED` ocurre al iniciar ese slot, no al lock ni para slots futuros |
+| `GE-M1-IPL-005` | Secuencia determinística de seats/attempts | resolver RNG hasta consumirla o invalidarla | consumo exacto; exhaustion/out-of-range falla sin fallback |
+| `GE-M1-IPL-006` | Cuatro players locked y quinto plan válido | quinto lock | una transición a Resolution, un version increment y events contiguos |
+| `GE-M1-IPL-007` | State válido con campos clasificados | serializar rival projection | ningún valor privado o `SYSTEM_ONLY` aparece |
+| `GE-M1-IPL-008` | Plan válido y fallo posterior | lock y resolución fallida | 1 AP exacto por slot, sin reembolso posterior |
+| `GE-M1-IPL-009` | Plan `[CONSTRUCT_CAMPAIGN, ACTIVATE_CAMPAIGN]` | lock y scheduler lee plan | `sequence_index` 1→2 preservado |
 
 ## 5. M1-2 — Scheduler, campaña completa, trace y ledgers
 
@@ -123,17 +129,19 @@ Total lógico M1 propuesto: **86 casos únicos** (48 oracle + 38 complementarios
 | `GE-AUD-001` | Campaña con bonus, costes, roll, 2:1 y VP | resolver | trace completa, hashes/version refs, sin campo crítico nulo sin razón |
 | `GE-AUD-006` | Pre/post de resolución aceptada | diff state | toda mutación crítica explicada por event/ledger/trace |
 
-### 5.2 Pruebas complementarias propuestas — 9, sin ID canónico
+### 5.2 IDs exactos del addendum M1 — 9
 
-1. Golden §10: P1 construye/activa HIGH MALIGN; base/effective CV12, cost3, raw7, ERT+3, 2:1→1 placed, legitimacy Arden, VP+2, resources1.
-2. Cinco planes se resuelven por `initiative_position` y luego `sequence_index`; ningún cliente selecciona el siguiente slot.
-3. Intento cliente de `RESOLVE_NEXT_ACTION_SLOT`/mutación directa de cube/VP/resource se rechaza en authority boundary.
-4. `PendingResolution` de elección 2:1 se serializa y rehidrata en un Engine instance nuevo sin perder actor/options/cursor.
-5. Respuesta válida a Choice reanuda una sola vez desde la continuation exacta; late/double response no duplica efectos.
-6. Orden golden: activation started → narrative → cost → die → ERT → cancellation → placement → legitimacy → VP → completed.
-7. Un command de activación con múltiples events/ledgers/trace incrementa `game_version` exactamente una vez y usa sequences contiguas.
-8. Serialización canónica y hash son estables en snapshot/replay; cambiar un campo autoritativo cambia el hash.
-9. Property/invariant integrado: no negativos, single-zone, conservation 2:1, hand<=10, legitimacy<=1/PD y <=3/player, events monotónicos y ledgers reconciliados.
+| ID | Given | When | Expected result |
+|---|---|---|---|
+| `GE-M1-ADJ-001` | Golden exacto de Spec §10 y Test Gate §7.4 | P1 construye y activa HIGH MALIGN | CV12, cost3, raw7, ERT+3, 2:1→1 placed, legitimacy Arden, VP+2, resources1 |
+| `GE-M1-ADJ-002` | Cinco planes locked con initiative/sequence conocidos | scheduler resuelve | orden por `initiative_position` y `sequence_index`; cliente no elige slot |
+| `GE-M1-ADJ-003` | Cliente sin autoridad SYSTEM | intenta scheduler/mutación interna | rechazo en authority boundary sin mutación |
+| `GE-M1-ADJ-004` | Pending choice 2:1 | serializar y rehidratar Engine nuevo | actor, options y cursor se conservan |
+| `GE-M1-ADJ-005` | Choice vigente y respuestas valid/late/double | responder/reintentar | válida reanuda una vez; late/double no duplica |
+| `GE-M1-ADJ-006` | Full campaign golden | resolver activation | event order exacto, incluido PRE_ROLL open/evaluate/close |
+| `GE-M1-ADJ-007` | Activación con múltiples artifacts | commit | un version increment y sequences contiguas |
+| `GE-M1-ADJ-008` | State estable y variante con cambio autoritativo | RFC 8785/JCS + SHA-256 | hash estable y sensible al cambio |
+| `GE-M1-ADJ-009` | Secuencias válidas generadas | aplicar commands/replay | invariantes, ledgers y events preservados |
 
 ## 6. M1-3 — Realtime adapter y reconnect
 
@@ -151,18 +159,20 @@ Estos IDs ya tienen owner en M1-0/M1-1/M1-2. Su repetición es deliberada para p
 | `GE-SEC-003` | `[REGRESSION]` | future deck order ausente de mensajes y recovery |
 | `GE-SEC-004` | `[REGRESSION]` | plan face-down conserva redacción antes del reveal |
 
-### 6.2 Pruebas complementarias propuestas — 10, sin ID canónico
+### 6.2 IDs exactos del addendum M1 — 10
 
-1. Initial sync race-free: fetch projection/cursor y subscribe no pierde un commit ocurrido entre ambas operaciones.
-2. Un commit público genera payload público idéntico semánticamente para todos los viewers autorizados.
-3. Evento privado owner se entrega sólo al canal/stream de ese participante y F1 con payload permitido.
-4. Facilitator recibe la variante completa auditada, salvo future deck order en vista normal.
-5. Raw `CommandResult` del actor nunca se publica a rivales; sólo `ProjectedEvent`/cursor.
-6. Rollback o command rechazado no publica domain event ni projection delta mutante.
-7. Entrega duplicada del mismo `event_id/sequence_number` no aplica la mutación dos veces en el consumidor de test.
-8. Gap de sequence detectado recupera `GET_EVENT_FEED(after_sequence_number)` y converge con proyección latest.
-9. Reconnect recupera latest authorized projection, cursor y `PendingResolution` sólo para el actor designado.
-10. Reconnect de rival compara contra projection normal y demuestra ausencia de HAND, face-down plans, Secret VO y private choice options.
+| ID | Given | When | Expected result |
+|---|---|---|---|
+| `GE-M1-RT-001` | Initial sync mientras puede ocurrir commit | fetch projection/cursor y subscribe | no pierde commit entre operaciones |
+| `GE-M1-RT-002` | Commit con cambio público | construir broadcasts por viewer | payload público semánticamente consistente |
+| `GE-M1-RT-003` | Canonical event privado owner | proyectar/publicar | sólo owner + facilitator reciben payload permitido |
+| `GE-M1-RT-004` | F1 solicita stream/audit normal | proyectar/publicar | audit completo sin future deck order normal |
+| `GE-M1-RT-005` | Actor recibe raw `CommandResult` | publicar a otros viewers | raw result nunca llega a rivales |
+| `GE-M1-RT-006` | Rechazo o rollback | adapter procesa outcome | no publica mutación |
+| `GE-M1-RT-007` | Delivery duplicado | consumidor aplica | deduplica por event ID/sequence |
+| `GE-M1-RT-008` | Gap detectado | recuperar event feed | converge con latest projection |
+| `GE-M1-RT-009` | Actor con pending se reconecta | authenticate/fetch/subscribe | restaura projection/cursor/pending autorizado |
+| `GE-M1-RT-010` | Rival se reconecta | comparar projection normal | conserva todas las redacciones |
 
 ## 7. Fixtures exactos
 
@@ -249,7 +259,7 @@ Deben permanecer en todos los PR gates:
 - `GE-CORE-003` stale version;
 - `GE-CORE-004` idempotent retry;
 - `GE-CORE-010` double submit;
-- same idempotency key + payload distinto → `IDEMPOTENCY_KEY_REUSED` como obligación complementaria existente del Interface Contract;
+- same idempotency key + payload distinto → `IDEMPOTENCY_KEY_REUSED` como invariant del contract cubierta por `GE-CORE-004`/`GE-M1-SES-010`;
 - query no incrementa version;
 - one stable commit incrementa version una sola vez;
 - rejected command no emite domain mutation/event/ledger/trace/broadcast.
@@ -289,7 +299,7 @@ Property tests complementan, nunca sustituyen, los IDs nominales.
 ### PASS de un PR
 
 - 100% de IDs owner y regresiones del PR pasan;
-- 100% de complementarios aprobados del PR pasan;
+- 100% de IDs del addendum asignados al PR pasan;
 - suite M0 55/55 pasa intacta;
 - 0 skips, 0 todo, 0 waivers implícitos;
 - typecheck, lint, test y build verdes;
@@ -314,47 +324,46 @@ Cualquiera de los siguientes bloquea aprobación:
 
 | Requisito M1 | Test/cobertura | PR |
 |---|---|---|
-| create GameSession y fijar versions | complemento create + `GE-SET-001/004` | M1-0 |
-| cinco players/countries + F1 | `GE-SET-001/002/003` + complementos seat/join | M1-0 |
-| join/authority/spoof/cross-game | `GE-CORE-002` + complementos authority | M1-0 |
+| create GameSession y fijar versions | `GE-M1-SES-001`, `GE-SET-001/004` | M1-0 |
+| cinco players/countries + F1 | `GE-SET-001/002/003`, `GE-M1-SES-003/005/006/007` | M1-0 |
+| join/authority/spoof/cross-game | `GE-CORE-002`, `GE-M1-SES-002/003/004/008` | M1-0 |
 | setup BASE_2025/decks/hands | `GE-SET-005/006/007/008/010` | M1-0 |
-| idempotencia/CAS/double submit | `GE-CORE-003/004/010` | M1-0, regression M1-3 |
+| query no mutante + idempotencia/CAS/double submit | `GE-CORE-003/004/010`, `GE-M1-SES-009/010`, `GE-M1-RT-006/007` | M1-0, M1-3 |
 | pause overlay | `GE-CORE-006`, `GE-FAC-001` | M1-0 |
-| iniciativa/rerolls determinísticos | `GE-INI-001/002/003` + RNG complement | M1-1 |
+| iniciativa/rerolls determinísticos | `GE-INI-001/002/003`, `GE-M1-IPL-005` | M1-1 |
 | maintenance e income | `GE-INI-004/005/006/009` | M1-1 |
-| plan 0…3, AP, lock/no edit | `GE-PLAN-001/004/005` | M1-1 |
-| order intraplayer | complemento de plan M1 + scheduler golden | M1-1/M1-2 |
-| hidden plan/reveal | `GE-PLAN-003`, `GE-SEC-004` + reveal complement | M1-1 |
-| HAND/deck/Secret VO | `GE-SEC-001/002/003` + projection property | M1-1 |
-| phase/state machine | `GE-CORE-001/008` + fifth-lock complement | M1-1 |
-| scheduler y suspensión | `GE-CORE-009`, `GE-CHO-001/002` + continuation complements | M1-2 |
+| plan 0…3, AP, lock/no edit/no refund | `GE-PLAN-001/004/005`, `GE-M1-IPL-008` | M1-1 |
+| order intraplayer | `GE-M1-IPL-009`, `GE-M1-ADJ-002` | M1-1/M1-2 |
+| hidden plan/reveal | `GE-PLAN-003`, `GE-SEC-004`, `GE-M1-IPL-001/002/004/007` | M1-1 |
+| HAND/deck/Secret VO y facilitator view | `GE-SEC-001/002/003`, `GE-M1-IPL-003/007`, `GE-M1-RT-003/004/010` | M1-1/M1-3 |
+| phase/state machine | `GE-CORE-001/008`, `GE-M1-IPL-006` | M1-1 |
+| scheduler y suspensión | `GE-CORE-009`, `GE-CHO-001/002`, `GE-M1-ADJ-002/004/005` | M1-2 |
 | campaign construction/slot IV | `GE-CAM-001/005` | M1-2 |
-| atomic cost/CV/tier | `GE-CORE-005`, `GE-ERT-007` + golden | M1-2 |
-| dado/roll/ERT | `GE-DIE-001`, `GE-ERT-016` + golden | M1-2 |
-| 2:1/attribution choice | `GE-CUBE-004/006/007` + golden | M1-2 |
-| VP/legitimacy | `GE-LEG-001/002/003` + golden | M1-2 |
-| events/ledgers/trace/no silent mutation | `GE-AUD-001/006` + reconciliation/ordering complements | M1-2 |
-| snapshots/replay/state hashes | hash/rehydration/replay complementarios | M1-2/M1-3 |
-| broadcast post-commit segmentado | complementos realtime 1…8 | M1-3 |
-| reconnect/recovery sin leakage | complementos realtime 8…10 + `GE-SEC-001…004` regressions | M1-3 |
-| LLM/AI fuera del Engine | authority complement + security projections | M1-0/M1-1 |
+| atomic cost/CV/tier y golden | `GE-CORE-005`, `GE-ERT-007`, `GE-M1-ADJ-001/007` | M1-2 |
+| dado/roll/ERT | `GE-DIE-001`, `GE-ERT-016`, `GE-M1-ADJ-001` | M1-2 |
+| PRE_ROLL no-play auditado | `GE-M1-ADJ-006` | M1-2 |
+| 2:1/attribution choice | `GE-CUBE-004/006/007`, `GE-M1-ADJ-001/004/005/009` | M1-2 |
+| VP/legitimacy | `GE-LEG-001/002/003`, `GE-M1-ADJ-001/009` | M1-2 |
+| events/ledgers/trace/no silent mutation | `GE-AUD-001/006`, `GE-M1-ADJ-006/007/009` | M1-2 |
+| snapshots/replay/state hashes | `GE-M1-ADJ-004/008/009`, `GE-M1-RT-008/009` | M1-2/M1-3 |
+| clientes sin autoridad SYSTEM | `GE-M1-ADJ-003` | M1-2 |
+| broadcast post-commit segmentado | `GE-M1-RT-001…008` | M1-3 |
+| reconnect/recovery sin leakage | `GE-M1-RT-008/009/010` + `GE-SEC-001…004` regressions | M1-3 |
+| LLM/AI fuera del Engine | `GE-M1-SES-004`, `GE-M1-IPL-007`, `GE-SEC-002` | M1-0/M1-1 |
 
 ## 14. Validación documental realizada
 
-- Los **48 IDs únicos** citados se encontraron en el oracle v0.1.
-- No hay IDs owner duplicados entre M1-0, M1-1 y M1-2.
+- Los **49 IDs únicos** citados del oracle existen en v0.1.
+- Los **38 IDs** del addendum M1 v0.1 son únicos y canónicos.
+- No hay IDs owner duplicados entre M1-0, M1-1, M1-2 y M1-3.
 - Las siete repeticiones de M1-3 están marcadas `[REGRESSION]`.
-- Los requisitos M1 tienen cobertura mediante ID oracle o una prueba complementaria propuesta.
-- La ausencia de IDs canónicos para session/join/realtime/reconnect está registrada en `IQ-M1-001`; no se inventaron IDs.
+- El baseline contiene **87 casos únicos** y **94 ejecuciones de gate**.
+- Todos los requisitos M1 de la matriz trazan a uno o más IDs canónicos.
+- `IQ-M1-001…003` están resueltas mediante `DEC-065` y el addendum.
 - El inventario y la suite M0 no se modifican.
 
 ## 15. Gate pendiente
 
-Antes de autorizar M1-0, revisión humana debe:
-
-1. aprobar/rechazar los 38 complementarios y asignarles IDs canónicos o aprobar un namespace/version del oracle;
-2. resolver `IQ-M1-001…003` en la medida que afecten el PR;
-3. aprobar las decisiones técnicas necesarias del Implementation Spec;
-4. confirmar que el conteo 86 casos únicos / 93 ejecuciones es el baseline M1.
+El addendum, las cinco PTD y `IQ-M1-001…003` quedan resueltos/aprobados documentalmente mediante `DEC-065`. La revisión final debe confirmar esta enmienda y emitir, si corresponde, una autorización posterior y expresa para iniciar M1-0.
 
 Hasta esa aprobación: **M1 IMPLEMENTATION NOT AUTHORIZED**.

@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-23  
-**Fase actual:** M1 PLANNING GATE COMPLETED / PENDING APPROVAL  
+**Fase actual:** M1 PLANNING GATE AMENDED / PENDING FINAL REVIEW  
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -20,7 +20,10 @@
 | Regresiones PR2-R01…R06 | **14/14 PASS, 0 skips** |
 | Suite reportada tras corrección PR-2 | **55/55 PASS** |
 | M0 — Repository + Rule Kernel + Command Safety/Campaign Slice | **IMPLEMENTED AND APPROVED** |
-| M1 planning gate | **COMPLETED / PENDING APPROVAL mediante DEC-064** |
+| M1 planning gate | **AMENDED / PENDING FINAL REVIEW mediante DEC-064/065** |
+| M1 test baseline | **49 oracle v0.1 + 38 addendum = 87 casos únicos / 94 ejecuciones de gate** |
+| IQ-M1-001…003 | **RESOLVED mediante DEC-065** |
+| PTD-M1-001…005 | **APPROVED mediante DEC-065** |
 | M1 implementation | **NOT AUTHORIZED** |
 | M1-0 | **NOT STARTED / NOT AUTHORIZED** |
 
@@ -57,9 +60,9 @@ La corrección posterior al gate `CHANGES REQUIRED` endurece phase enforcement, 
 
 ## Próximo gate
 
-Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` están completos y pendientes de revisión/aprobación. `DEC-064` sólo autoriza este gate documental.
+Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1. El gate queda pendiente de revisión final.
 
-La implementación de M1 permanece **NOT AUTHORIZED**. No puede comenzar M1-0 ni trabajo adyacente sin autorización expresa posterior. Las decisiones técnicas del plan permanecen `PROPOSED FOR APPROVAL` y las preguntas `IQ-M1-001…003` deben recibir disposition conforme al PR afectado.
+La implementación de M1 permanece **NOT AUTHORIZED**. No puede comenzar M1-0 ni trabajo adyacente sin autorización expresa posterior. `DEC-065` aprueba PTD-M1-001…005 y resuelve IQ-M1-001…003 únicamente para cerrar la planificación documental; no habilita código.
 
 ## Continuidad documental
 

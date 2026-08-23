@@ -709,3 +709,14 @@ Quedan aprobadas como baseline de implementación:
 **JUSTIFICACIÓN:** M0 está formalmente cerrado y M1 requiere un scope, PR gates, trazabilidad y cobertura de seguridad verificables antes de escribir código.  
 **IMPACTO:** El gate puede formular decisiones técnicas como `PROPOSED FOR APPROVAL`, pero no puede convertirlas en aprobadas ni modificar reglas, oracle, arquitectura, código, tests, configuración o dependencias. La implementación de M1 y el inicio de M1-0 permanecen **NOT AUTHORIZED**.  
 **ESTADO:** APPROVED — DOCUMENTATION-ONLY AUTHORIZATION
+
+---
+
+## DEC-065 — Enmienda y cierre técnico del gate documental M1
+**FECHA:** 2026-08-23  
+**TEMA:** Baseline canónico de tests M1, decisiones técnicas del slice y resolución de preguntas de implementación.  
+**DECISIÓN:** Se aprueba `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` como baseline canónico e inmutable con 38 IDs M1, preservando intacto el oracle v0.1. Se añade `GE-PLAN-004` al ownership M1-1, para un total de 49 IDs oracle v0.1, 38 IDs addendum, 87 casos únicos y 94 ejecuciones de gate por siete regresiones. Se aprueban PTD-M1-001…005: (1) realtime port + adapter in-memory/test-only, con WebSocket productivo diferido; (2) RFC 8785/JCS + SHA-256 para state hashes; (3) checkpoint tras campaña normal y antes de Cleanup; (4) action-plan draft server-side en adapter in-memory; (5) cursor `game_version + last_sequence_number`, con sequence autoritativo.  
+**RESOLUCIONES:** `IQ-M1-001` queda resuelta mediante el addendum de 38 IDs. `IQ-M1-002` queda resuelta: M1 cubre recovery/reconnect desde estado serializado y adapter in-memory dentro del proceso de test; M2 conserva durabilidad entre procesos/nodos, DB/outbox y transporte productivo. `IQ-M1-003` queda resuelta: el golden ejecuta y audita PRE_ROLL_REACTION como open/evaluate/close inmediato con cero elegibles, no acepta `PLAY_REACTION`, no inspecciona/revela manos para inferir elegibilidad y no implementa Reaction/Veto.  
+**JUSTIFICACIÓN:** La revisión del commit `937d2be6eb2159f899df34016684f55b897e095a` aprobó el gate M1 con una enmienda documental que debía cerrar IDs, boundaries y decisiones sin escribir código.  
+**IMPACTO:** El planning gate queda en estado `AMENDED / PENDING FINAL REVIEW`. M0 permanece intacto. PostgreSQL, outbox, WebSocket productivo, UI, auth productiva, IA, Reaction/Veto y M2/M3 permanecen no iniciados/no autorizados. `DEC-065` **no autoriza implementación M1 ni M1-0**.  
+**ESTADO:** APPROVED — DOCUMENTATION AMENDMENT ONLY

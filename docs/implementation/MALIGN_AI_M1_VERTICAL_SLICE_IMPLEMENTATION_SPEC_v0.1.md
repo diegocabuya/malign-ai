@@ -1,11 +1,12 @@
 # MALIGN-AI — M1 VERTICAL SLICE IMPLEMENTATION SPECIFICATION v0.1
 
 **Fecha:** 2026-08-23  
-**Estado:** M1 PLANNING GATE COMPLETED / PENDING APPROVAL  
-**Autoridad:** `DEC-064` autoriza únicamente este gate documental.  
+**Estado:** M1 PLANNING GATE AMENDED / PENDING FINAL REVIEW  
+**Autoridad:** `DEC-064` autoriza el gate documental; `DEC-065` aprueba esta enmienda.  
+**Test baseline M1:** `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md`  
 **Implementación M1:** **NOT AUTHORIZED**
 
-> Este documento es un plan test-first. No aprueba una implementación, una infraestructura, un proveedor de autenticación ni reglas nuevas. Las decisiones técnicas marcadas `PROPOSED FOR APPROVAL` deben aprobarse y las `IMPLEMENTATION_QUESTION` que afecten a un PR deben resolverse antes de autorizarlo.
+> Este documento es un plan test-first. `DEC-065` aprueba las decisiones técnicas PTD-M1-001…005 y resuelve IQ-M1-001…003 únicamente para completar el planeamiento. No aprueba una implementación, una infraestructura productiva, un proveedor de autenticación ni reglas nuevas.
 
 ## 1. Objetivo de M1
 
@@ -159,6 +160,8 @@ Cada transición aceptada:
 
 Cada jugador guarda 0…3 slots privados, con `sequence_index` único y contiguo 1…N. Las acciones baseline cuestan exactamente 1 AP. Antes del lock el owner puede reemplazar su plan; al lock se consumen AP y el plan deja de ser editable.
 
+Conforme a **PTD-M1-004**, el draft se guarda server-side en el adapter in-memory; el browser no es su autoridad y reconnect puede recuperarlo antes del lock.
+
 Visibilidad:
 
 | Momento/viewer | Owner | Rival | Facilitador |
@@ -181,7 +184,7 @@ for participant in initiative_order:
     resolve until stable or pending interaction
 ```
 
-El cliente no decide el próximo slot. El scheduler persiste un `PendingResolution` cuando necesita `ChoiceRequest`, input de dado manual, narrativa o intervención autorizada. M1 implementaría sólo los puntos requeridos por el golden de campaña y la elección de atribución 2:1; reacciones jugables y Veto permanecen diferidos conforme `IQ-M1-003`.
+El cliente no decide el próximo slot. El scheduler persiste un `PendingResolution` cuando necesita `ChoiceRequest`, input de dado manual, narrativa o intervención autorizada. M1 cubre los puntos requeridos por el golden de campaña y la elección de atribución 2:1. Conforme a `DEC-065`, el golden ejecuta y audita `PRE_ROLL_REACTION` como `open → evaluate → close` inmediato con cero elegibles; no acepta `PLAY_REACTION`, no inspecciona ni revela manos para inferir elegibilidad y no implementa Reaction/Veto.
 
 Mientras exista una interacción pendiente:
 
@@ -215,7 +218,7 @@ Los números anteriores son valores de fixture derivados de Scenario Data, Card 
 1. validar ownership, estructura, alignment, DT y target;
 2. construir/revelar campaña y target conforme timing;
 3. aceptar narrativa determinística de fixture sin IA ni sanción;
-4. aplicar el tratamiento aprobado para el tramo de reacciones de `IQ-M1-003`;
+4. ejecutar y auditar `PRE_ROLL_REACTION` como open/evaluate/close inmediato con cero elegibles, sin `PLAY_REACTION`, inspección/revelación de manos ni Reaction/Veto;
 5. calcular `base_cv`, base tier y coste desde Rule Kernel;
 6. pagar coste con `ResourceTransaction`; fallo revierte todo el command estable;
 7. calcular `effective_cv` y resolution tier sin duplicar reglas;
@@ -313,11 +316,11 @@ transport adapter
 
 ## 15. Realtime, broadcast y reconnect/recovery
 
-### 15.1 Opción propuesta
+### 15.1 Adapter aprobado para el slice
 
-**PTD-M1-001 — PROPOSED FOR APPROVAL:** M1-3 implementaría un port realtime y un adapter in-memory/test-only. Demostraría semántica multiplayer y reconnect sin afirmar que existe infraestructura productiva. La dirección HTTP + WebSocket aprobada por `DEC-053` se conserva para un gate posterior; M1 no selecciona librería, hosting ni protocolo operativo.
+**PTD-M1-001 — APPROVED mediante DEC-065:** M1-3 usa un port realtime y un adapter in-memory/test-only. Demuestra semántica multiplayer y reconnect sin afirmar que existe infraestructura productiva. La dirección HTTP + WebSocket aprobada por `DEC-053` se conserva para un gate posterior; M1 no selecciona librería, hosting ni protocolo operativo.
 
-Alternativa que requiere autorización explícita: adapter WebSocket en `apps/server`. Amplía superficie, configuración y pruebas de red y contradice la restricción actual de no iniciar WebSocket durante este gate.
+WebSocket productivo, librería, hosting y protocolo operativo permanecen diferidos y no autorizados.
 
 ### 15.2 Semántica mínima
 
@@ -342,7 +345,7 @@ authenticate
 
 Si existe `PendingResolution`, sólo el actor autorizado recibe la interacción completa; los rivales reciben el estado público permitido. Presence es operacional y no altera reglas. No hay auto-pass ni timeout; F1 conserva los commands auditados definidos por contrato.
 
-La coexistencia de reconnect en M1 y M2 se somete a `IQ-M1-002`.
+Conforme a la resolución de `IQ-M1-002` en `DEC-065`, M1 cubre recovery/reconnect desde estado serializado y adapter in-memory dentro del proceso de test. M2 cubre durabilidad entre procesos/nodos, DB/outbox y transporte productivo.
 
 ## 16. Idempotencia, concurrencia y ordering
 
@@ -357,7 +360,7 @@ La coexistencia de reconnect en M1 y M2 se somete a `IQ-M1-002`.
 
 ## 17. Snapshots, hashes y replay M1
 
-M1 mantiene state actual + event log append-only, no Event Sourcing puro. Se proponen checkpoints in-memory serializables en:
+M1 mantiene state actual + event log append-only, no Event Sourcing puro. Los checkpoints in-memory serializables aprobados son:
 
 1. `GAME_STARTED` tras setup;
 2. entrada a `RESOLUTION_STAGE` tras cinco locks;
@@ -365,7 +368,7 @@ M1 mantiene state actual + event log append-only, no Event Sourcing puro. Se pro
 
 Replay de test usa snapshot inicial + eventos ordenados + RNG/choices persistidos + versiones fijadas. Nunca vuelve a tirar dados ni pide IA. Debe reconstruir el mismo state y la misma proyección autorizada en el checkpoint.
 
-**PTD-M1-002 — PROPOSED FOR APPROVAL:** JSON canónico con claves ordenadas y SHA-256 para `state_hash` de fixtures/traces. El algoritmo no está aprobado por el contrato; debe aprobarse antes de implementar.
+**PTD-M1-002 — APPROVED mediante DEC-065:** `state_hash` de fixtures/traces usa JSON Canonicalization Scheme **RFC 8785/JCS** y **SHA-256**. Snapshot, replay y trace deben usar exactamente el mismo contrato de canonicalization.
 
 La recuperación M1 puede rehidratar un nuevo instance del adapter in-memory desde snapshot serializado para demostrar ausencia de closures vivas. Durabilidad entre procesos/nodos y compaction pertenecen a M2.
 
@@ -385,6 +388,8 @@ La recuperación M1 puede rehidratar un nuevo instance del adapter in-memory des
 
 Los nombres son propuestas técnicas. El contenido normativo se deriva de fuentes versionadas y no se genera dinámicamente desde fórmulas inventadas.
 
+Los expected results e IDs canónicos de estos fixtures se fijan en `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md`.
+
 ## 19. Descomposición propuesta en PRs
 
 | PR | Alcance | Dependencia | Gate independiente |
@@ -394,7 +399,7 @@ Los nombres son propuestas técnicas. El contenido normativo se deriva de fuente
 | M1-2 | scheduler + una campaña completa + choices/continuation + trace/ledgers/replay | M1-1 | golden determinístico; ningún transport productivo |
 | M1-3 | realtime port/adapter de test + reconnect/recovery + multiplayer integration | M1-2 | broadcast segmentado y reconnect sin leakage |
 
-Se conserva la descomposición sugerida porque cada PR añade un único eje de riesgo y puede rechazarse sin mezclar infraestructura productiva. M1-3 permanece condicionado por `IQ-M1-001`, `IQ-M1-002` y la aprobación de `PTD-M1-001`.
+Se conserva la descomposición sugerida porque cada PR añade un único eje de riesgo y puede rechazarse sin mezclar infraestructura productiva. `DEC-065` resuelve las IQ y aprueba las PTD del gate, pero M1-0 continúa sin autorización de implementación.
 
 ## 20. Riesgos, dependencias y rollback boundaries
 
@@ -406,35 +411,37 @@ Se conserva la descomposición sugerida porque cada PR añade un único eje de r
 | Divergencia entre cache/ledger/event | reconciliation y no-silent-mutation tests | command transaction atómica |
 | RNG consumido en orden distinto | secuencias exhaustivas y roll auditado | provider/test fixture versionado |
 | Card/Scenario registry incompleto | fixtures fijados y fingerprints | bloquear sólo fixture afectado; no inventar definitions |
-| Reconnect M1/M2 contradictorio | `IQ-M1-002` | no autorizar M1-3 hasta resolución |
-| Reactions en campaña normal | `IQ-M1-003` | no autorizar tramo afectado de M1-2 |
+| Confundir reconnect in-memory con durabilidad productiva | boundary aprobado por `DEC-065` | M1 sólo rehidrata dentro del proceso de test; M2 conserva DB/outbox/transporte productivo |
+| Adelantar Reaction/Veto desde la campaña normal | resolución de `IQ-M1-003` | sólo PRE_ROLL open/evaluate/close con cero elegibles y sin commands de reacción |
 
 Cada PR debe ser revertible sin migraciones, datos productivos ni compatibilidad de red pública, porque M1 no introduce esos elementos.
 
-## 21. Decisiones técnicas propuestas para aprobación
+## 21. Decisiones técnicas aprobadas para el gate
 
-Ninguna de las siguientes está aprobada por este documento:
+`DEC-065` aprueba documentalmente:
 
-1. **PTD-M1-001:** realtime port + adapter in-memory/test-only en M1-3; WebSocket productivo permanece diferido.
-2. **PTD-M1-002:** JSON canónico con claves ordenadas + SHA-256 para state hashes.
-3. **PTD-M1-003:** el checkpoint M1 termina tras una campaña normal resuelta en `RESOLUTION_STAGE`; Cleanup/End Turn no forman parte del slice.
-4. **PTD-M1-004:** persistir action-plan draft server-side/in-memory antes del lock para soportar reconnect sin usar estado local del browser como autoridad.
-5. **PTD-M1-005:** cursor realtime compuesto por `game_version + last_sequence_number`; `sequence_number` conserva autoridad de ordering.
+1. **PTD-M1-001 — APPROVED:** realtime port + adapter in-memory/test-only en M1-3; WebSocket productivo permanece diferido.
+2. **PTD-M1-002 — APPROVED:** RFC 8785/JCS + SHA-256 para state hashes.
+3. **PTD-M1-003 — APPROVED:** el checkpoint M1 termina tras una campaña normal resuelta en `RESOLUTION_STAGE`, antes de Cleanup; Cleanup/End Turn no forman parte del slice.
+4. **PTD-M1-004 — APPROVED:** action-plan draft server-side en adapter in-memory antes del lock para soportar reconnect sin usar estado local del browser como autoridad.
+5. **PTD-M1-005 — APPROVED:** cursor realtime compuesto por `game_version + last_sequence_number`; `sequence_number` conserva autoridad de ordering.
 
-## 22. IMPLEMENTATION_QUESTIONS
+Estas aprobaciones fijan el plan; no autorizan escribir código.
 
-- `IQ-M1-001`: el oracle no asigna IDs a create/join/seat/realtime/reconnect, aunque el contrato impone esas pruebas.
-- `IQ-M1-002`: reconnect aparece en M1 y también en M2; debe aprobarse el límite entre recovery in-memory y durabilidad productiva.
-- `IQ-M1-003`: la campaña end-to-end exige un tramo PRE_ROLL_REACTION, mientras Reaction/Veto están planificados para M2; debe aprobarse el comportamiento mínimo no jugable de M1.
+## 22. IMPLEMENTATION_QUESTIONS resueltas
 
-El detalle con fuentes, impacto y opciones se registra en `docs/implementation/IMPLEMENTATION_QUESTIONS.md`.
+- `IQ-M1-001 — RESOLVED`: el addendum M1 v0.1 asigna 38 IDs canónicos sin modificar el oracle v0.1.
+- `IQ-M1-002 — RESOLVED`: M1 cubre reconnect/recovery desde estado serializado y adapter in-memory dentro del proceso de test; M2 conserva durabilidad entre procesos/nodos, DB/outbox y transporte productivo.
+- `IQ-M1-003 — RESOLVED`: el golden audita PRE_ROLL_REACTION como open/evaluate/close inmediato con cero elegibles, sin `PLAY_REACTION`, inspección/revelación de manos ni Reaction/Veto.
+
+Las resoluciones completas están en `docs/implementation/IMPLEMENTATION_QUESTIONS.md` y `DEC-065`.
 
 ## 23. Definition of Done M1
 
 M1 sólo podrá declararse implementado cuando una autorización futura defina el alcance y, después:
 
 - los cuatro PR gates aprobados individualmente;
-- todos los IDs canónicos asignados y pruebas complementarias aprobadas pasan;
+- los 49 IDs oracle v0.1 y 38 IDs addendum M1 asignados pasan;
 - suite M0 55/55 permanece verde en cada PR;
 - 0 `skip`, 0 `todo`, 0 tests falsamente verdes;
 - typecheck, lint, test y build verdes;
@@ -467,11 +474,6 @@ OpenAI/RAG permanece posterior al MVP determinístico y siempre fuera del Game E
 
 ## 25. Gate de salida documental
 
-Este spec no autoriza M1-0. El próximo paso permitido es revisión/aprobación documental de:
+`DEC-065` aprueba el addendum, PTD-M1-001…005 y las resoluciones de IQ-M1-001…003. El próximo paso permitido es únicamente la revisión final de esta enmienda documental.
 
-1. alcance y PR breakdown;
-2. `MALIGN_AI_M1_TEST_GATE_v0.1.md`;
-3. PTD-M1-001…005;
-4. resolución o disposition explícita de IQ-M1-001…003.
-
-Hasta entonces: **M1 IMPLEMENTATION NOT AUTHORIZED**.
+Este spec no autoriza M1-0. Iniciar cualquier PR de implementación requiere una autorización posterior y expresa: **M1 IMPLEMENTATION NOT AUTHORIZED**.
