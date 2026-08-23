@@ -699,3 +699,13 @@ Quedan aprobadas como baseline de implementación:
 **JUSTIFICACIÓN:** La corrección fue revisada y aprobada técnicamente; README y PROJECT_STATE deben reflejar el estado real del repositorio.  
 **IMPACTO:** PR-0, PR-1, PR-2 y M0 quedan cerrados y aprobados. DEC-063 **no autoriza M1**.  
 **ESTADO:** APPROVED
+
+---
+
+## DEC-064 — Gate documental de planificación M1
+**FECHA:** 2026-08-23  
+**TEMA:** Conversión del objetivo M1 de alto nivel en un plan implementable, test-first y revisable.  
+**DECISIÓN:** Se autoriza exclusivamente la creación y revisión documental de `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md`, el registro de preguntas de implementación y la actualización coherente de `PROJECT_STATE`.  
+**JUSTIFICACIÓN:** M0 está formalmente cerrado y M1 requiere un scope, PR gates, trazabilidad y cobertura de seguridad verificables antes de escribir código.  
+**IMPACTO:** El gate puede formular decisiones técnicas como `PROPOSED FOR APPROVAL`, pero no puede convertirlas en aprobadas ni modificar reglas, oracle, arquitectura, código, tests, configuración o dependencias. La implementación de M1 y el inicio de M1-0 permanecen **NOT AUTHORIZED**.  
+**ESTADO:** APPROVED — DOCUMENTATION-ONLY AUTHORIZATION

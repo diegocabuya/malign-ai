@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-23  
-**Fase actual:** M0 IMPLEMENTED AND APPROVED — AWAITING NEXT AUTHORIZATION  
+**Fase actual:** M1 PLANNING GATE COMPLETED / PENDING APPROVAL  
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -20,7 +20,9 @@
 | Regresiones PR2-R01…R06 | **14/14 PASS, 0 skips** |
 | Suite reportada tras corrección PR-2 | **55/55 PASS** |
 | M0 — Repository + Rule Kernel + Command Safety/Campaign Slice | **IMPLEMENTED AND APPROVED** |
-| M1 | **NOT AUTHORIZED** |
+| M1 planning gate | **COMPLETED / PENDING APPROVAL mediante DEC-064** |
+| M1 implementation | **NOT AUTHORIZED** |
+| M1-0 | **NOT STARTED / NOT AUTHORIZED** |
 
 PR-1 fue aprobado técnicamente contra el commit `69ded64d912fc0231b82046fecad024baf8ec67e`. No requiere correcciones de código.
 
@@ -55,8 +57,10 @@ La corrección posterior al gate `CHANGES REQUIRED` endurece phase enforcement, 
 
 ## Próximo gate
 
-M1 permanece **NOT AUTHORIZED**. No puede comenzar trabajo de M1 ni trabajo adyacente sin autorización expresa.
+Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` están completos y pendientes de revisión/aprobación. `DEC-064` sólo autoriza este gate documental.
+
+La implementación de M1 permanece **NOT AUTHORIZED**. No puede comenzar M1-0 ni trabajo adyacente sin autorización expresa posterior. Las decisiones técnicas del plan permanecen `PROPOSED FOR APPROVAL` y las preguntas `IQ-M1-001…003` deben recibir disposition conforme al PR afectado.
 
 ## Continuidad documental
 
-Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. Este cierre documental no cambia reglas, código, tests, oracle, configuración, dependencias ni arquitectura.
+Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. Este gate documental no cambia reglas, código, tests, oracle, configuración, dependencias ni arquitectura.
