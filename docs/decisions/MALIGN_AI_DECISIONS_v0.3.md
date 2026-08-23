@@ -669,3 +669,13 @@ Quedan aprobadas como baseline de implementación:
 **JUSTIFICACIÓN:** Conserva TDD incremental sin adelantar comportamiento fuera del PR autorizado.  
 **IMPACTO:** PR-1 implementa exclusivamente Rule Kernel y sus 15 tests P0.  
 **ESTADO:** APPROVED
+
+---
+
+## DEC-061 — Aprobación técnica y cierre documental de PR-1
+**FECHA:** 2026-08-23  
+**TEMA:** Cierre formal de PR-1 — Rule Kernel.  
+**DECISIÓN:** PR-1 queda aprobado técnicamente en el commit `69ded64d912fc0231b82046fecad024baf8ec67e`. No requiere correcciones de código. El cierre formal exige únicamente corregir `PROJECT_STATE` para reflejar el estado vigente.  
+**JUSTIFICACIÓN:** La revisión técnica confirmó la implementación y aprobación de PR-1; el estado canónico v0.3 había quedado obsoleto.  
+**IMPACTO:** Se actualiza `PROJECT_STATE` a contenido v0.4 sin modificar código, tests, oracle, configuración, dependencias o arquitectura. DEC-061 **no autoriza PR-2**.  
+**ESTADO:** APPROVED
