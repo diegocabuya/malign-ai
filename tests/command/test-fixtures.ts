@@ -35,6 +35,17 @@ export const makeState = (): GameState => ({
   events: [],
 });
 
+export const makeCampaignState = (usePair = false): GameState => {
+  const state = makeState();
+  state.phase = 'RESOLUTION_STAGE';
+  const intentId = usePair ? 'pairLeft' : 'intent1';
+  const methodId = usePair ? 'pairRight' : 'method1';
+  state.cards[intentId]!.zone = 'CAMPAIGN';
+  state.cards[methodId]!.zone = 'CAMPAIGN';
+  state.campaigns['campaign-1'] = { id: 'campaign-1', ownerParticipantId: 'P1', row: 'I', alignment: 'MALIGN', targetDtId: 'ASIAN', assignments: [{ slot: 'INTENT', cardInstanceId: intentId }, { slot: 'METHOD', cardInstanceId: methodId }], activatedCountThisTurn: 0 };
+  return state;
+};
+
 let commandCounter = 0;
 export const envelope = <T extends GameCommandPayload>(commandType: GameCommandType, payload: T, expectedGameVersion = 0, participantId = 'P1'): CommandEnvelope<GameCommandType, GameCommandPayload> => {
   commandCounter += 1;
