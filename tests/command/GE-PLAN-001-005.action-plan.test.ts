@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { envelope, harness } from './test-fixtures.js';
+import { envelope, harness, makeState } from './test-fixtures.js';
 
 describe('PR-2 action plan locking', () => {
   it('GE-PLAN-001 rejects locking more than three AP actions atomically', () => {
-    const { dispatcher, store } = harness();
     const slots = [1, 2, 3, 4].map((sequenceIndex) => ({ sequenceIndex, actionType: 'ACTIVATE_CAMPAIGN' as const, apCost: 1 }));
-    dispatcher.dispatch(envelope('SET_ACTION_PLAN', { actionSlots: slots }));
-    const result = dispatcher.dispatch(envelope('LOCK_ACTION_PLAN', {}, 1));
+    const state = makeState(); state.participants.P1!.plan = slots; const { dispatcher, store } = harness(state);
+    const result = dispatcher.dispatch(envelope('LOCK_ACTION_PLAN', {}));
     expect(result.error?.code).toBe('INSUFFICIENT_AP'); expect(store.snapshot().participants.P1).toMatchObject({ actionPointsAvailable: 3, planStatus: 'EDITING' });
   });
 
