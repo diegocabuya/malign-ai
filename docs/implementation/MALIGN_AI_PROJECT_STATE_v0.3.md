@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-23  
-**Fase actual:** IMPLEMENTACIÓN CONTROLADA — PR-2 CORRECTION IMPLEMENTED / PENDING REVIEW  
+**Fase actual:** M0 IMPLEMENTED AND APPROVED — AWAITING NEXT AUTHORIZATION  
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -14,11 +14,13 @@
 | PR-1 — Rule Kernel | **IMPLEMENTED AND APPROVED** |
 | M0A Rule Kernel | **15/15 PASS, 0 skips** |
 | Suite reportada al cierre de PR-1 | **21/21 PASS** |
-| PR-2 — Command Safety + Campaign Slice | **CORRECTION IMPLEMENTED / PENDING REVIEW** |
+| PR-2 — Command Safety + Campaign Slice | **IMPLEMENTED AND APPROVED** |
 | M0B/M0C | **20/20 PASS, 0 skips** |
 | M0 acumulado | **35/35 IDs seleccionados PASS, 0 skips** |
 | Regresiones PR2-R01…R06 | **14/14 PASS, 0 skips** |
 | Suite reportada tras corrección PR-2 | **55/55 PASS** |
+| M0 — Repository + Rule Kernel + Command Safety/Campaign Slice | **IMPLEMENTED AND APPROVED** |
+| M1 | **NOT AUTHORIZED** |
 
 PR-1 fue aprobado técnicamente contra el commit `69ded64d912fc0231b82046fecad024baf8ec67e`. No requiere correcciones de código.
 
@@ -49,11 +51,11 @@ El Product Owner mantiene aprobadas `ARC-01` a `ARC-12`. Las decisiones canónic
 
 PR-2 implementa exclusivamente command safety in-memory, action-plan lock y el vertical slice mínimo de construcción, modificación y elegibilidad de campañas aprobado mediante `DEC-062`. No se incorporaron PostgreSQL, transporte productivo, UI, AI ni reglas fuera de los 20 casos M0B/M0C.
 
-La corrección posterior al gate `CHANGES REQUIRED` endurece phase enforcement, autoridad de activación extra, invariantes del action-plan payload, compatibilidad de slots, identidades de campañas/cartas y el boundary de juego/actor. PR-2 permanece pendiente de nueva revisión humana.
+La corrección posterior al gate `CHANGES REQUIRED` endurece phase enforcement, autoridad de activación extra, invariantes del action-plan payload, compatibilidad de slots, identidades de campañas/cartas y el boundary de juego/actor. Los hallazgos PR2-R01…R06 quedaron cerrados en el commit `0f4195e4f8f72d73eb277983e01fdb2472f5602d`; PR-2 y M0 están aprobados.
 
 ## Próximo gate
 
-M1 permanece **NOT AUTHORIZED**. PR-2 requiere revisión humana antes de cualquier autorización posterior. No puede comenzar trabajo de M1 ni trabajo adyacente sin autorización expresa.
+M1 permanece **NOT AUTHORIZED**. No puede comenzar trabajo de M1 ni trabajo adyacente sin autorización expresa.
 
 ## Continuidad documental
 
