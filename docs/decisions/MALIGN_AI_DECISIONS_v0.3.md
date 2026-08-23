@@ -679,3 +679,13 @@ Quedan aprobadas como baseline de implementación:
 **JUSTIFICACIÓN:** La revisión técnica confirmó la implementación y aprobación de PR-1; el estado canónico v0.3 había quedado obsoleto.  
 **IMPACTO:** Se actualiza `PROJECT_STATE` a contenido v0.4 sin modificar código, tests, oracle, configuración, dependencias o arquitectura. DEC-061 **no autoriza PR-2**.  
 **ESTADO:** APPROVED
+
+---
+
+## DEC-062 — Autorización de PR-2 Command Safety + Campaign Slice
+**FECHA:** 2026-08-23  
+**TEMA:** Alcance de implementación posterior al cierre de PR-1.  
+**DECISIÓN:** Se autoriza exclusivamente PR-2 para implementar los 20 tests P0 M0B/M0C enumerados en el prompt operativo aprobado, mediante estado y repositorios in-memory, reutilizando el Rule Kernel de PR-1.  
+**JUSTIFICACIÓN:** Completar M0 con command safety y el vertical slice mínimo de campaña sin adelantar M1 ni infraestructura productiva.  
+**IMPACTO:** PostgreSQL, realtime, UI, AI, reglas especiales y M1 permanecen fuera de alcance y no autorizados.  
+**ESTADO:** APPROVED
