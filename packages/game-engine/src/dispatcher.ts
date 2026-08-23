@@ -7,7 +7,7 @@ interface StoredIdempotency { readonly fingerprint: string; readonly result: Eng
 
 const categoryFor = (code: EngineErrorCode): EngineErrorCategory => {
   if (code === 'STALE_STATE_VERSION' || code === 'IDEMPOTENCY_KEY_REUSED') return 'CONCURRENCY';
-  if (code === 'NOT_AUTHORIZED') return 'AUTHORIZATION';
+  if (code === 'NOT_AUTHORIZED' || code === 'INVALID_ACTOR_CONTEXT') return 'AUTHORIZATION';
   if (code === 'INSUFFICIENT_AP' || code === 'INSUFFICIENT_RESOURCES') return 'RESOURCE';
   if (code.startsWith('CARD_')) return 'CARD';
   if (code.startsWith('INVALID_DT') || code.startsWith('INVALID_TARGET')) return 'TARGETING';
@@ -36,8 +36,10 @@ export class CommandDispatcher {
     const commandFingerprint = fingerprint(envelope);
     const previous = this.store.idempotencyGet(idempotencyIdentity);
     if (previous !== undefined) return previous.fingerprint === commandFingerprint ? previous.result : this.reject(envelope, before.version, 'IDEMPOTENCY_KEY_REUSED');
+    if (envelope.gameId !== before.id) return this.reject(envelope, before.version, 'GAME_ID_MISMATCH');
+    if (envelope.actorContext.actorType !== 'PLAYER' || envelope.actorContext.participantId === undefined || before.participants[envelope.actorContext.participantId] === undefined) return this.reject(envelope, before.version, 'INVALID_ACTOR_CONTEXT');
     if (envelope.expectedGameVersion !== before.version) return this.reject(envelope, before.version, 'STALE_STATE_VERSION');
-    if (before.overlay === 'PAUSED' && envelope.actorContext.actorType !== 'FACILITATOR') return this.reject(envelope, before.version, 'GAME_PAUSED');
+    if (before.overlay === 'PAUSED') return this.reject(envelope, before.version, 'GAME_PAUSED');
 
     const working = structuredClone(before);
     const outcome = this.reduce(working, envelope);
@@ -56,19 +58,22 @@ export class CommandDispatcher {
 
   reduce(state: GameState, envelope: Envelope): { code: string; payload?: unknown; events: GameEvent[] } | { error: EngineErrorCode } {
     if (envelope.commandType === 'END_GAME_SCORING') return { error: 'ILLEGAL_STATE_TRANSITION' };
-    if (state.phase !== 'ACTION_STAGE_PLAN' && envelope.commandType !== 'ACTIVATE_CAMPAIGN') return { error: 'WRONG_PHASE' };
+    if (envelope.commandType === 'ACTIVATE_CAMPAIGN' ? state.phase !== 'RESOLUTION_STAGE' : state.phase !== 'ACTION_STAGE_PLAN') return { error: 'WRONG_PHASE' };
     const participant = this.#actorParticipant(state, envelope);
     if (participant === undefined) return { error: 'NOT_AUTHORIZED' };
 
     if (envelope.commandType === 'SET_ACTION_PLAN') {
       if (participant.planStatus === 'LOCKED') return { error: 'ACTION_PLAN_LOCKED' };
-      participant.plan = [...(envelope.payload as SetActionPlanPayload).actionSlots];
+      const actionSlots = (envelope.payload as SetActionPlanPayload).actionSlots;
+      if (!this.validActionPlan(actionSlots)) return { error: 'INVALID_ACTION_PLAN' };
+      participant.plan = [...actionSlots];
       return { code: 'ACTION_PLAN_SET', events: [] };
     }
     if (envelope.commandType === 'LOCK_ACTION_PLAN') {
       if (participant.planStatus === 'LOCKED') return { error: 'ACTION_PLAN_LOCKED' };
       const apCost = participant.plan.reduce((sum, slot) => sum + slot.apCost, 0);
       if (participant.plan.length > 3 || apCost > participant.actionPointsAvailable) return { error: 'INSUFFICIENT_AP' };
+      if (!this.validActionPlan(participant.plan)) return { error: 'INVALID_ACTION_PLAN' };
       participant.actionPointsAvailable -= apCost;
       participant.planStatus = 'LOCKED';
       const events: GameEvent[] = [{ id: `${envelope.commandId}:plan-locked`, type: 'ACTION_PLAN_LOCKED' }, { id: `${envelope.commandId}:ap`, type: 'AP_COMMITTED' }];
@@ -85,10 +90,18 @@ export class CommandDispatcher {
     return card?.controllerParticipantId === participantId && card.zone === 'HAND' ? card : undefined;
   }
 
+  private validActionPlan(actionSlots: readonly SetActionPlanPayload['actionSlots'][number][]): boolean {
+    if (actionSlots.length > 3) return false;
+    const sequenceIndexes = actionSlots.map(({ sequenceIndex }) => sequenceIndex);
+    return actionSlots.every((slot, index) => Number.isInteger(slot.apCost) && Number.isFinite(slot.apCost) && slot.apCost === 1 && Number.isInteger(slot.sequenceIndex) && slot.sequenceIndex === index + 1) && new Set(sequenceIndexes).size === sequenceIndexes.length;
+  }
+
   private construct(state: GameState, participantId: string, envelope: Envelope, payload: ConstructCampaignPayload) {
+    if (state.campaigns[payload.campaignId] !== undefined) return { error: 'CAMPAIGN_ID_CONFLICT' as const };
     if (Object.values(state.campaigns).some((campaign) => campaign.ownerParticipantId === participantId && campaign.row === 'I')) return { error: 'CAMPAIGN_ROW_OCCUPIED' as const };
     if (payload.methodCardInstanceId === undefined) return { error: 'CAMPAIGN_INVALID_STRUCTURE' as const };
     const ids = [payload.intentCardInstanceId, payload.methodCardInstanceId, ...(payload.amplifierCardInstanceId === undefined ? [] : [payload.amplifierCardInstanceId])];
+    if (new Set(ids).size !== ids.length) return { error: 'DUPLICATE_CARD_INSTANCE' as const };
     const cards = ids.map((id) => this.controlledCard(state, participantId, id));
     if (cards.some((card) => card === undefined)) return { error: 'CARD_NOT_CONTROLLED' as const };
     const [intent, method, amplifier] = cards;
@@ -97,6 +110,7 @@ export class CommandDispatcher {
     const methodDefinition = state.cardDefinitions[method.definitionId];
     const amplifierDefinition = amplifier === undefined ? undefined : state.cardDefinitions[amplifier.definitionId];
     if (intentDefinition === undefined || methodDefinition === undefined || intentDefinition.targetDtId !== payload.targetDtId) return { error: 'INVALID_DT' as const };
+    if (intentDefinition.influenceValueBySlot.INTENT === undefined || methodDefinition.influenceValueBySlot.METHOD === undefined || (amplifierDefinition !== undefined && amplifierDefinition.influenceValueBySlot.AMPLIFIER === undefined)) return { error: 'CARD_NOT_ELIGIBLE' as const };
     const alignment = intentDefinition.alignment;
     if (alignment === 'DUAL') return { error: 'CAMPAIGN_ALIGNMENT_MISMATCH' as const };
     const compatible = [methodDefinition, amplifierDefinition].filter((definition) => definition !== undefined).every((definition) => definition.alignment === 'DUAL' || definition.alignment === alignment);
@@ -118,6 +132,7 @@ export class CommandDispatcher {
     if (replacement === undefined) return { error: 'CARD_NOT_CONTROLLED' as const };
     const definition = state.cardDefinitions[replacement.definitionId];
     if (definition === undefined || (definition.alignment !== 'DUAL' && definition.alignment !== campaign.alignment)) return { error: 'CAMPAIGN_ALIGNMENT_MISMATCH' as const };
+    if (definition.influenceValueBySlot[payload.slot] === undefined) return { error: 'CARD_NOT_ELIGIBLE' as const };
     const replaced = campaign.assignments.find((assignment) => assignment.slot === payload.slot);
     if (replaced !== undefined) { const old = state.cards[replaced.cardInstanceId]; if (old !== undefined) old.zone = 'DISCARD'; campaign.assignments = campaign.assignments.filter((assignment) => assignment !== replaced); }
     replacement.zone = 'CAMPAIGN'; campaign.assignments.push({ slot: payload.slot, cardInstanceId: replacement.id });
@@ -126,10 +141,11 @@ export class CommandDispatcher {
   }
 
   private activate(state: GameState, participantId: string, envelope: Envelope, payload: ActivateCampaignPayload) {
+    if ('extraActivation' in payload) return { error: 'EXTRA_ACTIVATION_NOT_AUTHORIZED' as const };
     const campaign = state.campaigns[payload.campaignId];
     if (campaign === undefined) return { error: 'CAMPAIGN_NOT_FOUND' as const };
     if (campaign.ownerParticipantId !== participantId) return { error: 'CAMPAIGN_NOT_OWNED' as const };
-    if (campaign.activatedCountThisTurn > 0 && payload.extraActivation !== true) return { error: 'CAMPAIGN_ALREADY_ACTIVATED' as const };
+    if (campaign.activatedCountThisTurn > 0) return { error: 'CAMPAIGN_ALREADY_ACTIVATED' as const };
     const pd = state.populationDemographics[payload.requestedTargetPdId];
     if (pd === undefined) return { error: 'INVALID_TARGET_PD' as const };
     if (!pd.demographicTokenIds.includes(campaign.targetDtId)) return { error: 'INVALID_DT' as const };
