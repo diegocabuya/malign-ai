@@ -689,3 +689,13 @@ Quedan aprobadas como baseline de implementación:
 **JUSTIFICACIÓN:** Completar M0 con command safety y el vertical slice mínimo de campaña sin adelantar M1 ni infraestructura productiva.  
 **IMPACTO:** PostgreSQL, realtime, UI, AI, reglas especiales y M1 permanecen fuera de alcance y no autorizados.  
 **ESTADO:** APPROVED
+
+---
+
+## DEC-063 — Aprobación de PR-2 y cierre de M0
+**FECHA:** 2026-08-23  
+**TEMA:** Cierre técnico y documental de PR-2/M0.  
+**DECISIÓN:** El commit `0f4195e4f8f72d73eb277983e01fdb2472f5602d` cierra los hallazgos PR2-R01…R06. PR-2 queda aprobado. M0 queda cerrado con 35/35 IDs seleccionados PASS, 0 skips, y una suite reportada de 55/55 PASS.  
+**JUSTIFICACIÓN:** La corrección fue revisada y aprobada técnicamente; README y PROJECT_STATE deben reflejar el estado real del repositorio.  
+**IMPACTO:** PR-0, PR-1, PR-2 y M0 quedan cerrados y aprobados. DEC-063 **no autoriza M1**.  
+**ESTADO:** APPROVED
