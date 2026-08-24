@@ -832,3 +832,37 @@ Quedan aprobadas como baseline de implementación:
 **JUSTIFICACIÓN:** M1-0 y M1-1 están formalmente cerrados y proporcionan el aggregate, setup, iniciativa, maintenance, planificación oculta, AP, proyecciones y boundary de reveal necesarios para ejecutar el siguiente slice determinístico sin adelantar transporte o infraestructura productiva.  
 **IMPACTO:** M1-2 queda sujeto a implementación, gate 26/26, regresión acumulada y revisión técnica posterior. Esta autorización no inicia M1-3 ni aprueba M1-2 anticipadamente.  
 **ESTADO:** APPROVED — M1-2 ONLY
+
+---
+
+## DEC-071 — Aprobación técnica y cierre formal de M1-2
+
+**FECHA:** 2026-08-24
+**TEMA:** Cierre formal de M1-2 — Scheduler, Campaign Adjudication, ChoiceRequest, Ledgers, Trace and Replay.
+**DECISIÓN:**
+
+- DEC-070 quedó cumplida.
+- M1-2 queda **IMPLEMENTED AND APPROVED** en el commit funcional `c7714d3205d0e19916912cf51a745c3816e35f3a`.
+- M12-R01…R07 quedan **CLOSED** mediante ese commit.
+- No se requieren nuevas correcciones de código para M1-2.
+- Owner gate M1-2: **26/26 PASS**:
+  - oracle v0.1: **17/17 PASS**;
+  - addendum M1 v0.1: **9/9 PASS**.
+- Complementarias existentes de M1-2: **12/12 PASS**.
+- Regresiones M12-R01…R07: **24/24 PASS**.
+- Total M1-2: **62/62 PASS**.
+- M0 preservado: **55/55 PASS**.
+- M1-0 preservado: **39/39 PASS**.
+- M1-1 preservado: **30/30 PASS**.
+- Suite acumulada final: **186/186 PASS, 0 skips, 0 todo y 0 waivers**.
+- Oracle v0.1 preservado con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92`.
+- Addendum M1 v0.1 preservado con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`.
+- No queda ninguna `IMPLEMENTATION_QUESTION` pendiente para M1-2.
+- DEC-071 cierra exclusivamente M1-2.
+- DEC-071 **NO autoriza M1-3**.
+- Reaction/Veto, PostgreSQL/outbox, realtime productivo/WebSocket, UI final, autenticación productiva e IA/OpenAI/RAG permanecen **NOT STARTED / NOT AUTHORIZED**.
+- Estado de la decisión: `APPROVED — M1-2 CLOSED`.
+
+**JUSTIFICACIÓN:** La revisión técnica aprobó la implementación corregida de M1-2 y aceptó el cierre de M12-R01…R07 sin requerir nuevas correcciones de código.
+**IMPACTO:** M1-2 queda formalmente cerrado. M1-3 y todos los componentes diferidos permanecen **NOT STARTED / NOT AUTHORIZED**.
+**ESTADO:** APPROVED — M1-2 CLOSED
