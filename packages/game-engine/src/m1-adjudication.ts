@@ -8,11 +8,14 @@ import {
   M1_0_BASELINE_VERSIONS,
   type AdjudicationTrace,
   type CampaignContinuationState,
+  type CampaignNarrativeProvenance,
   type CountryId,
   type InfluenceStackState,
   type M1ActionPlanSlot,
   type M1CampaignAssignment,
   type M1CampaignState,
+  type NarrativeContinuationState,
+  type NarrativePendingResolution,
   type PendingResolution,
   type SetupGameEvent,
   type SetupGameEventType,
@@ -37,6 +40,11 @@ export interface SubmitChoicePayload {
   readonly selectedOptionIds: readonly string[];
 }
 
+export interface SubmitCampaignNarrativePayload {
+  readonly campaignId: string;
+  readonly narrative: string;
+}
+
 export interface SchedulerRunOptions {
   readonly gameId: string;
   readonly expectedGameVersion: number;
@@ -48,7 +56,14 @@ export interface SchedulerRunOptions {
 export interface M1StateSnapshot {
   readonly fixtureSchemaVersion: '0.1';
   readonly canonicalStateJson: string;
-  readonly authoritativeStateHash: string;
+  readonly gameplayStateHash: string;
+  readonly snapshotIntegrityDigest: string;
+}
+
+export interface M1ReplayBundle {
+  readonly fixtureSchemaVersion: '0.1';
+  readonly canonicalArtifactsJson: string;
+  readonly integrityDigest: string;
 }
 
 type InteractionEnvelope = CommandEnvelope<string, unknown>;
@@ -68,22 +83,39 @@ const isSubmitChoicePayload = (value: unknown): value is SubmitChoicePayload =>
   Array.isArray(value.selectedOptionIds) &&
   value.selectedOptionIds.every((optionId) => typeof optionId === 'string');
 
+const isSubmitCampaignNarrativePayload = (value: unknown): value is SubmitCampaignNarrativePayload =>
+  exactKeys(value, ['campaignId', 'narrative']) &&
+  typeof value.campaignId === 'string' &&
+  value.campaignId.length > 0 &&
+  typeof value.narrative === 'string' &&
+  value.narrative.trim().length > 0;
+
 const countryForParticipant = (state: SetupGameState, participantId: string): CountryId | undefined =>
   state.seats[participantId]?.countryId;
 
 const oppositeType = (alignment: CampaignAlignment): CampaignAlignment =>
   alignment === 'MALIGN' ? 'RESILIENCY' : 'MALIGN';
 
-const payloadForHash = (state: SetupGameState, version = state.version) => ({
+const gameplayPayloadForHash = (state: SetupGameState, version = state.version) => ({
   id: state.id,
   version,
   scenarioId: state.scenarioId,
   phase: state.phase,
   overlay: state.overlay,
   versions: state.versions,
+  facilitatorParticipantId: state.facilitatorParticipantId ?? null,
+  turnLimit: state.turnLimit,
+  diceMode: state.diceMode,
+  participants: state.participants,
+  seats: state.seats,
   countries: state.countries,
+  populationDemographics: state.populationDemographics,
+  cardDefinitions: state.cardDefinitions,
   cards: state.cards,
   actionPlanning: state.actionPlanning,
+  initiative: state.initiative,
+  strategy: state.strategy,
+  secretVictoryObjectives: state.secretVictoryObjectives,
   currentRevealedAction: state.currentRevealedAction ?? null,
   campaigns: state.adjudication.campaigns,
   influenceStacks: [...state.adjudication.influenceStacks].sort((left, right) =>
@@ -93,25 +125,59 @@ const payloadForHash = (state: SetupGameState, version = state.version) => ({
   ),
   legitimacyByPd: state.adjudication.legitimacyByPd,
   vpByParticipant: state.adjudication.vpByParticipant,
+  narrativesByCampaign: state.adjudication.narrativesByCampaign,
+  resolvedChoiceIds: state.adjudication.resolvedChoiceIds,
   scheduler: state.adjudication.scheduler,
   pendingResolution: state.adjudication.pendingResolution ?? null,
 });
 
+/** Gameplay hash: deterministic state used by adjudication, excluding append-only audit artifacts. */
+export const hashM1GameplayState = (state: SetupGameState, version = state.version): string =>
+  sha256CanonicalJson(gameplayPayloadForHash(state, version));
+
+/** @deprecated Use hashM1GameplayState; retained for compatibility with approved M1-2 callers. */
 export const hashAuthoritativeM1State = (state: SetupGameState, version = state.version): string =>
-  sha256CanonicalJson(payloadForHash(state, version));
+  hashM1GameplayState(state, version);
 
 export const createM1StateSnapshot = (state: SetupGameState): M1StateSnapshot => ({
   fixtureSchemaVersion: '0.1',
   canonicalStateJson: canonicalizeJson(state),
-  authoritativeStateHash: hashAuthoritativeM1State(state),
+  gameplayStateHash: hashM1GameplayState(state),
+  snapshotIntegrityDigest: sha256CanonicalJson(state),
 });
 
 export const rehydrateM1StateSnapshot = (snapshot: M1StateSnapshot): SetupGameState => {
   if (snapshot.fixtureSchemaVersion !== '0.1') throw new Error('Unsupported M1 snapshot schema');
   const state = JSON.parse(snapshot.canonicalStateJson) as SetupGameState;
   if (canonicalizeJson(state) !== snapshot.canonicalStateJson) throw new Error('Snapshot is not canonical JCS');
-  if (hashAuthoritativeM1State(state) !== snapshot.authoritativeStateHash) throw new Error('Snapshot state hash mismatch');
+  if (sha256CanonicalJson(state) !== snapshot.snapshotIntegrityDigest) throw new Error('Snapshot integrity digest mismatch');
+  if (hashM1GameplayState(state) !== snapshot.gameplayStateHash) throw new Error('Snapshot gameplay hash mismatch');
   return state;
+};
+
+interface PersistedReplayArtifacts {
+  readonly events: readonly SetupGameEvent[];
+  readonly traces: readonly AdjudicationTrace[];
+}
+
+export const createM1ReplayBundle = (
+  events: readonly SetupGameEvent[],
+  traces: readonly AdjudicationTrace[],
+): M1ReplayBundle => {
+  const artifacts: PersistedReplayArtifacts = { events, traces };
+  return {
+    fixtureSchemaVersion: '0.1',
+    canonicalArtifactsJson: canonicalizeJson(artifacts),
+    integrityDigest: sha256CanonicalJson(artifacts),
+  };
+};
+
+const rehydrateReplayBundle = (bundle: M1ReplayBundle): PersistedReplayArtifacts => {
+  if (bundle.fixtureSchemaVersion !== '0.1') throw new Error('Unsupported M1 replay schema');
+  const artifacts = JSON.parse(bundle.canonicalArtifactsJson) as PersistedReplayArtifacts;
+  if (canonicalizeJson(artifacts) !== bundle.canonicalArtifactsJson) throw new Error('Replay bundle is not canonical JCS');
+  if (sha256CanonicalJson(artifacts) !== bundle.integrityDigest) throw new Error('Replay bundle integrity digest mismatch');
+  return artifacts;
 };
 
 const replayAdvanceCursor = (state: SetupGameState): void => {
@@ -131,25 +197,170 @@ const replayAdvanceCursor = (state: SetupGameState): void => {
   cursor.status = 'COMPLETE';
 };
 
-/** Replays the persisted M1-2 event/decision artifacts without consulting RNG. */
+const nullableString = (value: unknown): string | null => {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value !== 'string') throw new Error('Replay nullable string payload is invalid');
+  return value;
+};
+
+const parseCanonicalRecord = <T>(json: unknown, digest: unknown, label: string): T => {
+  if (typeof json !== 'string' || typeof digest !== 'string') throw new Error(`${label} replay payload missing`);
+  const parsed = JSON.parse(json) as T;
+  if (canonicalizeJson(parsed) !== json || sha256CanonicalJson(parsed) !== digest) {
+    throw new Error(`${label} replay payload integrity mismatch`);
+  }
+  return parsed;
+};
+
+const reconstructTrace = (
+  state: SetupGameState,
+  activationEvents: readonly SetupGameEvent[],
+  preStateHash: string,
+  postStateHash: string,
+): AdjudicationTrace => {
+  const eventOf = (type: SetupGameEventType): SetupGameEvent => {
+    const event = activationEvents.find((candidate) => candidate.type === type);
+    if (event === undefined) throw new Error(`Replay trace is missing ${type}`);
+    return event;
+  };
+  const started = eventOf('CAMPAIGN_ACTIVATION_STARTED');
+  const reveal = eventOf('ACTION_REVEALED');
+  const narrative = eventOf('NARRATIVE_SUBMITTED');
+  const cost = eventOf('CAMPAIGN_COST_PAID');
+  const die = eventOf('DIE_ROLLED');
+  const ert = eventOf('ERT_RESOLVED');
+  const completed = eventOf('CAMPAIGN_ACTIVATION_COMPLETED');
+  const campaignId = String(started.payload.campaignId);
+  const participantId = String(started.payload.participantId);
+  const targetPdId = String(started.payload.targetPdId);
+  const campaign = state.adjudication.campaigns[campaignId];
+  const influenceResolution = state.adjudication.influenceResolutions.find(({ id }) =>
+    id === String(completed.payload.influenceResolutionId));
+  if (campaign === undefined || influenceResolution === undefined) throw new Error('Replay trace source artifacts missing');
+  const legitimacyEvent = activationEvents.find(({ type }) => type === 'LEGITIMACY_CHANGED');
+  const legitimacyAfter = state.adjudication.legitimacyByPd[targetPdId] ?? null;
+  const legitimacyBefore = legitimacyEvent === undefined
+    ? legitimacyAfter
+    : nullableString(legitimacyEvent.payload.previousParticipantId);
+  const vpEvents = activationEvents.filter(({ type, payload }) =>
+    type === 'VP_CHANGED' && payload.participantId === participantId);
+  const firstVp = vpEvents[0];
+  const lastVp = vpEvents.at(-1);
+  const vpAfter = state.adjudication.vpByParticipant[participantId] ?? 0;
+  const vpBefore = firstVp === undefined
+    ? vpAfter
+    : Number(firstVp.payload.balanceAfter) - Number(firstVp.payload.delta);
+  if (lastVp !== undefined && Number(lastVp.payload.balanceAfter) !== vpAfter) {
+    throw new Error('Replay VP ledger/event balance mismatch');
+  }
+  const reactionTypes = activationEvents
+    .filter(({ type }) => type.startsWith('PRE_ROLL_REACTION_'))
+    .map(({ payload }) => String(payload.stage));
+  if (canonicalizeJson(reactionTypes) !== canonicalizeJson(['OPEN', 'EVALUATE_ZERO_ELIGIBLE', 'CLOSE'])) {
+    throw new Error('Replay PRE_ROLL sequence mismatch');
+  }
+  const ledgerRefs = activationEvents.flatMap(({ payload }) =>
+    typeof payload.ledgerId === 'string' ? [payload.ledgerId] : []);
+  return {
+    id: String(completed.payload.traceId),
+    participantId,
+    sequenceIndex: Number(reveal.payload.sequenceIndex),
+    campaignId,
+    activationId: String(started.payload.activationId),
+    cards: structuredClone(campaign.assignments),
+    alignment: campaign.alignment,
+    targetDtId: campaign.targetDtId,
+    targetPdId,
+    baseCv: Number(ert.payload.baseCv),
+    effectiveCv: Number(ert.payload.effectiveCv),
+    baseTier: String(ert.payload.baseTier) as AdjudicationTrace['baseTier'],
+    resolutionTier: String(ert.payload.resolutionTier) as AdjudicationTrace['resolutionTier'],
+    resourceCost: Number(cost.payload.amount),
+    narrative: String(narrative.payload.text),
+    preRollReaction: ['OPEN', 'EVALUATE_ZERO_ELIGIBLE', 'CLOSE'],
+    rawRoll: Number(die.payload.rawValue),
+    modifiedRollRaw: Number(die.payload.modifiedRollRaw),
+    ertRoll: Number(die.payload.ertRoll),
+    ertResult: Number(ert.payload.result),
+    generatedType: influenceResolution.incomingType,
+    generatedCount: influenceResolution.generatedCount,
+    consumedInCancellation: influenceResolution.consumedInCancellation,
+    oppositeRemovedByAttribution: structuredClone(influenceResolution.oppositeRemovedByAttribution),
+    placedCount: influenceResolution.placedCount,
+    legitimacyBefore,
+    legitimacyAfter,
+    vpBefore,
+    vpAfter,
+    vpDelta: vpAfter - vpBefore,
+    eventRefs: activationEvents.map(({ id }) => id),
+    ledgerRefs,
+    preStateHash,
+    postStateHash,
+    versions: structuredClone(state.versions),
+  };
+};
+
+/** Replays an integrity-protected M1-2 artifact bundle without consulting RNG. */
 export const replayM1Events = (
   initialSnapshot: M1StateSnapshot,
-  events: readonly SetupGameEvent[],
-  traces: readonly AdjudicationTrace[],
+  bundle: M1ReplayBundle,
 ): SetupGameState => {
   const state = rehydrateM1StateSnapshot(initialSnapshot);
-  for (const event of events) {
+  const { events, traces } = rehydrateReplayBundle(bundle);
+  const activationStarts = new Map<string, { readonly eventIndex: number; readonly preStateHash: string }>();
+  let pendingActionPreHash: string | undefined;
+  const replayedTraceIds = new Set<string>();
+  for (let eventIndex = 0; eventIndex < events.length; eventIndex += 1) {
+    const event = events[eventIndex];
+    if (event === undefined) throw new Error('Replay event missing');
     if (event.sequenceNumber !== state.events.length + 1) throw new Error('Replay event sequence gap');
+    if (event.gameId !== state.id) throw new Error('Replay event game mismatch');
     state.version = Math.max(state.version, event.gameVersion);
     const payload = event.payload;
     switch (event.type) {
       case 'ACTION_REVEALED': {
+        pendingActionPreHash = hashM1GameplayState(state, event.gameVersion - 1);
         const participantId = String(payload.participantId);
         const sequenceIndex = Number(payload.sequenceIndex);
         const slot = state.actionPlanning[participantId]?.lockedSlots.find((candidate) => candidate.sequenceIndex === sequenceIndex);
         if (slot === undefined) throw new Error('Replay action slot missing');
         slot.revealed = true;
         state.currentRevealedAction = { participantId, sequenceIndex, actionType: slot.actionType };
+        break;
+      }
+      case 'CAMPAIGN_ACTIVATION_STARTED': {
+        const activationId = String(payload.activationId);
+        if (pendingActionPreHash === undefined || payload.preStateHash !== pendingActionPreHash) {
+          throw new Error('Replay activation pre-state hash mismatch');
+        }
+        activationStarts.set(activationId, { eventIndex: eventIndex - 1, preStateHash: pendingActionPreHash });
+        pendingActionPreHash = undefined;
+        break;
+      }
+      case 'NARRATIVE_REQUESTED': {
+        state.adjudication.pendingResolution = parseCanonicalRecord<PendingResolution>(
+          payload.pendingResolutionJson,
+          payload.pendingResolutionDigest,
+          'Narrative pending resolution',
+        );
+        state.adjudication.scheduler.status = 'SUSPENDED';
+        break;
+      }
+      case 'NARRATIVE_SUBMITTED': {
+        const campaignId = String(payload.campaignId);
+        state.adjudication.narrativesByCampaign[campaignId] = {
+          inputId: String(payload.inputId),
+          text: String(payload.text),
+          source: String(payload.source) as CampaignNarrativeProvenance['source'],
+          actorId: event.actorId,
+          actorParticipantId: event.actorParticipantId,
+          correlationId: event.correlationId,
+          causationId: String(payload.inputCausationId ?? event.causationId ?? event.eventId),
+        };
+        if (state.adjudication.pendingResolution?.kind === 'NARRATIVE') {
+          delete state.adjudication.pendingResolution;
+          state.adjudication.scheduler.status = 'READY';
+        }
         break;
       }
       case 'CAMPAIGN_CREATED': {
@@ -187,15 +398,15 @@ export const replayM1Events = (
         const participantId = String(payload.participantId);
         const balanceAfter = Number(payload.balanceAfter);
         state.countries[countryId].resources = balanceAfter;
-        state.adjudication.resourceLedger.push({
-          id: String(payload.ledgerId), participantId, countryId, reason: 'CAMPAIGN_COST',
+        state.resourceLedger.push({
+          id: String(payload.ledgerId), participantId, countryId, reason: 'CAMPAIGN_ACTIVATION_COST',
           delta: -Number(payload.amount), balanceAfter, gameVersion: event.gameVersion,
         });
         break;
       }
       case 'DIE_ROLLED':
         state.adjudication.dieRolls.push({
-          id: String(payload.dieRollId), source: 'CAMPAIGN_ERT', participantId: String(payload.participantId ?? event.actorParticipantId ?? ''),
+          id: String(payload.dieRollId), source: 'CAMPAIGN_ERT', participantId: String(payload.participantId),
           rawValue: Number(payload.rawValue), manual: false, rngRequestId: String(payload.rngRequestId), gameVersion: event.gameVersion,
         });
         break;
@@ -242,6 +453,14 @@ export const replayM1Events = (
         state.adjudication.resolvedChoiceIds.push(String(payload.choiceId));
         delete state.adjudication.pendingResolution;
         break;
+      case 'CHOICE_REQUESTED':
+        state.adjudication.pendingResolution = parseCanonicalRecord<PendingResolution>(
+          payload.pendingResolutionJson,
+          payload.pendingResolutionDigest,
+          'Choice pending resolution',
+        );
+        state.adjudication.scheduler.status = 'SUSPENDED';
+        break;
       case 'ACTION_RESOLVED': {
         const participantId = String(payload.participantId);
         const sequenceIndex = Number(payload.sequenceIndex);
@@ -255,9 +474,30 @@ export const replayM1Events = (
         const campaign = state.adjudication.campaigns[String(payload.campaignId)];
         if (campaign === undefined) throw new Error('Replay completed campaign missing');
         campaign.activationCountThisTurn += 1;
-        const trace = traces.find(({ id }) => id === String(payload.traceId));
-        if (trace === undefined) throw new Error('Replay trace missing');
-        state.adjudication.traces.push(structuredClone(trace));
+        const influenceResolution = parseCanonicalRecord<SetupGameState['adjudication']['influenceResolutions'][number]>(
+          payload.influenceResolutionJson,
+          payload.influenceResolutionDigest,
+          'Influence resolution',
+        );
+        state.adjudication.influenceResolutions.push(influenceResolution);
+        const traceId = String(payload.traceId);
+        const persistedTrace = traces.find(({ id }) => id === traceId);
+        const activation = activationStarts.get(String(payload.activationId));
+        if (persistedTrace === undefined || activation === undefined) throw new Error('Replay trace missing');
+        const activationEvents = events.slice(activation.eventIndex, eventIndex + 1);
+        const postStateHash = hashM1GameplayState(state, event.gameVersion);
+        const reconstructed = reconstructTrace(
+          state,
+          activationEvents,
+          activation.preStateHash,
+          postStateHash,
+        );
+        if (canonicalizeJson(reconstructed) !== canonicalizeJson(persistedTrace)) {
+          throw new Error('Replay trace does not match reconstructed artifacts');
+        }
+        if (payload.traceDigest !== sha256CanonicalJson(reconstructed)) throw new Error('Replay trace event digest mismatch');
+        state.adjudication.traces.push(reconstructed);
+        replayedTraceIds.add(traceId);
         break;
       }
       default:
@@ -265,6 +505,7 @@ export const replayM1Events = (
     }
     state.events.push(structuredClone(event));
   }
+  if (replayedTraceIds.size !== traces.length) throw new Error('Replay contains unauthenticated traces');
   return state;
 };
 
@@ -329,15 +570,19 @@ export class M1AdjudicationEngine {
 
   dispatchInteraction(envelope: InteractionEnvelope): EngineCommandResult {
     const beforeVersion = this.store.snapshot(envelope.gameId)?.version ?? 0;
-    if (envelope.commandType !== 'SUBMIT_CHOICE') {
+    if (envelope.commandType !== 'SUBMIT_CHOICE' && envelope.commandType !== 'SUBMIT_CAMPAIGN_NARRATIVE') {
       return rejectedResult(envelope, beforeVersion, 'NOT_AUTHORIZED', this.now);
     }
     return this.withTransactionalRandom(() => dispatchAtomicCommand({
       envelope,
       store: this.store,
       now: this.now,
-      validatePayload: ({ payload }) => isSubmitChoicePayload(payload) ? undefined : 'INVALID_COMMAND_PAYLOAD',
-      prepare: (before, candidate) => this.prepareChoice(before, candidate),
+      validatePayload: ({ commandType, payload }) => commandType === 'SUBMIT_CHOICE'
+        ? isSubmitChoicePayload(payload) ? undefined : 'INVALID_COMMAND_PAYLOAD'
+        : isSubmitCampaignNarrativePayload(payload) ? undefined : 'INVALID_COMMAND_PAYLOAD',
+      prepare: (before, candidate) => candidate.commandType === 'SUBMIT_CHOICE'
+        ? this.prepareChoice(before, candidate)
+        : this.prepareNarrative(before, candidate),
     }));
   }
 
@@ -387,6 +632,9 @@ export class M1AdjudicationEngine {
     const located = this.locateNextSlot(working);
     if (located === undefined) return { error: 'SCHEDULER_COMPLETE' as const, version };
     const { participantId, slot } = located;
+    if (slot.actionType === 'ACTIVATE_CAMPAIGN' && before.diceMode !== 'DIGITAL') {
+      return { error: 'INVALID_DICE_MODE' as const, version };
+    }
     const preStateHash = hashAuthoritativeM1State(before);
     const reveal = this.appendEvent(working, envelope, 'ACTION_REVEALED', {
       participantId,
@@ -417,6 +665,15 @@ export class M1AdjudicationEngine {
     const activation = this.resolveActivation(working, participantId, slot, envelope, preStateHash, [reveal.id]);
     if ('error' in activation) return { error: activation.error, version };
     if (activation.kind === 'PENDING') {
+      if (activation.pending.kind === 'NARRATIVE') {
+        return {
+          nextState: working,
+          status: 'REQUIRES_CHOICE' as const,
+          resultCode: 'NARRATIVE_REQUIRED',
+          resultPayload: structuredClone(activation.pending.narrativeRequest),
+          emittedEventRefs: activation.eventRefs,
+        };
+      }
       return {
         nextState: working,
         status: 'REQUIRES_CHOICE' as const,
@@ -576,16 +833,92 @@ export class M1AdjudicationEngine {
       campaignId: campaign.id,
       participantId,
       targetPdId,
+      preStateHash,
     }, eventRefs.at(-1));
     eventRefs.push(started.id);
-    const narrative = state.adjudication.narrativesByCampaign[campaign.id] ?? 'Narrativa determinística de campaña. Segunda oración aprobada.';
-    const narrativeEvent = this.appendPlayerEvent(state, participantId, envelope, 'NARRATIVE_SUBMITTED', {
-      activationId,
-      campaignId: campaign.id,
-      sentenceCount: 2,
-      text: narrative,
-    }, started.id);
+    const continuation: NarrativeContinuationState = {
+      kind: 'CAMPAIGN_NARRATIVE',
+      targetPdId,
+      countryId,
+      baseCv: value.baseCv,
+      effectiveCv: value.rawEffectiveCv,
+      baseTier: value.baseTier,
+      resolutionTier: value.resolutionTier,
+      resourceCost: value.baseCost,
+      preStateHash,
+      eventRefsBeforeNarrative: [...eventRefs],
+    };
+    const narrative = state.adjudication.narrativesByCampaign[campaign.id];
+    if (narrative === undefined) {
+      const requestId = `${activationId}:narrative-request`;
+      const requestEventId = `${state.id}:event:${state.events.length + 1}`;
+      const pending: NarrativePendingResolution = {
+        kind: 'NARRATIVE',
+        resolutionId: activationId,
+        gameId: state.id,
+        participantId,
+        sequenceIndex: slot.sequenceIndex,
+        campaignId: campaign.id,
+        correlationId: envelope.correlationId ?? envelope.commandId,
+        causationId: requestEventId,
+        versions: structuredClone(state.versions),
+        narrativeRequest: {
+          requestId,
+          gameId: state.id,
+          campaignId: campaign.id,
+          actorParticipantId: participantId,
+          status: 'OPEN',
+          visibilityScope: 'OWNER_AND_FACILITATOR',
+        },
+        continuation,
+      };
+      const pendingResolutionJson = canonicalizeJson(pending);
+      const requestEvent = this.appendEvent(state, envelope, 'NARRATIVE_REQUESTED', {
+        requestId,
+        campaignId: campaign.id,
+        actorParticipantId: participantId,
+        pendingResolutionJson,
+        pendingResolutionDigest: sha256CanonicalJson(pending),
+      }, started.id, 'OWNER_AND_FACILITATOR');
+      if (requestEvent.id !== requestEventId) throw new Error('Narrative request event identity drift');
+      eventRefs.push(requestEvent.id);
+      state.adjudication.pendingResolution = pending;
+      state.adjudication.scheduler.status = 'SUSPENDED';
+      return { kind: 'PENDING', pending, eventRefs };
+    }
+    const narrativeEvent = this.appendNarrativeEvent(state, envelope, narrative, activationId, campaign.id, started.id);
     eventRefs.push(narrativeEvent.id);
+    return this.continueActivationAfterNarrative(
+      state,
+      participantId,
+      slot,
+      envelope,
+      campaign,
+      continuation,
+      eventRefs,
+    );
+  }
+
+  private continueActivationAfterNarrative(
+    state: SetupGameState,
+    participantId: string,
+    slot: M1ActionPlanSlot,
+    envelope: InternalEnvelope,
+    campaign: M1CampaignState,
+    narrativeContinuation: NarrativeContinuationState,
+    eventRefs: string[],
+  ): ActivationOutcome {
+    const {
+      targetPdId,
+      countryId,
+      baseCv,
+      effectiveCv,
+      baseTier,
+      resolutionTier,
+      resourceCost,
+      preStateHash,
+    } = narrativeContinuation;
+    const activationId = `${campaign.id}:activation:${campaign.activationCountThisTurn + 1}`;
     for (const [type, stage] of [
       ['PRE_ROLL_REACTION_OPENED', 'OPEN'],
       ['PRE_ROLL_REACTION_EVALUATED', 'EVALUATE_ZERO_ELIGIBLE'],
@@ -595,15 +928,17 @@ export class M1AdjudicationEngine {
       eventRefs.push(event.id);
     }
 
+    const country = state.countries[countryId];
+    if (country.resources < resourceCost) return { error: 'COST_PAYMENT_FAILED' };
     const resourceBefore = country.resources;
-    country.resources -= value.baseCost;
-    const resourceLedgerId = `${state.id}:m1-resource-ledger:${state.adjudication.resourceLedger.length + 1}`;
-    state.adjudication.resourceLedger.push({
+    country.resources -= resourceCost;
+    const resourceLedgerId = `${state.id}:resource-ledger:${state.resourceLedger.length + 1}`;
+    state.resourceLedger.push({
       id: resourceLedgerId,
       participantId,
       countryId,
-      reason: 'CAMPAIGN_COST',
-      delta: -value.baseCost,
+      reason: 'CAMPAIGN_ACTIVATION_COST',
+      delta: -resourceCost,
       balanceAfter: country.resources,
       gameVersion: state.version + 1,
     });
@@ -611,7 +946,7 @@ export class M1AdjudicationEngine {
       activationId,
       participantId,
       countryId,
-      amount: value.baseCost,
+      amount: resourceCost,
       balanceAfter: country.resources,
       ledgerId: resourceLedgerId,
     }, eventRefs.at(-1));
@@ -641,6 +976,7 @@ export class M1AdjudicationEngine {
       activationId,
       dieRollId,
       source: 'CAMPAIGN_ERT',
+      participantId,
       rawValue: rawRoll,
       manual: false,
       rngRequestId,
@@ -649,14 +985,14 @@ export class M1AdjudicationEngine {
       ertRoll: normalized.ertRoll,
     }, eventRefs.at(-1));
     eventRefs.push(dieEvent.id);
-    const ertResult = lookupErt(value.resolutionTier, campaign.alignment, normalized.ertRoll);
+    const ertResult = lookupErt(resolutionTier, campaign.alignment, normalized.ertRoll);
     const ertEvent = this.appendEvent(state, envelope, 'ERT_RESOLVED', {
       activationId,
       alignment: campaign.alignment,
-      baseCv: value.baseCv,
-      effectiveCv: value.rawEffectiveCv,
-      baseTier: value.baseTier,
-      resolutionTier: value.resolutionTier,
+      baseCv,
+      effectiveCv,
+      baseTier,
+      resolutionTier,
       result: ertResult,
     }, dieEvent.id);
     eventRefs.push(ertEvent.id);
@@ -681,11 +1017,11 @@ export class M1AdjudicationEngine {
       resourceBalanceBefore: resourceBefore,
       vpBefore: state.adjudication.vpByParticipant[participantId] ?? 0,
       legitimacyBefore,
-      baseCv: value.baseCv,
-      effectiveCv: value.rawEffectiveCv,
-      baseTier: value.baseTier,
-      resolutionTier: value.resolutionTier,
-      resourceCost: value.baseCost,
+      baseCv,
+      effectiveCv,
+      baseTier,
+      resolutionTier,
+      resourceCost,
       rawRoll,
       modifiedRollRaw: normalized.modifiedRollRaw,
       ertRoll: normalized.ertRoll,
@@ -707,7 +1043,12 @@ export class M1AdjudicationEngine {
         const attribution = sortedAttributions[index];
         if (option !== undefined && attribution !== undefined) optionAttributionById[option.optionId] = attribution;
       }
-      const continuation: CampaignContinuationState = { ...continuationBase, optionAttributionById };
+      const choiceEventId = `${state.id}:event:${state.events.length + 1}`;
+      const continuation: CampaignContinuationState = {
+        ...continuationBase,
+        optionAttributionById,
+        eventRefsBeforeChoice: [...eventRefs, choiceEventId],
+      };
       const choice = {
         choiceId,
         choiceVersion: 1,
@@ -722,6 +1063,20 @@ export class M1AdjudicationEngine {
         maxSelections: resolution.oppositeRemoved,
         options,
       };
+      const pending: PendingResolution = {
+        kind: 'CHOICE',
+        resolutionId: activationId,
+        gameId: state.id,
+        participantId,
+        sequenceIndex: slot.sequenceIndex,
+        campaignId: campaign.id,
+        correlationId: envelope.correlationId ?? envelope.commandId,
+        causationId: choiceEventId,
+        versions: structuredClone(state.versions),
+        choice,
+        continuation,
+      };
+      const pendingResolutionJson = canonicalizeJson(pending);
       const choiceEvent = this.appendEvent(state, envelope, 'CHOICE_REQUESTED', {
         choiceId,
         choiceVersion: 1,
@@ -729,20 +1084,11 @@ export class M1AdjudicationEngine {
         optionCount: options.length,
         minSelections: resolution.oppositeRemoved,
         maxSelections: resolution.oppositeRemoved,
+        pendingResolutionJson,
+        pendingResolutionDigest: sha256CanonicalJson(pending),
       }, eventRefs.at(-1), 'OWNER_AND_FACILITATOR');
+      if (choiceEvent.id !== choiceEventId) throw new Error('Choice request event identity drift');
       eventRefs.push(choiceEvent.id);
-      const pending: PendingResolution = {
-        resolutionId: activationId,
-        gameId: state.id,
-        participantId,
-        sequenceIndex: slot.sequenceIndex,
-        campaignId: campaign.id,
-        correlationId: envelope.correlationId ?? envelope.commandId,
-        causationId: choiceEvent.id,
-        versions: structuredClone(state.versions),
-        choice,
-        continuation,
-      };
       state.adjudication.pendingResolution = pending;
       state.adjudication.scheduler.status = 'SUSPENDED';
       return { kind: 'PENDING', pending, eventRefs };
@@ -760,6 +1106,134 @@ export class M1AdjudicationEngine {
     return selections;
   }
 
+  private prepareNarrative(before: SetupGameState | undefined, envelope: InteractionEnvelope): PreparedResolution<SetupGameState> {
+    const version = before?.version ?? 0;
+    if (before === undefined) return { error: 'GAME_NOT_FOUND' as const, version };
+    if (envelope.expectedGameVersion !== before.version) return { error: 'STALE_STATE_VERSION' as const, version };
+    if (before.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const, version };
+    if (envelope.engineContractVersion !== before.versions.engineContractVersion) return { error: 'UNSUPPORTED_CONTRACT_VERSION' as const, version };
+    if (envelope.payloadSchemaVersion !== before.versions.fixtureSchemaVersion) return { error: 'UNSUPPORTED_PAYLOAD_VERSION' as const, version };
+    const payload = envelope.payload as SubmitCampaignNarrativePayload;
+    const pending = before.adjudication.pendingResolution;
+    if (pending === undefined || pending.kind !== 'NARRATIVE' || payload.campaignId !== pending.campaignId) {
+      return { error: 'NARRATIVE_NOT_AUTHORIZED' as const, version };
+    }
+    const actor = envelope.actorContext;
+    const participant = actor.participantId === undefined ? undefined : before.participants[actor.participantId];
+    const seat = actor.participantId === undefined ? undefined : before.seats[actor.participantId];
+    if (
+      actor.actorType !== 'PLAYER' ||
+      actor.participantId !== pending.narrativeRequest.actorParticipantId ||
+      participant === undefined ||
+      participant.userId !== actor.actorId ||
+      seat === undefined ||
+      actor.playerSeatId !== seat.id ||
+      actor.countryId !== seat.countryId ||
+      !actor.permissions.includes('game:play')
+    ) return { error: 'NARRATIVE_NOT_AUTHORIZED' as const, version };
+
+    const working = structuredClone(before);
+    const workingPending = working.adjudication.pendingResolution;
+    if (workingPending === undefined || workingPending.kind !== 'NARRATIVE') {
+      return { error: 'NARRATIVE_NOT_AUTHORIZED' as const, version };
+    }
+    const slot = working.actionPlanning[workingPending.participantId]?.lockedSlots.find(
+      ({ sequenceIndex }) => sequenceIndex === workingPending.sequenceIndex,
+    );
+    const campaign = working.adjudication.campaigns[workingPending.campaignId];
+    if (slot === undefined || campaign === undefined) return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
+    const provenance: CampaignNarrativeProvenance = {
+      inputId: envelope.commandId,
+      text: payload.narrative.trim(),
+      source: 'PLAYER',
+      actorId: actor.actorId,
+      actorParticipantId: workingPending.participantId,
+      correlationId: envelope.correlationId ?? envelope.commandId,
+      causationId: workingPending.causationId,
+    };
+    working.adjudication.narrativesByCampaign[campaign.id] = provenance;
+    const narrativeEvent = this.appendEvent(working, envelope, 'NARRATIVE_SUBMITTED', {
+      activationId: workingPending.resolutionId,
+      campaignId: campaign.id,
+      inputId: provenance.inputId,
+      source: provenance.source,
+      text: provenance.text,
+    }, workingPending.causationId, 'OWNER_AND_FACILITATOR');
+    delete working.adjudication.pendingResolution;
+    working.adjudication.scheduler.status = 'READY';
+    const systemEnvelope: InternalEnvelope = {
+      ...this.internalEnvelope({
+        gameId: envelope.gameId,
+        expectedGameVersion: envelope.expectedGameVersion,
+        commandId: envelope.commandId,
+        idempotencyKey: envelope.idempotencyKey,
+        correlationId: workingPending.correlationId,
+      }),
+      causationId: narrativeEvent.id,
+    };
+    const eventRefs = [...workingPending.continuation.eventRefsBeforeNarrative, narrativeEvent.id];
+    const outcome = this.continueActivationAfterNarrative(
+      working,
+      workingPending.participantId,
+      slot,
+      systemEnvelope,
+      campaign,
+      workingPending.continuation,
+      eventRefs,
+    );
+    if ('error' in outcome) return { error: outcome.error, version };
+    if (outcome.kind === 'PENDING') {
+      if (outcome.pending.kind !== 'CHOICE') return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
+      return {
+        nextState: working,
+        status: 'REQUIRES_CHOICE' as const,
+        resultCode: 'CHOICE_REQUIRED',
+        resultPayload: structuredClone(outcome.pending.choice),
+        emittedEventRefs: outcome.eventRefs,
+      };
+    }
+    if (outcome.kind !== 'COMPLETE') return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
+    return {
+      nextState: working,
+      resultCode: 'CAMPAIGN_ACTIVATION_COMPLETED',
+      resultPayload: { campaignId: campaign.id, narrativeInputId: provenance.inputId },
+      emittedEventRefs: outcome.eventRefs,
+      adjudicationTraceRefs: [outcome.traceId],
+    };
+  }
+
+  private appendNarrativeEvent(
+    state: SetupGameState,
+    envelope: InternalEnvelope,
+    narrative: CampaignNarrativeProvenance,
+    activationId: string,
+    campaignId: string,
+    causationId: string,
+  ): SetupGameEvent {
+    if (narrative.source !== 'FIXTURE' || narrative.actorParticipantId !== null) {
+      throw new Error('Pre-seeded campaign narratives require explicit FIXTURE provenance');
+    }
+    const fixtureEnvelope: CommandEnvelope<string, unknown> = {
+      ...envelope,
+      actorContext: {
+        actorId: narrative.actorId,
+        actorType: 'SYSTEM',
+        authenticatedSessionId: 'fixture:m1-2',
+        permissions: ['game:fixture'],
+      },
+      correlationId: narrative.correlationId,
+      causationId: narrative.causationId,
+    };
+    return this.appendEvent(state, fixtureEnvelope, 'NARRATIVE_SUBMITTED', {
+      activationId,
+      campaignId,
+      inputId: narrative.inputId,
+      source: narrative.source,
+      text: narrative.text,
+      inputCausationId: narrative.causationId,
+    }, causationId, 'OWNER_AND_FACILITATOR');
+  }
+
   private prepareChoice(before: SetupGameState | undefined, envelope: InteractionEnvelope): PreparedResolution<SetupGameState> {
     const version = before?.version ?? 0;
     if (before === undefined) return { error: 'GAME_NOT_FOUND' as const, version };
@@ -772,6 +1246,7 @@ export class M1AdjudicationEngine {
     if (pending === undefined) {
       return { error: before.adjudication.resolvedChoiceIds.includes(payload.choiceId) ? 'CHOICE_ALREADY_RESOLVED' as const : 'INVALID_CHOICE_OPTION' as const, version };
     }
+    if (pending.kind !== 'CHOICE') return { error: 'INVALID_CHOICE_OPTION' as const, version };
     const actorError = this.validateChoiceActor(before, envelope.actorContext, pending);
     if (actorError !== undefined) return { error: actorError, version };
     if (payload.choiceId !== pending.choice.choiceId) return { error: 'INVALID_CHOICE_OPTION' as const, version };
@@ -789,7 +1264,7 @@ export class M1AdjudicationEngine {
 
     const working = structuredClone(before);
     const workingPending = working.adjudication.pendingResolution;
-    if (workingPending === undefined) return { error: 'CHOICE_ALREADY_RESOLVED' as const, version };
+    if (workingPending === undefined || workingPending.kind !== 'CHOICE') return { error: 'CHOICE_ALREADY_RESOLVED' as const, version };
     const slot = working.actionPlanning[workingPending.participantId]?.lockedSlots.find(({ sequenceIndex }) => sequenceIndex === workingPending.sequenceIndex);
     const campaign = working.adjudication.campaigns[workingPending.campaignId];
     if (slot === undefined || campaign === undefined) return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
@@ -833,7 +1308,11 @@ export class M1AdjudicationEngine {
     };
   }
 
-  private validateChoiceActor(state: SetupGameState, actor: ActorContext, pending: PendingResolution): AnyEngineErrorCode | undefined {
+  private validateChoiceActor(
+    state: SetupGameState,
+    actor: ActorContext,
+    pending: Extract<PendingResolution, { readonly kind: 'CHOICE' }>,
+  ): AnyEngineErrorCode | undefined {
     if (actor.actorType !== 'PLAYER' || actor.participantId !== pending.choice.actorParticipantId) return 'CHOICE_NOT_AUTHORIZED';
     const participant = state.participants[actor.participantId];
     const seat = state.seats[actor.participantId];
@@ -935,7 +1414,7 @@ export class M1AdjudicationEngine {
       eventRefs.push(event.id);
     }
     const influenceResolutionId = `${state.id}:influence-resolution:${state.adjudication.influenceResolutions.length + 1}`;
-    state.adjudication.influenceResolutions.push({
+    const influenceResolution = {
       id: influenceResolutionId,
       targetPdId: continuation.targetPdId,
       incomingType: continuation.generatedType,
@@ -944,7 +1423,8 @@ export class M1AdjudicationEngine {
       consumedInCancellation: resolution.consumedInCancellation,
       oppositeRemovedByAttribution: removedByAttribution,
       placedCount: resolution.placed,
-    });
+    };
+    state.adjudication.influenceResolutions.push(influenceResolution);
 
     let legitimacyAfter = continuation.legitimacyBefore;
     let vp = state.adjudication.vpByParticipant[continuation.participantId] ?? 0;
@@ -1014,15 +1494,10 @@ export class M1AdjudicationEngine {
     }, eventRefs.at(-1));
     eventRefs.push(actionResolved.id);
     const traceId = `${state.id}:trace:${state.adjudication.traces.length + 1}`;
-    const completed = this.appendEvent(state, envelope, 'CAMPAIGN_ACTIVATION_COMPLETED', {
-      activationId: continuation.activationId,
-      campaignId: continuation.campaignId,
-      traceId,
-      placedCount: resolution.placed,
-      vpDelta: (state.adjudication.vpByParticipant[continuation.participantId] ?? 0) - continuation.vpBefore,
-    }, actionResolved.id);
-    eventRefs.push(completed.id);
-    const postStateHash = hashAuthoritativeM1State(state, state.version + 1);
+    const completedEventId = `${state.id}:event:${state.events.length + 1}`;
+    const postStateHash = hashM1GameplayState(state, state.version + 1);
+    const narrative = state.adjudication.narrativesByCampaign[campaign.id];
+    if (narrative === undefined) return { error: 'OBJECT_NO_LONGER_VALID' };
     const trace: AdjudicationTrace = {
       id: traceId,
       participantId: continuation.participantId,
@@ -1038,7 +1513,7 @@ export class M1AdjudicationEngine {
       baseTier: continuation.baseTier,
       resolutionTier: continuation.resolutionTier,
       resourceCost: continuation.resourceCost,
-      narrative: state.adjudication.narrativesByCampaign[campaign.id] ?? 'Narrativa determinística de campaña. Segunda oración aprobada.',
+      narrative: narrative.text,
       preRollReaction: ['OPEN', 'EVALUATE_ZERO_ELIGIBLE', 'CLOSE'],
       rawRoll: continuation.rawRoll,
       modifiedRollRaw: continuation.modifiedRollRaw,
@@ -1054,12 +1529,25 @@ export class M1AdjudicationEngine {
       vpBefore: continuation.vpBefore,
       vpAfter: state.adjudication.vpByParticipant[continuation.participantId] ?? 0,
       vpDelta: (state.adjudication.vpByParticipant[continuation.participantId] ?? 0) - continuation.vpBefore,
-      eventRefs: [...eventRefs],
+      eventRefs: [...eventRefs, completedEventId],
       ledgerRefs: [...ledgerRefs],
       preStateHash: continuation.preStateHash,
       postStateHash,
       versions: structuredClone(state.versions),
     };
+    const completed = this.appendEvent(state, envelope, 'CAMPAIGN_ACTIVATION_COMPLETED', {
+      activationId: continuation.activationId,
+      campaignId: continuation.campaignId,
+      traceId,
+      placedCount: resolution.placed,
+      vpDelta: trace.vpDelta,
+      influenceResolutionId,
+      influenceResolutionJson: canonicalizeJson(influenceResolution),
+      influenceResolutionDigest: sha256CanonicalJson(influenceResolution),
+      traceDigest: sha256CanonicalJson(trace),
+    }, actionResolved.id);
+    if (completed.id !== completedEventId) throw new Error('Campaign completion event identity drift');
+    eventRefs.push(completed.id);
     state.adjudication.traces.push(trace);
     return { kind: 'COMPLETE', traceId, eventRefs };
   }

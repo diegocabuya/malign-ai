@@ -1,5 +1,5 @@
 import type { ActorContext } from '@malign-ai/contracts';
-import type { AdjudicationTrace, ChoiceRequest, SetupGameEvent, SetupGameState } from '@malign-ai/domain';
+import type { AdjudicationTrace, ChoiceRequest, NarrativeRequest, SetupGameEvent, SetupGameState } from '@malign-ai/domain';
 import { buildSetupGameProjection, type SetupGameProjection } from './setup-projection.js';
 
 export interface PublicAdjudicationTraceProjection {
@@ -16,13 +16,12 @@ export interface PublicAdjudicationTraceProjection {
   readonly ertResult: number;
   readonly placedCount: number;
   readonly vpDelta: number;
-  readonly preStateHash: string;
-  readonly postStateHash: string;
 }
 
 export interface M1AdjudicationProjection {
   readonly game: SetupGameProjection;
   readonly pendingChoice?: ChoiceRequest;
+  readonly pendingNarrativeRequest?: NarrativeRequest;
   readonly events: readonly SetupGameEvent[];
   readonly audit: {
     readonly resourceLedgerEntries: number;
@@ -47,8 +46,6 @@ const publicTrace = (trace: AdjudicationTrace): PublicAdjudicationTraceProjectio
   ertResult: trace.ertResult,
   placedCount: trace.placedCount,
   vpDelta: trace.vpDelta,
-  preStateHash: trace.preStateHash,
-  postStateHash: trace.postStateHash,
 });
 
 const projectedEvents = (
@@ -56,13 +53,28 @@ const projectedEvents = (
   participantId: string,
   facilitator: boolean,
 ): SetupGameEvent[] => state.events.map((event) => {
-  if (
+  const visible =
     event.visibilityClass === 'PUBLIC' ||
     facilitator ||
     event.actorParticipantId === participantId ||
-    event.payload.actorParticipantId === participantId
-  ) {
-    return structuredClone(event);
+    event.payload.actorParticipantId === participantId;
+  if (visible && facilitator) return structuredClone(event);
+  if (visible) {
+    const privateArtifactKeys = new Set([
+      'pendingResolutionJson',
+      'pendingResolutionDigest',
+      'influenceResolutionJson',
+      'influenceResolutionDigest',
+      'traceDigest',
+      'preStateHash',
+      'postStateHash',
+    ]);
+    return {
+      ...structuredClone(event),
+      payload: Object.fromEntries(
+        Object.entries(event.payload).filter(([key]) => !privateArtifactKeys.has(key)),
+      ),
+    };
   }
   return {
     ...structuredClone(event),
@@ -77,13 +89,16 @@ export const buildM1AdjudicationProjection = (state: SetupGameState, viewer: Act
   if (participant === undefined || participant.role !== viewer.actorType) throw new Error('Adjudication projection viewer mismatch');
   const pending = state.adjudication.pendingResolution;
   const maySeePending = pending !== undefined &&
-    (participant.role === 'FACILITATOR' || pending.choice.actorParticipantId === participantId);
+    (participant.role === 'FACILITATOR' || pending.participantId === participantId);
   return {
     game: buildSetupGameProjection(state, viewer),
-    ...(maySeePending ? { pendingChoice: structuredClone(pending.choice) } : {}),
+    ...(maySeePending && pending?.kind === 'CHOICE' ? { pendingChoice: structuredClone(pending.choice) } : {}),
+    ...(maySeePending && pending?.kind === 'NARRATIVE'
+      ? { pendingNarrativeRequest: structuredClone(pending.narrativeRequest) }
+      : {}),
     events: projectedEvents(state, participantId, participant.role === 'FACILITATOR'),
     audit: {
-      resourceLedgerEntries: state.adjudication.resourceLedger.length,
+      resourceLedgerEntries: state.resourceLedger.length,
       influenceLedgerEntries: state.adjudication.influenceLedger.length,
       legitimacyLedgerEntries: state.adjudication.legitimacyLedger.length,
       vpLedgerEntries: state.adjudication.vpLedger.length,

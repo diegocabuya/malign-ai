@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { InMemorySessionAuthority } from '../../packages/authz/src/index.js';
-import { M1_0_BASELINE_VERSIONS, type CountryId, type RandomProviderCheckpoint, type SetupGameState, type TransactionalRandomProvider, type TrustedSessionBinding } from '../../packages/domain/src/index.js';
+import { M1_0_BASELINE_VERSIONS, type CountryId, type DiceMode, type RandomProviderCheckpoint, type SetupGameState, type TransactionalRandomProvider, type TrustedSessionBinding } from '../../packages/domain/src/index.js';
 import { InMemorySetupGameStore, SetupCommandDispatcher, type SetupCommandPayload, type SetupCommandType } from '../../packages/game-engine/src/index.js';
 import { InMemoryGameSessionApplication, type SessionCommandInput } from '../../apps/server/src/game-session-application.js';
 
@@ -140,18 +140,18 @@ export const command = (
   };
 };
 
-export const createPayload = (turnLimit = 1) => ({
+export const createPayload = (turnLimit = 1, preferredDiceMode: DiceMode = 'DIGITAL') => ({
   scenarioDefinitionId: 'BASE_2025',
   ...M1_0_BASELINE_VERSIONS,
   turnLimit,
-  preferredDiceMode: 'DIGITAL',
+  preferredDiceMode,
 } as const);
 
 export const sessionId = (participantId: string, suffix = ''): string =>
   `session-${participantId.toLowerCase()}${suffix}`;
 
-export const createGame = (testHarness: M1Harness, gameId = GAME_ID, suffix = '') =>
-  testHarness.app.execute(sessionId('F1', suffix), command('CREATE_GAME', gameId, 0, createPayload()));
+export const createGame = (testHarness: M1Harness, gameId = GAME_ID, suffix = '', diceMode: DiceMode = 'DIGITAL') =>
+  testHarness.app.execute(sessionId('F1', suffix), command('CREATE_GAME', gameId, 0, createPayload(1, diceMode)));
 
 export const joinPlayers = (testHarness: M1Harness, gameId = GAME_ID, suffix = ''): void => {
   for (const participantId of ['P1', 'P2', 'P3', 'P4', 'P5']) {
@@ -185,8 +185,8 @@ export const assignCanonicalSeats = (testHarness: M1Harness, gameId = GAME_ID, s
   }
 };
 
-export const completeSetup = (testHarness: M1Harness, gameId = GAME_ID, suffix = ''): SetupGameState => {
-  const created = createGame(testHarness, gameId, suffix);
+export const completeSetup = (testHarness: M1Harness, gameId = GAME_ID, suffix = '', diceMode: DiceMode = 'DIGITAL'): SetupGameState => {
+  const created = createGame(testHarness, gameId, suffix, diceMode);
   if (created.status !== 'RESOLVED') throw new Error('Game creation failed');
   joinPlayers(testHarness, gameId, suffix);
   assignCanonicalSeats(testHarness, gameId, suffix);
@@ -201,8 +201,8 @@ export const startGame = (testHarness: M1Harness, gameId = GAME_ID, suffix = '')
   return testHarness.app.execute(sessionId('F1', suffix), command('START_GAME', gameId, state.version, {}));
 };
 
-export const completeAndStart = (testHarness: M1Harness, gameId = GAME_ID, suffix = ''): SetupGameState => {
-  completeSetup(testHarness, gameId, suffix);
+export const completeAndStart = (testHarness: M1Harness, gameId = GAME_ID, suffix = '', diceMode: DiceMode = 'DIGITAL'): SetupGameState => {
+  completeSetup(testHarness, gameId, suffix, diceMode);
   const result = startGame(testHarness, gameId, suffix);
   if (result.status !== 'RESOLVED') throw new Error('Game start failed');
   const state = testHarness.store.snapshot(gameId);

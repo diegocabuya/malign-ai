@@ -156,9 +156,9 @@ export interface RevealedActionState {
 
 export interface ResourceLedgerEntry {
   readonly id: string;
-  readonly participantId: string;
+  readonly participantId: string | null;
   readonly countryId: CountryId;
-  readonly reason: 'TURN_INCOME';
+  readonly reason: 'SCENARIO_SETUP' | 'TURN_INCOME' | 'CAMPAIGN_ACTIVATION_COST';
   readonly delta: number;
   readonly balanceAfter: number;
   readonly gameVersion: number;
@@ -204,6 +204,7 @@ export type SetupGameEventType =
   | 'ACTION_RESOLVED'
   | 'CAMPAIGN_CREATED'
   | 'CAMPAIGN_ACTIVATION_STARTED'
+  | 'NARRATIVE_REQUESTED'
   | 'NARRATIVE_SUBMITTED'
   | 'PRE_ROLL_REACTION_OPENED'
   | 'PRE_ROLL_REACTION_EVALUATED'

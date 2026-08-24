@@ -61,6 +61,38 @@ export interface ChoiceRequest {
   readonly options: readonly ChoiceOption[];
 }
 
+export interface CampaignNarrativeProvenance {
+  readonly inputId: string;
+  readonly text: string;
+  readonly source: 'PLAYER' | 'FIXTURE';
+  readonly actorId: string;
+  readonly actorParticipantId: string | null;
+  readonly correlationId: string;
+  readonly causationId: string;
+}
+
+export interface NarrativeRequest {
+  readonly requestId: string;
+  readonly gameId: string;
+  readonly campaignId: string;
+  readonly actorParticipantId: string;
+  readonly status: 'OPEN';
+  readonly visibilityScope: 'OWNER_AND_FACILITATOR';
+}
+
+export interface NarrativeContinuationState {
+  readonly kind: 'CAMPAIGN_NARRATIVE';
+  readonly targetPdId: string;
+  readonly countryId: CountryId;
+  readonly baseCv: number;
+  readonly effectiveCv: number;
+  readonly baseTier: 'LOW' | 'MEDIUM' | 'HIGH';
+  readonly resolutionTier: 'LOW' | 'MEDIUM' | 'HIGH';
+  readonly resourceCost: number;
+  readonly preStateHash: string;
+  readonly eventRefsBeforeNarrative: readonly string[];
+}
+
 export interface CampaignContinuationState {
   readonly kind: 'CAMPAIGN_2_TO_1';
   readonly participantId: string;
@@ -90,7 +122,7 @@ export interface CampaignContinuationState {
   readonly ledgerRefsBeforeChoice: readonly string[];
 }
 
-export interface PendingResolution {
+interface PendingResolutionBase {
   readonly resolutionId: string;
   readonly gameId: string;
   readonly participantId: string;
@@ -99,9 +131,21 @@ export interface PendingResolution {
   readonly correlationId: string;
   readonly causationId: string;
   readonly versions: PinnedVersions;
+}
+
+export interface ChoicePendingResolution extends PendingResolutionBase {
+  readonly kind: 'CHOICE';
   readonly choice: ChoiceRequest;
   readonly continuation: CampaignContinuationState;
 }
+
+export interface NarrativePendingResolution extends PendingResolutionBase {
+  readonly kind: 'NARRATIVE';
+  readonly narrativeRequest: NarrativeRequest;
+  readonly continuation: NarrativeContinuationState;
+}
+
+export type PendingResolution = ChoicePendingResolution | NarrativePendingResolution;
 
 export interface DieRollRecord {
   readonly id: string;
@@ -110,16 +154,6 @@ export interface DieRollRecord {
   readonly rawValue: number;
   readonly manual: false;
   readonly rngRequestId: string;
-  readonly gameVersion: number;
-}
-
-export interface M1ResourceLedgerEntry {
-  readonly id: string;
-  readonly participantId: string;
-  readonly countryId: CountryId;
-  readonly reason: 'CAMPAIGN_COST';
-  readonly delta: number;
-  readonly balanceAfter: number;
   readonly gameVersion: number;
 }
 
@@ -207,12 +241,11 @@ export interface M1AdjudicationState {
   readonly influenceStacks: InfluenceStackState[];
   readonly legitimacyByPd: Record<string, string | null>;
   readonly vpByParticipant: Record<string, number>;
-  readonly narrativesByCampaign: Record<string, string>;
+  readonly narrativesByCampaign: Record<string, CampaignNarrativeProvenance>;
   readonly scheduler: M1SchedulerCursor;
   pendingResolution?: PendingResolution;
   readonly resolvedChoiceIds: string[];
   readonly dieRolls: DieRollRecord[];
-  readonly resourceLedger: M1ResourceLedgerEntry[];
   readonly influenceLedger: InfluenceLedgerEntry[];
   readonly legitimacyLedger: LegitimacyLedgerEntry[];
   readonly vpLedger: VpLedgerEntry[];

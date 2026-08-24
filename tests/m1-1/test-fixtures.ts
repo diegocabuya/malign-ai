@@ -1,4 +1,5 @@
 import type {
+  DiceMode,
   M1ActionPlanSlot,
   SetupGameState,
 } from "../../packages/domain/src/index.js";
@@ -18,8 +19,8 @@ export type { M1Harness } from "../m1-0/test-fixtures.js";
 
 export const PLAYER_IDS = ["P1", "P2", "P3", "P4", "P5"] as const;
 
-export const reachInitiative = (testHarness: M1Harness): SetupGameState => {
-  completeAndStart(testHarness);
+export const reachInitiative = (testHarness: M1Harness, diceMode: DiceMode = 'DIGITAL'): SetupGameState => {
+  completeAndStart(testHarness, GAME_ID, '', diceMode);
   for (const participantId of PLAYER_IDS) {
     if (submitDeck(testHarness, participantId).status !== "RESOLVED")
       throw new Error(`Submit failed for ${participantId}`);
@@ -72,8 +73,8 @@ export const lockMaintenance = (
   );
 };
 
-export const reachActionPlanning = (testHarness: M1Harness): SetupGameState => {
-  reachInitiative(testHarness);
+export const reachActionPlanning = (testHarness: M1Harness, diceMode: DiceMode = 'DIGITAL'): SetupGameState => {
+  reachInitiative(testHarness, diceMode);
   const initiative = requestInitiative(testHarness, [10, 8, 6, 4, 2]);
   if (initiative.status !== "RESOLVED")
     throw new Error("Initiative resolution failed");

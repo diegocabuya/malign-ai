@@ -5,7 +5,7 @@ import {
   GAME_ID,
   MIXED_ATTRIBUTION,
   adjudicationHarness,
-  choiceEnvelope,
+  choiceInput,
   playerActor,
   runActivation,
   runConstruct,
@@ -17,11 +17,11 @@ const finishMixedChoice = (die = 9) => {
   const activation = runActivation(testHarness);
   const pendingState = testHarness.store.snapshot(GAME_ID);
   const pending = pendingState?.adjudication.pendingResolution;
-  if (pendingState === undefined || pending === undefined) throw new Error('Expected mixed-attribution choice');
+  if (pendingState === undefined || pending?.kind !== 'CHOICE') throw new Error('Expected mixed-attribution choice');
   const ursariaOption = Object.entries(pending.continuation.optionAttributionById)
     .find(([, attribution]) => attribution === 'URSARIA')?.[0];
   if (ursariaOption === undefined) throw new Error('URSARIA option missing');
-  const result = testHarness.engine.dispatchInteraction(choiceEnvelope(pendingState, 'P1', {
+  const result = testHarness.app.executeM1Interaction('session-p1', choiceInput(pendingState, {
     choiceId: pending.choice.choiceId,
     choiceVersion: pending.choice.choiceVersion,
     selectedOptionIds: [ursariaOption, ursariaOption],
@@ -40,7 +40,7 @@ describe('M1-2 owner gate — 17 oracle v0.1 cases', () => {
     expect(result.resultCode).toBe('COST_PAYMENT_FAILED');
     expect(after?.countries.ARDEN.resources).toBe(2);
     expect(after?.actionPlanning.P1?.apAvailable).toBe(1);
-    expect(after?.adjudication.resourceLedger).toHaveLength(0);
+    expect(after?.resourceLedger.filter(({ reason }) => reason === 'CAMPAIGN_ACTIVATION_COST')).toHaveLength(0);
     expect(after?.adjudication.dieRolls).toHaveLength(0);
     expect(after?.adjudication.traces).toHaveLength(0);
     expect(after?.events.length).toBe((before?.events.length ?? 0) + 2);
@@ -57,7 +57,14 @@ describe('M1-2 owner gate — 17 oracle v0.1 cases', () => {
       commandId: 'scheduler-while-pending',
       idempotencyKey: 'scheduler-while-pending',
     });
+    if (before?.adjudication.pendingResolution?.kind !== 'CHOICE') throw new Error('Choice fixture missing');
+    const p2Submit = testHarness.app.executeM1Interaction('session-p2', choiceInput(before, {
+      choiceId: before.adjudication.pendingResolution.choice.choiceId,
+      choiceVersion: before.adjudication.pendingResolution.choice.choiceVersion,
+      selectedOptionIds: [before.adjudication.pendingResolution.choice.options[0]!.optionId],
+    }, 'core-009-p2'));
     expect(forced.resultCode).toBe('SCHEDULER_SUSPENDED');
+    expect(p2Submit.resultCode).toBe('CHOICE_NOT_AUTHORIZED');
     expect(testHarness.store.snapshot(GAME_ID)).toEqual(before);
   });
 
@@ -180,8 +187,8 @@ describe('M1-2 owner gate — 17 oracle v0.1 cases', () => {
     runActivation(testHarness);
     const before = testHarness.store.snapshot(GAME_ID);
     const pending = before?.adjudication.pendingResolution;
-    if (before === undefined || pending === undefined) throw new Error('Choice fixture missing');
-    const result = testHarness.engine.dispatchInteraction(choiceEnvelope(before, 'P1', {
+    if (before === undefined || pending?.kind !== 'CHOICE') throw new Error('Choice fixture missing');
+    const result = testHarness.app.executeM1Interaction('session-p1', choiceInput(before, {
       choiceId: pending.choice.choiceId,
       choiceVersion: pending.choice.choiceVersion,
       selectedOptionIds: ['forged-option', 'forged-option'],
@@ -196,10 +203,10 @@ describe('M1-2 owner gate — 17 oracle v0.1 cases', () => {
     runActivation(testHarness);
     const before = testHarness.store.snapshot(GAME_ID);
     const pending = before?.adjudication.pendingResolution;
-    if (before === undefined || pending === undefined) throw new Error('Choice fixture missing');
+    if (before === undefined || pending?.kind !== 'CHOICE') throw new Error('Choice fixture missing');
     const firstOption = pending.choice.options[0]?.optionId;
     if (firstOption === undefined) throw new Error('Choice option missing');
-    const result = testHarness.engine.dispatchInteraction(choiceEnvelope(before, 'P2', {
+    const result = testHarness.app.executeM1Interaction('session-p2', choiceInput(before, {
       choiceId: pending.choice.choiceId,
       choiceVersion: pending.choice.choiceVersion,
       selectedOptionIds: [firstOption, firstOption],
@@ -213,13 +220,36 @@ describe('M1-2 owner gate — 17 oracle v0.1 cases', () => {
     const testHarness = adjudicationHarness();
     runConstruct(testHarness);
     runActivation(testHarness);
-    const trace = testHarness.store.snapshot(GAME_ID)?.adjudication.traces[0];
+    const state = testHarness.store.snapshot(GAME_ID);
+    const trace = state?.adjudication.traces[0];
     expect(trace).toMatchObject({
-      participantId: 'P1', sequenceIndex: 2, campaignId: FULL_CAMPAIGN.campaign_id,
-      baseCv: 12, effectiveCv: 12, resourceCost: 3, rawRoll: 7, ertResult: 3,
-      generatedCount: 3, consumedInCancellation: 2, placedCount: 1,
+      id: `${GAME_ID}:trace:1`, participantId: 'P1', sequenceIndex: 2,
+      campaignId: FULL_CAMPAIGN.campaign_id, activationId: `${FULL_CAMPAIGN.campaign_id}:activation:1`,
+      cards: state?.adjudication.campaigns[FULL_CAMPAIGN.campaign_id]?.assignments,
+      alignment: 'MALIGN', targetDtId: FULL_CAMPAIGN.target_dt, targetPdId: FULL_CAMPAIGN.target_pd,
+      baseCv: 12, effectiveCv: 12, baseTier: 'HIGH', resolutionTier: 'HIGH', resourceCost: 3,
+      narrative: FULL_CAMPAIGN.narrative, preRollReaction: ['OPEN', 'EVALUATE_ZERO_ELIGIBLE', 'CLOSE'],
+      rawRoll: 7, modifiedRollRaw: 7, ertRoll: 7, ertResult: 3,
+      generatedType: 'MALIGN', generatedCount: 3, consumedInCancellation: 2,
+      oppositeRemovedByAttribution: { PRESQUE: 1 }, placedCount: 1,
       legitimacyBefore: null, legitimacyAfter: 'P1', vpBefore: 0, vpAfter: 2, vpDelta: 2,
+      versions: {
+        rulesetVersion: '0.1',
+        scenarioVersion: '0.1',
+        cardRegistryVersion: '0.1',
+        engineContractVersion: '0.1',
+        fixtureSchemaVersion: '0.1',
+      },
     });
+    expect(Object.keys(trace ?? {}).sort()).toEqual([
+      'activationId', 'alignment', 'baseCv', 'baseTier', 'campaignId', 'cards',
+      'consumedInCancellation', 'effectiveCv', 'ertResult', 'ertRoll', 'eventRefs',
+      'generatedCount', 'generatedType', 'id', 'ledgerRefs', 'legitimacyAfter',
+      'legitimacyBefore', 'modifiedRollRaw', 'narrative', 'oppositeRemovedByAttribution',
+      'participantId', 'placedCount', 'postStateHash', 'preRollReaction', 'preStateHash',
+      'rawRoll', 'resolutionTier', 'resourceCost', 'sequenceIndex', 'targetDtId',
+      'targetPdId', 'versions', 'vpAfter', 'vpBefore', 'vpDelta',
+    ].sort());
     expect(trace?.preStateHash).toMatch(/^[a-f0-9]{64}$/);
     expect(trace?.postStateHash).toMatch(/^[a-f0-9]{64}$/);
     expect(trace?.eventRefs.length).toBeGreaterThan(10);
@@ -229,9 +259,10 @@ describe('M1-2 owner gate — 17 oracle v0.1 cases', () => {
   it('GE-AUD-006 explains every critical golden mutation with events, ledgers, and a filtered projection', () => {
     const testHarness = adjudicationHarness();
     runConstruct(testHarness);
+    const before = testHarness.store.snapshot(GAME_ID);
     runActivation(testHarness);
     const state = testHarness.store.snapshot(GAME_ID);
-    if (state === undefined) throw new Error('Golden state missing');
+    if (before === undefined || state === undefined) throw new Error('Golden state missing');
     const types = new Set(state.events.map(({ type }) => type));
     for (const type of [
       'CAMPAIGN_COST_PAID',
@@ -244,8 +275,43 @@ describe('M1-2 owner gate — 17 oracle v0.1 cases', () => {
     ]) {
       expect(types.has(type)).toBe(true);
     }
-    expect(state.adjudication.resourceLedger.reduce((sum, entry) => sum + entry.delta, 4)).toBe(state.countries.ARDEN.resources);
-    expect(state.adjudication.vpLedger.reduce((sum, entry) => sum + entry.delta, 0)).toBe(state.adjudication.vpByParticipant.P1);
+    for (const participantId of ['P1', 'P2', 'P3', 'P4', 'P5']) {
+      expect(state.actionPointLedger.filter((entry) => entry.participantId === participantId)
+        .reduce((sum, entry) => sum + entry.delta, 0)).toBe(state.actionPlanning[participantId]?.apAvailable);
+    }
+    for (const country of Object.values(state.countries)) {
+      expect(state.resourceLedger.filter(({ countryId }) => countryId === country.id)
+        .reduce((sum, entry) => sum + entry.delta, 0)).toBe(country.resources);
+    }
+    const influenceKeys = new Set([
+      ...before.adjudication.influenceStacks,
+      ...state.adjudication.influenceStacks,
+    ].map(({ pdId, type, attributionCountryId }) => `${pdId}:${type}:${attributionCountryId}`));
+    for (const key of influenceKeys) {
+      const [pdId, type, attributionCountryId] = key.split(':');
+      const beforeCount = before.adjudication.influenceStacks.find((stack) =>
+        stack.pdId === pdId && stack.type === type && stack.attributionCountryId === attributionCountryId)?.count ?? 0;
+      const delta = state.adjudication.influenceLedger.filter((entry) =>
+        entry.pdId === pdId && entry.type === type && entry.attributionCountryId === attributionCountryId)
+        .reduce((sum, entry) => sum + entry.delta, 0);
+      const afterCount = state.adjudication.influenceStacks.find((stack) =>
+        stack.pdId === pdId && stack.type === type && stack.attributionCountryId === attributionCountryId)?.count ?? 0;
+      expect(beforeCount + delta).toBe(afterCount);
+    }
+    expect(state.adjudication.legitimacyLedger.at(-1)?.newParticipantId)
+      .toBe(state.adjudication.legitimacyByPd[FULL_CAMPAIGN.target_pd]);
+    expect(state.adjudication.vpLedger.reduce((sum, entry) => sum + entry.delta, 0))
+      .toBe(state.adjudication.vpByParticipant.P1);
+    const trace = state.adjudication.traces[0]!;
+    const activationEvents = state.events.slice(before.events.length);
+    expect(activationEvents.every(({ id }) => trace.eventRefs.includes(id))).toBe(true);
+    const eventLedgerIds = new Set(activationEvents.flatMap(({ payload }) =>
+      typeof payload.ledgerId === 'string' ? [payload.ledgerId] : []));
+    expect(trace.ledgerRefs.every((id) => eventLedgerIds.has(id))).toBe(true);
+    expect(state.events.some(({ type, payload }) =>
+      type === 'DIE_ROLLED' && payload.dieRollId === state.adjudication.dieRolls[0]?.id)).toBe(true);
+    expect(state.events.some(({ type, payload }) =>
+      type === 'CAMPAIGN_ACTIVATION_COMPLETED' && payload.influenceResolutionId === state.adjudication.influenceResolutions[0]?.id)).toBe(true);
     const rival = buildM1AdjudicationProjection(state, playerActor('P2'));
     expect(rival.audit.traces).toHaveLength(1);
   });

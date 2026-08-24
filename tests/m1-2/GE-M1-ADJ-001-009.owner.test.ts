@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CommandEnvelope } from '../../packages/contracts/src/index.js';
 import {
   createM1StateSnapshot,
+  createM1ReplayBundle,
   hashAuthoritativeM1State,
   replayM1Events,
   rehydrateM1StateSnapshot,
@@ -12,7 +13,7 @@ import {
   FULL_CAMPAIGN,
   GAME_ID,
   adjudicationHarness,
-  choiceEnvelope,
+  choiceInput,
   playerActor,
   runActivation,
   runConstruct,
@@ -110,7 +111,7 @@ describe('M1-2 owner gate — 9 addendum M1 v0.1 cases', () => {
     runActivation(testHarness);
     const pendingState = testHarness.store.snapshot(GAME_ID);
     const pending = pendingState?.adjudication.pendingResolution;
-    if (pendingState === undefined || pending === undefined) throw new Error('Pending choice missing');
+    if (pendingState === undefined || pending?.kind !== 'CHOICE') throw new Error('Pending choice missing');
     const option = Object.entries(pending.continuation.optionAttributionById).find(([, value]) => value === 'URSARIA')?.[0];
     if (option === undefined) throw new Error('Choice option missing');
     const payload = {
@@ -118,13 +119,13 @@ describe('M1-2 owner gate — 9 addendum M1 v0.1 cases', () => {
       choiceVersion: 1,
       selectedOptionIds: [option, option],
     } as const;
-    const envelope = choiceEnvelope(pendingState, 'P1', payload, 'resume-once');
-    const first = testHarness.engine.dispatchInteraction(envelope);
+    const input = choiceInput(pendingState, payload, 'resume-once');
+    const first = testHarness.app.executeM1Interaction('session-p1', input);
     const completed = testHarness.store.snapshot(GAME_ID);
-    const retry = testHarness.engine.dispatchInteraction(envelope);
+    const retry = testHarness.app.executeM1Interaction('session-p1', input);
     const lateState = testHarness.store.snapshot(GAME_ID);
     if (lateState === undefined) throw new Error('Completed choice state missing');
-    const late = testHarness.engine.dispatchInteraction(choiceEnvelope(lateState, 'P1', payload, 'late-new-key'));
+    const late = testHarness.app.executeM1Interaction('session-p1', choiceInput(lateState, payload, 'late-new-key'));
     expect(first.resultCode).toBe('CHOICE_RESOLVED');
     expect(retry).toEqual(first);
     expect(late.resultCode).toBe('CHOICE_ALREADY_RESOLVED');
@@ -138,19 +139,35 @@ describe('M1-2 owner gate — 9 addendum M1 v0.1 cases', () => {
     const before = testHarness.store.snapshot(GAME_ID);
     runActivation(testHarness);
     const final = testHarness.store.snapshot(GAME_ID);
-    const required = new Set([
-      'CAMPAIGN_ACTIVATION_STARTED', 'NARRATIVE_SUBMITTED', 'PRE_ROLL_REACTION_OPENED',
-      'PRE_ROLL_REACTION_EVALUATED', 'PRE_ROLL_REACTION_CLOSED', 'CAMPAIGN_COST_PAID',
-      'DIE_ROLLED', 'ERT_RESOLVED', 'INFLUENCE_MUTATED', 'LEGITIMACY_CHANGED', 'VP_CHANGED',
-      'CAMPAIGN_ACTIVATION_COMPLETED',
-    ]);
-    const order = final?.events.slice(before?.events.length).map(({ type }) => type).filter((type) => required.has(type));
-    expect(order).toEqual([
-      'CAMPAIGN_ACTIVATION_STARTED', 'NARRATIVE_SUBMITTED', 'PRE_ROLL_REACTION_OPENED',
+    const events = final?.events.slice(before?.events.length) ?? [];
+    expect(events.map(({ type }) => type)).toEqual([
+      'ACTION_REVEALED', 'CAMPAIGN_ACTIVATION_STARTED', 'NARRATIVE_SUBMITTED', 'PRE_ROLL_REACTION_OPENED',
       'PRE_ROLL_REACTION_EVALUATED', 'PRE_ROLL_REACTION_CLOSED', 'CAMPAIGN_COST_PAID',
       'DIE_ROLLED', 'ERT_RESOLVED', 'INFLUENCE_MUTATED', 'INFLUENCE_MUTATED',
-      'VP_CHANGED', 'LEGITIMACY_CHANGED', 'VP_CHANGED', 'CAMPAIGN_ACTIVATION_COMPLETED',
+      'VP_CHANGED', 'LEGITIMACY_CHANGED', 'VP_CHANGED', 'ACTION_RESOLVED', 'CAMPAIGN_ACTIVATION_COMPLETED',
     ]);
+    expect(events.map(({ sequenceNumber }) => sequenceNumber)).toEqual(
+      Array.from({ length: events.length }, (_, index) => (before?.events.length ?? 0) + index + 1),
+    );
+    expect(new Set(events.map(({ gameVersion }) => gameVersion))).toEqual(new Set([final?.version]));
+    expect(events.every(({ actorType }) => actorType === 'SYSTEM')).toBe(true);
+    expect(events[2]).toMatchObject({
+      actorId: 'M1_FIXTURE_FULL_CAMPAIGN',
+      correlationId: 'fixture:full-campaign-m1',
+      causationId: events[1]?.id,
+    });
+    for (const [index, event] of events.entries()) {
+      if (index !== 2) {
+        expect(event).toMatchObject({
+          actorId: 'M1_INTERNAL_SCHEDULER',
+          actorParticipantId: null,
+          correlationId: 'm1-2-full-campaign',
+        });
+      }
+    }
+    for (let index = 1; index < events.length; index += 1) {
+      if (index !== 2) expect(events[index]?.causationId).toBe(events[index - 1]?.id);
+    }
   });
 
   it('GE-M1-ADJ-007 commits the full activation at one game version with contiguous event sequences', () => {
@@ -183,8 +200,11 @@ describe('M1-2 owner gate — 9 addendum M1 v0.1 cases', () => {
     const final = testHarness.store.snapshot(GAME_ID);
     if (final === undefined) throw new Error('Replay final state missing');
     const cursorBeforeReplay = testHarness.random.cursor;
-    const replayed = replayM1Events(initialSnapshot, final.events.slice(initialEventCount), final.adjudication.traces);
-    expect(hashAuthoritativeM1State(replayed)).toBe(hashAuthoritativeM1State(final));
+    const replayed = replayM1Events(
+      initialSnapshot,
+      createM1ReplayBundle(final.events.slice(initialEventCount), final.adjudication.traces),
+    );
+    expect(canonicalizeJson(replayed)).toBe(canonicalizeJson(final));
     expect(buildM1AdjudicationProjection(replayed, playerActor('P1'))).toEqual(buildM1AdjudicationProjection(final, playerActor('P1')));
     expect(testHarness.random.cursor).toBe(cursorBeforeReplay);
     expect(Object.values(final.countries).every(({ resources }) => resources >= 0)).toBe(true);

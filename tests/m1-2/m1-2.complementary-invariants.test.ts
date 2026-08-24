@@ -34,7 +34,7 @@ const openMixedChoice = () => {
   runActivation(testHarness);
   const state = testHarness.store.snapshot(GAME_ID);
   const pending = state?.adjudication.pendingResolution;
-  if (state === undefined || pending === undefined) throw new Error('Mixed choice fixture missing');
+  if (state === undefined || pending?.kind !== 'CHOICE') throw new Error('Mixed choice fixture missing');
   const option = Object.entries(pending.continuation.optionAttributionById)
     .find(([, attribution]) => attribution === 'URSARIA')?.[0];
   if (option === undefined) throw new Error('Mixed choice option missing');
@@ -200,8 +200,7 @@ describe('M1-2 complementary transactional and security invariants', () => {
     const p1ApDelta = state.actionPointLedger.filter(({ participantId }) => participantId === 'P1')
       .reduce((sum, { delta }) => sum + delta, 0);
     const ardenResourceDelta = state.resourceLedger.filter(({ countryId }) => countryId === 'ARDEN')
-      .reduce((sum, { delta }) => sum + delta, 0) + state.adjudication.resourceLedger
-      .filter(({ countryId }) => countryId === 'ARDEN').reduce((sum, { delta }) => sum + delta, 0);
+      .reduce((sum, { delta }) => sum + delta, 0);
     const targetResiliencyDelta = state.adjudication.influenceLedger
       .filter(({ pdId, type }) => pdId === FULL_CAMPAIGN.target_pd && type === 'RESILIENCY')
       .reduce((sum, { delta }) => sum + delta, 0);
@@ -216,7 +215,7 @@ describe('M1-2 complementary transactional and security invariants', () => {
       .reduce((sum, { count }) => sum + count, 0);
 
     expect(p1ApDelta).toBe(state.actionPlanning.P1?.apAvailable);
-    expect(2 + ardenResourceDelta).toBe(state.countries.ARDEN.resources);
+    expect(ardenResourceDelta).toBe(state.countries.ARDEN.resources);
     expect(1 + targetResiliencyDelta).toBe(targetResiliency);
     expect(targetMalignDelta).toBe(targetMalign);
     expect(state.adjudication.legitimacyLedger.at(-1)?.newParticipantId).toBe(state.adjudication.legitimacyByPd[FULL_CAMPAIGN.target_pd]);
@@ -235,7 +234,7 @@ describe('M1-2 complementary transactional and security invariants', () => {
     const referencedEvents = new Set(trace.eventRefs);
     const eventLedgerIds = new Set(events.flatMap(({ payload }) => typeof payload.ledgerId === 'string' ? [payload.ledgerId] : []));
     const activationLedgers = [
-      ...after.adjudication.resourceLedger,
+      ...after.resourceLedger.filter(({ reason }) => reason === 'CAMPAIGN_ACTIVATION_COST'),
       ...after.adjudication.influenceLedger,
       ...after.adjudication.legitimacyLedger,
       ...after.adjudication.vpLedger,

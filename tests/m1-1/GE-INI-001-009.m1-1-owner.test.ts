@@ -245,7 +245,7 @@ describe("M1-1 oracle/addendum owner cases — deterministic initiative and mini
 
     expect(state?.phase).toBe("ACTION_STAGE_PLAN");
     expect(
-      state?.resourceLedger.map(({ participantId, delta, reason }) => ({
+      state?.resourceLedger.filter(({ reason }) => reason === "TURN_INCOME").map(({ participantId, delta, reason }) => ({
         participantId,
         delta,
         reason,
@@ -257,6 +257,7 @@ describe("M1-1 oracle/addendum owner cases — deterministic initiative and mini
         reason: "TURN_INCOME",
       })),
     );
+    expect(state?.resourceLedger.filter(({ reason }) => reason === "SCENARIO_SETUP")).toHaveLength(5);
     for (const participantId of PLAYER_IDS) {
       const countryId = state?.seats[participantId]?.countryId;
       if (countryId === undefined) throw new Error("Seat missing");

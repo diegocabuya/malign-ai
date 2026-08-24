@@ -97,6 +97,7 @@ export type M1AdjudicationErrorCode =
   | 'CHOICE_VERSION_STALE'
   | 'INVALID_CHOICE_OPTION'
   | 'COST_PAYMENT_FAILED'
+  | 'NARRATIVE_NOT_AUTHORIZED'
   | 'SCHEDULER_SUSPENDED'
   | 'SCHEDULER_COMPLETE';
 
@@ -132,7 +133,7 @@ export const engineErrorFor = (code: AnyEngineErrorCode): EngineError => {
   else if (code === 'INSUFFICIENT_AP' || code === 'INSUFFICIENT_RESOURCES') category = 'RESOURCE';
   else if (code.startsWith('CARD_') || code.startsWith('STRATEGY_') || code === 'DUPLICATE_CARD_INSTANCE') category = 'CARD';
   else if (code.startsWith('INVALID_DT') || code.startsWith('INVALID_TARGET')) category = 'TARGETING';
-  else if (code.startsWith('CHOICE_') || code === 'INVALID_CHOICE_OPTION') category = 'CHOICE';
+  else if (code.startsWith('CHOICE_') || code === 'INVALID_CHOICE_OPTION' || code === 'NARRATIVE_NOT_AUTHORIZED') category = 'CHOICE';
   else if (code.startsWith('CAMPAIGN_') || code === 'INVALID_SLOT') category = 'CAMPAIGN';
   else if (code === 'COST_PAYMENT_FAILED') category = 'RESOURCE';
   else if (code.startsWith('UNSUPPORTED_') || code === 'INVALID_COMMAND_PAYLOAD') category = 'CONTRACT';

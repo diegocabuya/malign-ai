@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 import type { ActorContext, CommandEnvelope } from '../../packages/contracts/src/index.js';
+import { InMemoryGameSessionApplication, type SessionM1InteractionInput } from '../../apps/server/src/game-session-application.js';
 import {
   cardInstanceId,
   type CountryId,
+  type DiceMode,
   type InfluenceStackState,
   type SetupGameState,
 } from '../../packages/domain/src/index.js';
@@ -58,12 +60,14 @@ const loadJson = <T>(relativePath: string): T =>
 export const FULL_CAMPAIGN = loadJson<FullCampaignFixture>('../fixtures/m1-2/full-campaign-m1.json');
 export const MIXED_ATTRIBUTION = loadJson<MixedAttributionFixture>('../fixtures/m1-2/pd-mixed-attribution.json');
 
-let cachedPlanningState: SetupGameState | undefined;
+const cachedPlanningStates = new Map<DiceMode, SetupGameState>();
 
-export const planningState = (): SetupGameState => {
+export const planningState = (diceMode: DiceMode = 'DIGITAL'): SetupGameState => {
+  let cachedPlanningState = cachedPlanningStates.get(diceMode);
   if (cachedPlanningState === undefined) {
     const base = harness();
-    cachedPlanningState = reachActionPlanning(base);
+    cachedPlanningState = reachActionPlanning(base, diceMode);
+    cachedPlanningStates.set(diceMode, cachedPlanningState);
   }
   return structuredClone(cachedPlanningState);
 };
@@ -114,8 +118,10 @@ export const adjudicationHarness = (options: {
   readonly legitimacyOwner?: string | null;
   readonly resources?: number;
   readonly vp?: number;
+  readonly diceMode?: DiceMode;
+  readonly includeNarrative?: boolean;
 } = {}): AdjudicationHarness => {
-  const testHarness = harness({ states: [planningState()], bindings: trustedBindings() });
+  const testHarness = harness({ states: [planningState(options.diceMode)], bindings: trustedBindings() });
   for (const participantId of ['F1', ...PLAYER_IDS]) {
     testHarness.authority.materializeMembership(`session-${participantId.toLowerCase()}`, GAME_ID, participantId);
   }
@@ -125,9 +131,28 @@ export const adjudicationHarness = (options: {
   placeRequiredCardsInHand(state, 'P1', serials);
   const targetDt = options.targetDt ?? FULL_CAMPAIGN.target_dt;
   const targetPd = options.targetPd ?? FULL_CAMPAIGN.target_pd;
-  state.countries.ARDEN.resources = options.resources ?? FULL_CAMPAIGN.resources_before_activation;
+  const seededResources = options.resources ?? FULL_CAMPAIGN.resources_before_activation;
+  state.countries.ARDEN.resources = seededResources;
+  const ardenSetupLedger = state.resourceLedger.find(({ countryId, reason }) => countryId === 'ARDEN' && reason === 'SCENARIO_SETUP');
+  if (ardenSetupLedger === undefined) throw new Error('M1-2 fixture setup resource ledger missing');
+  const ardenIncomeLedger = state.resourceLedger.find(({ countryId, reason }) => countryId === 'ARDEN' && reason === 'TURN_INCOME');
+  if (ardenIncomeLedger === undefined) throw new Error('M1-2 fixture income resource ledger missing');
+  Object.assign(ardenIncomeLedger, {
+    delta: seededResources - ardenSetupLedger.delta,
+    balanceAfter: seededResources,
+  });
   state.adjudication.vpByParticipant.P1 = options.vp ?? 0;
-  state.adjudication.narrativesByCampaign[FULL_CAMPAIGN.campaign_id] = FULL_CAMPAIGN.narrative;
+  if (options.includeNarrative !== false) {
+    state.adjudication.narrativesByCampaign[FULL_CAMPAIGN.campaign_id] = {
+      inputId: 'fixture:full-campaign-m1:narrative',
+      text: FULL_CAMPAIGN.narrative,
+      source: 'FIXTURE',
+      actorId: 'M1_FIXTURE_FULL_CAMPAIGN',
+      actorParticipantId: null,
+      correlationId: 'fixture:full-campaign-m1',
+      causationId: 'fixture:full-campaign-m1:narrative',
+    };
+  }
   state.adjudication.legitimacyByPd[targetPd] = options.legitimacyOwner ?? null;
   if (options.mixedAttribution === true) {
     const retained = state.adjudication.influenceStacks.filter(({ pdId }) => pdId !== MIXED_ATTRIBUTION.pd_id);
@@ -169,9 +194,18 @@ export const adjudicationHarness = (options: {
   }
   testHarness.random.enqueue(options.die ?? FULL_CAMPAIGN.die);
   testHarness.random.requireScript();
+  const engine = new M1AdjudicationEngine(testHarness.store, testHarness.random, () => new Date('2026-08-24T12:00:00.000Z'));
+  const app = new InMemoryGameSessionApplication(
+    testHarness.authority,
+    testHarness.store,
+    testHarness.dispatcher,
+    () => new Date('2026-08-24T12:00:00.000Z'),
+    engine,
+  );
   return {
     ...testHarness,
-    engine: new M1AdjudicationEngine(testHarness.store, testHarness.random, () => new Date('2026-08-24T12:00:00.000Z')),
+    engine,
+    app,
   };
 };
 
@@ -226,6 +260,22 @@ export const choiceEnvelope = (
   idempotencyKey: `choice-${suffix}`,
   gameId: state.id,
   actorContext: playerActor(participantId),
+  expectedGameVersion: state.version,
+  commandType: 'SUBMIT_CHOICE',
+  payloadSchemaVersion: state.versions.fixtureSchemaVersion,
+  payload,
+  correlationId: 'm1-2-full-campaign',
+});
+
+export const choiceInput = (
+  state: SetupGameState,
+  payload: SubmitChoicePayload,
+  suffix: string,
+): SessionM1InteractionInput => ({
+  engineContractVersion: state.versions.engineContractVersion,
+  commandId: `choice-${suffix}`,
+  idempotencyKey: `choice-${suffix}`,
+  gameId: state.id,
   expectedGameVersion: state.version,
   commandType: 'SUBMIT_CHOICE',
   payloadSchemaVersion: state.versions.fixtureSchemaVersion,
