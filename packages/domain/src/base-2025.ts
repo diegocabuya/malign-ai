@@ -1,4 +1,5 @@
 import type { CountryId, ScenarioPopulationDemographic, SetupCardDefinition } from './m1-setup.js';
+import type { M1CampaignCardRule } from './m1-adjudication.js';
 
 export const M1_0_BASELINE_VERSIONS = {
   rulesetVersion: '0.1',
@@ -71,3 +72,30 @@ if (BASE_2025_CARD_REGISTRY.length !== 108 || BASE_2025_CARD_REGISTRY.filter(({ 
 
 export const cardInstanceId = (countryId: CountryId, serialWithinCountrySet: number): string =>
   `${countryId}-CARD-${String(serialWithinCountrySet).padStart(3, '0')}`;
+
+const campaignRule = (
+  serial: number,
+  alignment: M1CampaignCardRule['alignment'],
+  influenceValueBySlot: M1CampaignCardRule['influenceValueBySlot'],
+  options: Pick<M1CampaignCardRule, 'allowsAnyTargetDt' | 'pairBonusWithDefinitionId'> = {},
+): M1CampaignCardRule => ({
+  definitionId: `BASE_CARD_${String(serial).padStart(3, '0')}`,
+  alignment,
+  influenceValueBySlot,
+  ...options,
+});
+
+/** The versioned card subset exercised by the approved M1-2 campaign slice. */
+export const BASE_2025_M1_CAMPAIGN_CARD_RULES: Readonly<Record<string, M1CampaignCardRule>> = Object.fromEntries(
+  [
+    campaignRule(3, 'DUAL', { METHOD: 3, AMPLIFIER: 3 }),
+    campaignRule(45, 'MALIGN', { METHOD: 6, AMPLIFIER: 6 }),
+    campaignRule(86, 'MALIGN', { METHOD: 3, AMPLIFIER: 3 }, { pairBonusWithDefinitionId: 'BASE_CARD_045' }),
+    campaignRule(97, 'MALIGN', { INTENT: 2 }, { allowsAnyTargetDt: true }),
+    campaignRule(99, 'MALIGN', { INTENT: 1 }, { allowsAnyTargetDt: true }),
+    campaignRule(100, 'MALIGN', { INTENT: 1 }, { allowsAnyTargetDt: true }),
+    campaignRule(101, 'MALIGN', { INTENT: 1 }, { allowsAnyTargetDt: true }),
+    campaignRule(102, 'MALIGN', { INTENT: 3 }, { allowsAnyTargetDt: true }),
+    campaignRule(103, 'MALIGN', { INTENT: 3 }, { allowsAnyTargetDt: true }),
+  ].map((rule) => [rule.definitionId, rule]),
+);

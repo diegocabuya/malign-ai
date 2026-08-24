@@ -1,0 +1,16 @@
+{
+  "fixture_schema_version": "0.1",
+  "pd_id": "PRESQUE_PD_1",
+  "opposite_type": "RESILIENCY",
+  "stacks": [
+    { "participant_id": "P2", "country_id": "FLUMA", "count": 1 },
+    { "participant_id": "P3", "country_id": "URSARIA", "count": 2 }
+  ],
+  "incoming": { "type": "MALIGN", "country_id": "ARDEN", "count": 4 },
+  "selection": ["P3", "P3"],
+  "expected": {
+    "consumed": 4,
+    "removed": { "FLUMA": 0, "URSARIA": 2 },
+    "placed": 0
+  }
+}

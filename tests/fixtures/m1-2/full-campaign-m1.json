@@ -1,0 +1,32 @@
+{
+  "fixture_schema_version": "0.1",
+  "game_id": "game-m1-0",
+  "actor_participant_id": "P1",
+  "actor_country_id": "ARDEN",
+  "resources_before_income": 2,
+  "turn_income": 2,
+  "resources_before_activation": 4,
+  "campaign_id": "game-m1-0:campaign:P1:row-i",
+  "intent": { "serial": 102, "name": "Temas Divisivos", "slot": "INTENT", "iv": 3 },
+  "method": { "serial": 45, "name": "Deepfake", "slot": "METHOD", "iv": 6 },
+  "amplifier": { "serial": 3, "name": "Asesores Militares", "slot": "AMPLIFIER", "iv": 3 },
+  "alignment": "MALIGN",
+  "target_dt": "BLACK",
+  "target_pd": "PRESQUE_PD_1",
+  "narrative": "Arden presenta una narrativa determinística para la campaña. El fixture confirma su segunda oración aprobada.",
+  "die": 7,
+  "expected": {
+    "base_cv": 12,
+    "effective_cv": 12,
+    "base_tier": "HIGH",
+    "resolution_tier": "HIGH",
+    "resource_cost": 3,
+    "ert_result": 3,
+    "consumed": 2,
+    "removed_presque_resiliency": 1,
+    "placed_arden_malign": 1,
+    "legitimacy_owner": "P1",
+    "vp_delta": 2,
+    "resources_after": 1
+  }
+}

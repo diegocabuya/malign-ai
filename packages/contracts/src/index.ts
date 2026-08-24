@@ -59,7 +59,8 @@ export type EngineErrorCode =
   | 'CAMPAIGN_ID_CONFLICT'
   | 'INVALID_SLOT'
   | 'INVALID_DT'
-  | 'INVALID_TARGET_PD';
+  | 'INVALID_TARGET_PD'
+  | 'OBJECT_NO_LONGER_VALID';
 
 export type SetupEngineErrorCode =
   | 'GAME_NOT_FOUND'
@@ -90,9 +91,18 @@ export type SetupEngineErrorCode =
   | 'ACTION_PLAN_NOT_FOUND'
   | 'NO_ACTION_TO_REVEAL';
 
-export type AnyEngineErrorCode = EngineErrorCode | SetupEngineErrorCode;
+export type M1AdjudicationErrorCode =
+  | 'CHOICE_NOT_AUTHORIZED'
+  | 'CHOICE_ALREADY_RESOLVED'
+  | 'CHOICE_VERSION_STALE'
+  | 'INVALID_CHOICE_OPTION'
+  | 'COST_PAYMENT_FAILED'
+  | 'SCHEDULER_SUSPENDED'
+  | 'SCHEDULER_COMPLETE';
 
-export type EngineErrorCategory = 'AUTHORIZATION' | 'PHASE_STATE' | 'CONCURRENCY' | 'RESOURCE' | 'CARD' | 'CAMPAIGN' | 'TARGETING' | 'RULE_INVARIANT' | 'CONTRACT';
+export type AnyEngineErrorCode = EngineErrorCode | SetupEngineErrorCode | M1AdjudicationErrorCode;
+
+export type EngineErrorCategory = 'AUTHORIZATION' | 'PHASE_STATE' | 'CONCURRENCY' | 'RESOURCE' | 'CARD' | 'CAMPAIGN' | 'TARGETING' | 'CHOICE' | 'RULE_INVARIANT' | 'CONTRACT';
 export interface EngineError {
   readonly code: AnyEngineErrorCode;
   readonly category: EngineErrorCategory;
@@ -100,7 +110,7 @@ export interface EngineError {
   readonly safeMessageKey: string;
 }
 
-export type EngineCommandStatus = 'RESOLVED' | 'REJECTED';
+export type EngineCommandStatus = 'RESOLVED' | 'REQUIRES_CHOICE' | 'REJECTED';
 export interface EngineCommandResult<TPayload = unknown> {
   readonly commandId: string;
   readonly gameId: string;
@@ -122,7 +132,9 @@ export const engineErrorFor = (code: AnyEngineErrorCode): EngineError => {
   else if (code === 'INSUFFICIENT_AP' || code === 'INSUFFICIENT_RESOURCES') category = 'RESOURCE';
   else if (code.startsWith('CARD_') || code.startsWith('STRATEGY_') || code === 'DUPLICATE_CARD_INSTANCE') category = 'CARD';
   else if (code.startsWith('INVALID_DT') || code.startsWith('INVALID_TARGET')) category = 'TARGETING';
+  else if (code.startsWith('CHOICE_') || code === 'INVALID_CHOICE_OPTION') category = 'CHOICE';
   else if (code.startsWith('CAMPAIGN_') || code === 'INVALID_SLOT') category = 'CAMPAIGN';
+  else if (code === 'COST_PAYMENT_FAILED') category = 'RESOURCE';
   else if (code.startsWith('UNSUPPORTED_') || code === 'INVALID_COMMAND_PAYLOAD') category = 'CONTRACT';
   else if (code === 'INVALID_MAINTENANCE_SELECTION') category = 'CARD';
   else if (code.includes('ALREADY_ASSIGNED') || code.includes('ALREADY_SEATED') || code === 'PARTICIPANT_ALREADY_EXISTS' || code === 'SETUP_INVALID') category = 'RULE_INVARIANT';

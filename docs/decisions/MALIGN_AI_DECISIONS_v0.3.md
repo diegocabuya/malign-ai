@@ -803,3 +803,32 @@ Quedan aprobadas como baseline de implementación:
 **JUSTIFICACIÓN:** La revisión técnica confirmó iniciativa y maintenance determinísticos, planificación oculta, compromiso de AP, proyecciones autorizadas, actoría SYSTEM correcta, seam terminal real y cursor RNG transaccional, sin leakage ni trabajo fuera de alcance.  
 **IMPACTO:** M1-1 queda formalmente cerrado. M1-2 y M1-3 permanecen **NOT AUTHORIZED**. Scheduler completo, adjudicación de campañas, Reaction/Veto, PostgreSQL/outbox, realtime/WebSocket, UI, autenticación productiva e IA/OpenAI/RAG permanecen **NOT STARTED / NOT AUTHORIZED**.  
 **ESTADO:** APPROVED — M1-1 CLOSED
+
+---
+
+## DEC-070 — Autorización exclusiva de M1-2
+
+**FECHA:** 2026-08-24  
+**TEMA:** Scheduler, Full Campaign Adjudication, ChoiceRequest/Continuations, Ledgers, AdjudicationTrace and Replay.  
+**DECISIÓN:**
+
+- M0 permanece **IMPLEMENTED AND APPROVED**.
+- M1-0 permanece **IMPLEMENTED AND APPROVED** mediante DEC-067.
+- M1-1 permanece **IMPLEMENTED AND APPROVED** mediante DEC-069.
+- Se autoriza exclusivamente M1-2.
+- El alcance comprende:
+  - scheduler interno determinístico;
+  - adjudicación end-to-end de una campaña normal;
+  - `ChoiceRequest` y continuaciones serializables;
+  - costes, dado, ERT, algoritmo 2:1, influencia, legitimidad y VP;
+  - eventos, ledgers y `AdjudicationTrace`;
+  - state hashes RFC 8785/JCS + SHA-256;
+  - snapshots, rehidratación y replay in-memory de pruebas.
+- El owner gate de M1-2 queda fijado en 17 IDs del oracle y 9 IDs del addendum, para un total de 26/26.
+- La suite acumulada anterior de 124/124 debe preservarse.
+- DEC-070 no aprueba anticipadamente el resultado de M1-2.
+- M1-3, Reaction/Veto, PostgreSQL/outbox productivo, realtime/WebSocket productivo, UI final, autenticación productiva e IA/OpenAI/RAG permanecen **NOT AUTHORIZED**.
+
+**JUSTIFICACIÓN:** M1-0 y M1-1 están formalmente cerrados y proporcionan el aggregate, setup, iniciativa, maintenance, planificación oculta, AP, proyecciones y boundary de reveal necesarios para ejecutar el siguiente slice determinístico sin adelantar transporte o infraestructura productiva.  
+**IMPACTO:** M1-2 queda sujeto a implementación, gate 26/26, regresión acumulada y revisión técnica posterior. Esta autorización no inicia M1-3 ni aprueba M1-2 anticipadamente.  
+**ESTADO:** APPROVED — M1-2 ONLY

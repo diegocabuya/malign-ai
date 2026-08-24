@@ -59,12 +59,14 @@ type Envelope<TCommandType extends string, TPayload> = CommandEnvelope<TCommandT
 
 export interface AtomicResolution<TState extends AtomicVersionedState> {
   readonly nextState: TState;
+  readonly status?: 'RESOLVED' | 'REQUIRES_CHOICE';
   readonly resultCode: string;
   readonly resultPayload?: unknown;
   readonly emittedEventRefs: readonly string[];
+  readonly adjudicationTraceRefs?: readonly string[];
 }
 
-type PreparedResolution<TState extends AtomicVersionedState> =
+export type PreparedResolution<TState extends AtomicVersionedState> =
   | AtomicResolution<TState>
   | { readonly error: AnyEngineErrorCode; readonly version: number };
 
@@ -122,13 +124,13 @@ export const dispatchAtomicCommand = <TState extends AtomicVersionedState, TComm
   const result: EngineCommandResult = {
     commandId: envelope.commandId,
     gameId: envelope.gameId,
-    status: 'RESOLVED',
+    status: prepared.status ?? 'RESOLVED',
     gameVersionBefore: beforeVersion,
     gameVersionAfter: prepared.nextState.version,
     resultCode: prepared.resultCode,
     ...(prepared.resultPayload === undefined ? {} : { resultPayload: prepared.resultPayload }),
     emittedEventRefs: prepared.emittedEventRefs,
-    adjudicationTraceRefs: [],
+    adjudicationTraceRefs: prepared.adjudicationTraceRefs ?? [],
     resolvedAt: options.now().toISOString(),
   };
   store.idempotencySet(identity, { fingerprint: commandFingerprint, result });

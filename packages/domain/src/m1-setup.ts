@@ -10,7 +10,9 @@ export type SetupGamePhase =
   | 'RESOLUTION_STAGE';
 export type SetupGameOverlay = 'ACTIVE' | 'PAUSED';
 export type DiceMode = 'DIGITAL' | 'MANUAL_DIE_INPUT';
-export type SetupCardZone = 'STARTER_POOL' | 'OPERATIONS_POOL' | 'OPERATIONS_DECK' | 'HAND' | 'DISCARD';
+import type { M1AdjudicationState } from './m1-adjudication.js';
+
+export type SetupCardZone = 'STARTER_POOL' | 'OPERATIONS_POOL' | 'OPERATIONS_DECK' | 'HAND' | 'DISCARD' | 'CAMPAIGN';
 
 export interface PinnedVersions {
   readonly rulesetVersion: string;
@@ -134,7 +136,7 @@ export interface M1ActionPlanSlot {
   readonly actionPayload: M1ActionPayload;
   readonly apCost: 1;
   revealed: boolean;
-  terminalOutcome?: 'NOT_EXECUTED';
+  terminalOutcome?: 'NOT_EXECUTED' | 'RESOLVED' | 'FAILED_COST';
 }
 
 export interface M1ActionPlanningParticipantState {
@@ -198,7 +200,23 @@ export type SetupGameEventType =
   | 'ACTION_PLAN_SAVED'
   | 'AP_COMMITTED'
   | 'ACTION_PLAN_LOCKED'
-  | 'ACTION_REVEALED';
+  | 'ACTION_REVEALED'
+  | 'ACTION_RESOLVED'
+  | 'CAMPAIGN_CREATED'
+  | 'CAMPAIGN_ACTIVATION_STARTED'
+  | 'NARRATIVE_SUBMITTED'
+  | 'PRE_ROLL_REACTION_OPENED'
+  | 'PRE_ROLL_REACTION_EVALUATED'
+  | 'PRE_ROLL_REACTION_CLOSED'
+  | 'CAMPAIGN_COST_PAID'
+  | 'DIE_ROLLED'
+  | 'ERT_RESOLVED'
+  | 'CHOICE_REQUESTED'
+  | 'CHOICE_RESOLVED'
+  | 'INFLUENCE_MUTATED'
+  | 'LEGITIMACY_CHANGED'
+  | 'VP_CHANGED'
+  | 'CAMPAIGN_ACTIVATION_COMPLETED';
 
 export type SetupEventVisibilityClass = 'PUBLIC' | 'OWNER_AND_FACILITATOR';
 export type SetupEventActorType = ParticipantRole | 'SYSTEM';
@@ -249,6 +267,7 @@ export interface SetupGameState {
   readonly resourceLedger: ResourceLedgerEntry[];
   readonly actionPointLedger: ActionPointLedgerEntry[];
   readonly secretVictoryObjectives: Record<string, SecretVictoryObjectiveState[]>;
+  readonly adjudication: M1AdjudicationState;
   currentRevealedAction?: RevealedActionState;
   readonly events: SetupGameEvent[];
 }

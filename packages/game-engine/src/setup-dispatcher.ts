@@ -2,6 +2,7 @@ import type { ActorContext, AnyEngineErrorCode, CommandEnvelope, EngineCommandRe
 import {
   BASE_2025_CARD_REGISTRY,
   BASE_2025_COUNTRIES,
+  BASE_2025_M1_CAMPAIGN_CARD_RULES,
   BASE_2025_POPULATION_DEMOGRAPHICS,
   M1_0_BASELINE_VERSIONS,
   cardInstanceId,
@@ -532,6 +533,28 @@ export class SetupCommandDispatcher {
       resourceLedger: [],
       actionPointLedger: [],
       secretVictoryObjectives: {},
+      adjudication: {
+        campaignCardRules: structuredClone(BASE_2025_M1_CAMPAIGN_CARD_RULES),
+        campaigns: {},
+        influenceStacks: BASE_2025_POPULATION_DEMOGRAPHICS.map((pd) => ({
+          pdId: pd.id,
+          type: pd.initialInfluence.type,
+          attributionCountryId: pd.initialInfluence.attributionCountryId,
+          count: pd.initialInfluence.count,
+        })),
+        legitimacyByPd: Object.fromEntries(BASE_2025_POPULATION_DEMOGRAPHICS.map(({ id }) => [id, null])),
+        vpByParticipant: {},
+        narrativesByCampaign: {},
+        scheduler: { participantIndex: 0, slotIndex: 0, status: 'READY' },
+        resolvedChoiceIds: [],
+        dieRolls: [],
+        resourceLedger: [],
+        influenceLedger: [],
+        legitimacyLedger: [],
+        vpLedger: [],
+        influenceResolutions: [],
+        traces: [],
+      },
       events: [],
     };
     const event = this.appendEvent(state, envelope, 'GAME_CREATED', { phase: state.phase });
@@ -580,6 +603,7 @@ export class SetupCommandDispatcher {
       role: 'PLAYER',
       status: 'ACTIVE',
     };
+    state.adjudication.vpByParticipant[participantId] = 0;
     const event = this.appendEvent(state, envelope, 'PARTICIPANT_JOINED', { participantId });
     return { resultCode: 'PARTICIPANT_JOINED', resultPayload: { participantId }, events: [event] };
   }
@@ -1216,7 +1240,8 @@ export class SetupCommandDispatcher {
         if (
           !Object.values(state.populationDemographics).some(
             ({ demographicTokenIds }) =>
-              demographicTokenIds.includes(payload.targetDtId),
+              demographicTokenIds.includes(payload.targetDtId) ||
+              demographicTokenIds.some((token) => token.endsWith(`:${payload.targetDtId}`)),
           )
         )
           return "INVALID_DT";
