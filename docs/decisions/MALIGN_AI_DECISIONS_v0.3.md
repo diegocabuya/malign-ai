@@ -774,3 +774,32 @@ Quedan aprobadas como baseline de implementación:
 **JUSTIFICACIÓN:** El cierre formal de M1-0 dejó el aggregate, las sesiones verificadas, el setup y el transaction boundary in-memory en condiciones de extender exclusivamente el siguiente slice determinístico y de seguridad aprobado, sin adelantar adjudicación, infraestructura productiva ni interacción avanzada.  
 **IMPACTO:** M1-1 queda sujeto a su gate ejecutable 26/26 y a revisión técnica posterior. Esta decisión no autoriza M1-2, M1-3 ni cierre o aprobación anticipada de M1-1.  
 **ESTADO:** APPROVED — M1-1 ONLY
+
+---
+
+## DEC-069 — Aprobación técnica y cierre formal de M1-1
+**FECHA:** 2026-08-24  
+**TEMA:** Cierre formal de M1-1 — Initiative, Minimum Maintenance, Hidden Action Planning and AuthorizedProjection.  
+**DECISIÓN:**
+
+- DEC-068 quedó cumplida.
+- M1-1 queda **IMPLEMENTED AND APPROVED** en el commit final `a1c6f2646ad8a8c7d0ca109b623c846eb5f10b04`.
+- M11-R01…R04 quedan cerradas mediante ese commit.
+- No se requieren nuevas correcciones de código.
+- Owner gate M1-1: **26/26 PASS**:
+  - oracle v0.1: **17/17 PASS**;
+  - addendum M1 v0.1: **9/9 PASS**.
+- Regresiones M11-R01…R04: **4/4 PASS**.
+- M1-0 preservado: **39/39 PASS**.
+- M0 preservado: **55/55 PASS**.
+- Suite previa preservada: **120/120 PASS**.
+- Suite final: **124/124 PASS, 0 skips y 0 todo**.
+- Oracle v0.1 preservado con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92`.
+- Addendum M1 v0.1 preservado con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`.
+- No queda ninguna `IMPLEMENTATION_QUESTION` pendiente para M1-1.
+- DEC-069 cierra exclusivamente M1-1.
+- DEC-069 **NO autoriza M1-2 ni M1-3**.
+
+**JUSTIFICACIÓN:** La revisión técnica confirmó iniciativa y maintenance determinísticos, planificación oculta, compromiso de AP, proyecciones autorizadas, actoría SYSTEM correcta, seam terminal real y cursor RNG transaccional, sin leakage ni trabajo fuera de alcance.  
+**IMPACTO:** M1-1 queda formalmente cerrado. M1-2 y M1-3 permanecen **NOT AUTHORIZED**. Scheduler completo, adjudicación de campañas, Reaction/Veto, PostgreSQL/outbox, realtime/WebSocket, UI, autenticación productiva e IA/OpenAI/RAG permanecen **NOT STARTED / NOT AUTHORIZED**.  
+**ESTADO:** APPROVED — M1-1 CLOSED
