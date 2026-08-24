@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-24  
-**Fase actual:** M1-1 IMPLEMENTED AND APPROVED  
+**Fase actual:** M1-2 IMPLEMENTED / PENDING REVIEW  
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -45,7 +45,15 @@
 | Suite previa preservada | **120/120 PASS** |
 | Suite acumulada al cierre de M1-1 | **124/124 PASS, 0 skips, 0 todo** |
 | IMPLEMENTATION_QUESTION de M1-1 | **Ninguna pendiente** |
-| M1-2 | **NOT AUTHORIZED** |
+| M1-2 | **IMPLEMENTED / PENDING REVIEW mediante DEC-070** |
+| Commit funcional M1-2 | `0266f84f0aa6f2bb840073352815a4bfa2a485bb` |
+| M1-2 owner gate | **26/26 PASS, 0 skips, 0 todo** |
+| M1-2 oracle v0.1 | **17/17 PASS** |
+| M1-2 addendum M1 v0.1 | **9/9 PASS** |
+| M1-2 pruebas complementarias | **12/12 PASS** |
+| Suite previa preservada durante M1-2 | **124/124 PASS** |
+| Suite acumulada tras M1-2 | **162/162 PASS, 0 skips, 0 todo, 0 waivers** |
+| IMPLEMENTATION_QUESTION de M1-2 | **Ninguna pendiente** |
 | M1-3 | **NOT AUTHORIZED** |
 
 PR-1 fue aprobado técnicamente contra el commit `69ded64d912fc0231b82046fecad024baf8ec67e`. No requiere correcciones de código.
@@ -98,7 +106,17 @@ El gate owner M1-1 reporta **17/17 IDs oracle v0.1 + 9/9 IDs addendum v0.1 = 26/
 
 La revisión técnica aprobó el estado final de M1-1 contra el commit `a1c6f2646ad8a8c7d0ca109b623c846eb5f10b04`. Mediante `DEC-069`, DEC-068 queda cumplida, M11-R01…R04 quedan **CLOSED** y M1-1 queda **IMPLEMENTED AND APPROVED** sin nuevas correcciones de código.
 
-DEC-069 cierra exclusivamente M1-1 y no autoriza trabajo posterior. M1-2 y M1-3 permanecen **NOT AUTHORIZED**. Scheduler completo, adjudicación de campañas, Reaction/Veto, PostgreSQL/outbox, realtime/WebSocket productivo, UI, autenticación productiva e IA/OpenAI/RAG permanecen **NOT STARTED / NOT AUTHORIZED**.
+DEC-069 cerró exclusivamente M1-1. DEC-070 autorizó posteriormente sólo el slice M1-2 descrito a continuación; M1-3 permanece **NOT AUTHORIZED**.
+
+## Implementación M1-2 pendiente de revisión
+
+M1-2 implementa un scheduler interno determinístico con autoridad `SYSTEM`, orden por iniciativa y `sequenceIndex`, suspensión ante interacción pendiente y un solo reveal por slot. La adjudicación de campaña normal recorre construcción, narrativa determinística, tramo PRE_ROLL de cero elegibles, coste atómico basado en `base_cv`, `effective_cv`, d10 transaccional, ERT versionada, 2:1, influencia, legitimidad y VP, reutilizando el Rule Kernel.
+
+`PendingResolution`, `ChoiceRequest` y la continuación 2:1 son datos serializables con actor, opciones opacas, versión, cursor, correlación, causación y versiones normativas fijadas. El slice añade eventos canónicos, ledgers reconciliables, `AdjudicationTrace`, hashes RFC 8785/JCS + SHA-256, snapshot/rehidratación y replay exclusivamente in-memory/test-only. Las proyecciones autorizadas muestran la elección sólo a owner/facilitator y conservan metadata de eventos privados con payload redactado para rivales.
+
+El commit funcional `0266f84f0aa6f2bb840073352815a4bfa2a485bb` reporta **17/17 IDs oracle v0.1 + 9/9 IDs addendum M1 v0.1 = 26/26 owner PASS**, más **12/12 pruebas complementarias**. La suite previa de **124/124** permanece preservada y la suite acumulada queda en **162/162 PASS, 0 skips, 0 todo y 0 waivers**. No existe `IMPLEMENTATION_QUESTION` pendiente para M1-2.
+
+M1-2 permanece **IMPLEMENTED / PENDING REVIEW**. DEC-070 es una autorización de implementación y no una aprobación anticipada. M1-3, Reaction/Veto, PostgreSQL/outbox productivo, realtime/WebSocket productivo, UI final, autenticación productiva e IA/OpenAI/RAG permanecen **NOT STARTED / NOT AUTHORIZED**.
 
 ## Cierre de implementación PR-2
 
@@ -110,8 +128,8 @@ La corrección posterior al gate `CHANGES REQUIRED` endurece phase enforcement, 
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-M1-0 está formalmente cerrado mediante DEC-067 y M1-1 está formalmente cerrado mediante DEC-069. M1-2 y M1-3 permanecen **NOT AUTHORIZED** y no pueden comenzar sin autorización expresa posterior.
+M1-0 está formalmente cerrado mediante DEC-067 y M1-1 mediante DEC-069. M1-2 fue implementado exclusivamente bajo DEC-070 y permanece **PENDING REVIEW**; no está aprobado ni cerrado. M1-3 permanece **NOT AUTHORIZED** y no puede comenzar sin autorización expresa posterior.
 
 ## Continuidad documental
 
-Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. El cierre formal de M1-1 preserva intactos el oracle v0.1 con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92` y el addendum M1 v0.1 con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`, y no altera las reglas aprobadas ni los package boundaries.
+Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. M1-2 preserva intactos el oracle v0.1 con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92` y el addendum M1 v0.1 con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`, y no altera las reglas aprobadas ni los package boundaries.
