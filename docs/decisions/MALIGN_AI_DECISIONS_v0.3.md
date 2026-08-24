@@ -889,3 +889,53 @@ Quedan aprobadas como baseline de implementación:
 **JUSTIFICACIÓN:** M1-2 está formalmente cerrado y proporciona el estado, event log, proyecciones, snapshots y replay necesarios para implementar y verificar exclusivamente la integración multiplayer y recovery in-memory de M1-3.
 **IMPACTO:** M1-3 queda sujeto al gate 17/17, a la regresión acumulada y a revisión técnica posterior. Esta decisión no autoriza infraestructura productiva, M2, M3 ni el cierre de M1.
 **ESTADO:** APPROVED — M1-3 IMPLEMENTATION ONLY
+
+---
+
+## DEC-073 — Aprobación técnica y cierre formal de M1-3 y M1
+
+**FECHA:** 2026-08-24
+**TEMA:** Cierre formal de M1-3 — Realtime Test Adapter, Multiplayer Integration and Reconnect/Recovery — y del milestone M1.
+**DECISIÓN:**
+
+- DEC-072 quedó cumplida.
+- M1-3 queda **IMPLEMENTED AND APPROVED** en el commit funcional final `46046eb9ab6d761b20f2b77edfa4780fc6b8cd22`.
+- El commit inicial `d04cedf81b5ca3d739f060213052440202b069ed` queda supersedido técnicamente por la corrección final.
+- M13-R01…R06 quedan **CLOSED**.
+- No se requieren nuevas correcciones de código.
+- Gate nominal M1-3: **17/17 PASS**:
+  - addendum realtime/reconnect: **10/10**;
+  - regresiones explícitas: **7/7**.
+- Regresiones nuevas M13-R01…R06: **12/12 PASS**.
+- Total M1-3: **29/29 PASS**.
+- M0 preservado: **55/55 PASS**.
+- M1-0 preservado: **39/39 PASS**.
+- M1-1 preservado: **30/30 PASS**.
+- M1-2 preservado: **62/62 PASS**.
+- Total de pruebas M1: **160/160 PASS**.
+- Suite completa final: **215/215 PASS en 27 archivos, 0 skips, 0 todo y 0 waivers**.
+- Baseline canónico M1 satisfecho:
+  - **49 IDs** del oracle v0.1;
+  - **38 IDs** del addendum M1 v0.1;
+  - **87 casos canónicos únicos**;
+  - **94/94 ejecuciones asignadas**, incluyendo las siete regresiones de M1-3.
+- Oracle v0.1 preservado con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92`.
+- Addendum M1 v0.1 preservado con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`.
+- PTD-M1-001…005 permanecen aprobadas y materializadas dentro del alcance in-memory/test-only de M1.
+- IQ-M1-001…003 permanecen resueltas.
+- No queda ninguna `IMPLEMENTATION_QUESTION` pendiente para M1.
+- Los cuatro bloques M1 quedan cerrados:
+  - M1-0 mediante DEC-067;
+  - M1-1 mediante DEC-069;
+  - M1-2 mediante DEC-071;
+  - M1-3 mediante DEC-073.
+- M1 queda **IMPLEMENTED AND APPROVED**.
+- El checkpoint M1 termina después de una campaña normal resuelta en `RESOLUTION_STAGE`, antes de Cleanup.
+- DEC-073 cierra exclusivamente M1.
+- DEC-073 **NO autoriza M2 ni M3**.
+- PostgreSQL, migraciones, outbox, durabilidad entre procesos/nodos, realtime/WebSocket productivo, UI, autenticación productiva, IA/OpenAI/RAG, Reaction/Veto, Cleanup, End Turn, objectives y victory permanecen **NOT STARTED / NOT AUTHORIZED**.
+- Estado: `APPROVED — M1 CLOSED`.
+
+**JUSTIFICACIÓN:** La revisión confirmó publicación posterior a CAS, resultado idempotente y RNG estables; initial sync y reconnect sin ventana de pérdida; handlers y observers aislados; lifecycle de suscripciones autenticado; handles públicos opacos; deduplicación y recuperación de gaps; omisiones privadas diferenciadas de pérdidas reales; política canónica fail-closed compartida por query, feed, sync, realtime y reconnect; cero leakage en owner, rival y facilitador; y ausencia de infraestructura productiva o trabajo fuera de alcance.
+**IMPACTO:** M1-3 y el milestone M1 quedan formalmente cerrados y aprobados. M2, M3 y todos los componentes productivos o reglas diferidas enumerados permanecen **NOT STARTED / NOT AUTHORIZED**.
+**ESTADO:** APPROVED — M1 CLOSED
