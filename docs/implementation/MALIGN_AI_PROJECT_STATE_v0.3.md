@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-24  
-**Fase actual:** M1 IMPLEMENTED AND APPROVED / CLOSED — M2 NOT AUTHORIZED
+**Fase actual:** M1 IMPLEMENTED AND APPROVED / CLOSED — M2 PLANNING GATE DOCUMENTED / PENDING REVIEW — M2 NOT AUTHORIZED
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -78,7 +78,22 @@
 | IMPLEMENTATION_QUESTION de M1-3 | **Ninguna pendiente** |
 | IMPLEMENTATION_QUESTION de M1 | **Ninguna pendiente** |
 | M1 global | **IMPLEMENTED AND APPROVED / CLOSED** |
-| M2 / M3 | **NOT AUTHORIZED** |
+| DEC-074 | **APPROVED — DOCUMENTATION-ONLY AUTHORIZATION** |
+| M2 planning gate | **DOCUMENTED / PENDING REVIEW** |
+| M2 oracle inventory | **224 IDs = 71 implementados + 153 candidates owner M2** |
+| Candidatos complementarios M2 | **32 PROPOSED / NON-CANONICAL / PENDING APPROVAL** |
+| Ejecuciones propuestas del gate M2 | **185 casos nuevos únicos + 66 regresiones = 251** |
+| Suite aprobada de entrada | **215/215 PASS en 27 archivos, 0 skips, 0 todo, 0 waivers — baseline histórica, no reejecutada por este gate documental** |
+| PTD-M2-001…011 | **PROPOSED FOR APPROVAL / PENDING APPROVAL** |
+| IQ-M2-001…007 | **OPEN / PENDING RESOLUTION** |
+| M2-0 — Physical DB/registry | **PROPOSED / NOT AUTHORIZED** |
+| M2-1 — PostgreSQL transaction/outbox/recovery | **PROPOSED / NOT AUTHORIZED** |
+| M2-2 — Productive realtime/reconnect | **PROPOSED / NOT AUTHORIZED** |
+| M2-3 — Scheduler/cards/regime abilities | **PROPOSED / NOT AUTHORIZED** |
+| M2-4 — Reaction/Veto/narrative | **PROPOSED / NOT AUTHORIZED** |
+| M2-5 — Cleanup/objectives/victory | **PROPOSED / NOT AUTHORIZED** |
+| M2 | **NOT AUTHORIZED** |
+| M3 | **NOT AUTHORIZED** |
 
 PR-1 fue aprobado técnicamente contra el commit `69ded64d912fc0231b82046fecad024baf8ec67e`. No requiere correcciones de código.
 
@@ -167,12 +182,22 @@ PR-2 implementa exclusivamente command safety in-memory, action-plan lock y el v
 
 La corrección posterior al gate `CHANGES REQUIRED` endurece phase enforcement, autoridad de activación extra, invariantes del action-plan payload, compatibilidad de slots, identidades de campañas/cartas y el boundary de juego/actor. Los hallazgos PR2-R01…R06 quedaron cerrados en el commit `0f4195e4f8f72d73eb277983e01fdb2472f5602d`; PR-2 y M0 están aprobados.
 
+## Gate documental de planificación M2
+
+DEC-074 autoriza exclusivamente inspección y edición documental para convertir el alcance M2 en un plan implementable, test-first, trazable y revisable. Bajo esa autorización se crean `MALIGN_AI_M2_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M2_TEST_GATE_v0.1.md`, se registran `IQ-M2-001…007` y se proponen `PTD-M2-001…011`.
+
+El gate clasifica los 224 IDs del oracle en 71 ya implementados por M0/M1 y 153 candidates con owner único M2. Propone además 32 IDs complementarios **PROPOSED / NON-CANONICAL / PENDING APPROVAL** y 66 ejecuciones `[REGRESSION]`. Ninguna PTD está aprobada, ninguna IQ está resuelta y no existe addendum normativo M2.
+
+La suite **215/215 PASS en 27 archivos, 0 skips, 0 todo y 0 waivers** se conserva únicamente como baseline aprobada de entrada; no fue reejecutada para este cambio documental. PostgreSQL/migrations/outbox, durabilidad entre procesos/nodos, realtime/WebSocket productivo, registry completo, scheduler completo, Action/Reaction/Veto, Regime Abilities, Cleanup/End Turn, objectives/victory, AuthN productiva, UI e IA permanecen **NOT STARTED / NOT AUTHORIZED**.
+
+M2-0…M2-5 son exclusivamente una descomposición propuesta. DEC-074 no autoriza M2, ninguna subetapa, código, tests, migrations, dependencias, infraestructura, proveedores o cambios de arquitectura. No se identificó una nueva ambigüedad de regla oficial y `OPEN_QUESTIONS.md` no se modifica.
+
 ## Próximo gate
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. M2 y M3 permanecen **NOT AUTHORIZED** y no pueden comenzar sin autorización expresa posterior.
+M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El paquete documental M2 queda **DOCUMENTED / PENDING REVIEW** mediante DEC-074. El próximo paso permitido es exclusivamente revisión humana, aprobación o enmienda documental y resolución expresa de PTD/IQ. M2, M2-0…M2-5 y M3 permanecen **NOT AUTHORIZED**.
 
 ## Continuidad documental
 
-Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. M1-3 preserva intactos el oracle v0.1 con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92` y el addendum M1 v0.1 con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`, y no altera las reglas aprobadas ni los package boundaries.
+Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. El gate M2 preserva intactos el oracle v0.1 con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92` y el addendum M1 v0.1 con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`, y no altera código, tests, reglas aprobadas, arquitectura ni package boundaries.

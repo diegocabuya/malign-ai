@@ -939,3 +939,28 @@ Quedan aprobadas como baseline de implementación:
 **JUSTIFICACIÓN:** La revisión confirmó publicación posterior a CAS, resultado idempotente y RNG estables; initial sync y reconnect sin ventana de pérdida; handlers y observers aislados; lifecycle de suscripciones autenticado; handles públicos opacos; deduplicación y recuperación de gaps; omisiones privadas diferenciadas de pérdidas reales; política canónica fail-closed compartida por query, feed, sync, realtime y reconnect; cero leakage en owner, rival y facilitador; y ausencia de infraestructura productiva o trabajo fuera de alcance.
 **IMPACTO:** M1-3 y el milestone M1 quedan formalmente cerrados y aprobados. M2, M3 y todos los componentes productivos o reglas diferidas enumerados permanecen **NOT STARTED / NOT AUTHORIZED**.
 **ESTADO:** APPROVED — M1 CLOSED
+
+---
+
+## DEC-074 — Gate documental de planificación M2
+
+**FECHA:** 2026-08-24
+**TEMA:** Conversión del alcance M2 en un plan implementable, test-first, trazable y revisable.
+
+**DECISIÓN:**
+
+- M0 y M1 permanecen **IMPLEMENTED AND APPROVED**.
+- Se autoriza exclusivamente la inspección y edición documental necesaria para preparar el plan de M2.
+- Se autoriza crear la especificación de implementación M2, su test gate, registrar preguntas y proponer decisiones técnicas.
+- Toda nueva decisión técnica debe quedar como **PROPOSED FOR APPROVAL**.
+- Todo nuevo ID complementario debe quedar como **PROPOSED / NON-CANONICAL**.
+- DEC-074 no aprueba ninguna decisión técnica propuesta.
+- DEC-074 no autoriza M2, M2-0 ni ninguna subetapa.
+- DEC-074 no autoriza código, tests ejecutables, migraciones, dependencias, infraestructura, proveedores ni cambios de arquitectura.
+- M3 permanece **NOT AUTHORIZED**.
+
+**JUSTIFICACIÓN:** M1 está formalmente cerrado y los componentes diferidos requieren scope, dependencias, ownership de pruebas, decisiones técnicas y preguntas resueltas antes de comenzar implementación.
+
+**IMPACTO:** El resultado será exclusivamente un paquete documental pendiente de revisión humana y aprobación posterior.
+
+**ESTADO:** APPROVED — DOCUMENTATION-ONLY AUTHORIZATION
