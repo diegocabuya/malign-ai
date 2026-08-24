@@ -755,3 +755,22 @@ Quedan aprobadas como baseline de implementación:
 **JUSTIFICACIÓN:** La revisión técnica del estado final confirmó el cumplimiento íntegro del gate M1-0 y el cierre de M10-R01…R06 sin pendientes de código ni preguntas de implementación.  
 **IMPACTO:** M1-0 queda formalmente cerrado y aprobado. M1-1, M1-2 y M1-3 permanecen **NOT AUTHORIZED**; este cierre no inicia trabajo posterior.  
 **ESTADO:** APPROVED — M1-0 CLOSED
+
+---
+
+## DEC-068 — Autorización exclusiva de M1-1
+**FECHA:** 2026-08-23  
+**TEMA:** Initiative, Minimum Maintenance, Hidden Action Planning and AuthorizedProjection.  
+**DECISIÓN:**
+
+- M1-0 permanece **IMPLEMENTED AND APPROVED** mediante DEC-067.
+- Se autoriza exclusivamente M1-1.
+- El alcance autorizado comprende iniciativa determinística, maintenance mínimo, planificación oculta server-side/in-memory, lock y compromiso de AP, proyecciones autorizadas owner/rival/facilitator y el boundary mínimo de reveal requerido por el gate.
+- El gate M1-1 queda fijado en **17 IDs oracle + 9 IDs addendum = 26 casos owner**.
+- La suite M0 **55/55** y todo M1-0 deben permanecer intactos.
+- DEC-068 no aprueba anticipadamente el resultado de M1-1.
+- M1-2, M1-3, PostgreSQL, outbox, realtime/WebSocket productivo, UI, autenticación productiva, IA/OpenAI/RAG y Reaction/Veto permanecen **NOT AUTHORIZED**.
+
+**JUSTIFICACIÓN:** El cierre formal de M1-0 dejó el aggregate, las sesiones verificadas, el setup y el transaction boundary in-memory en condiciones de extender exclusivamente el siguiente slice determinístico y de seguridad aprobado, sin adelantar adjudicación, infraestructura productiva ni interacción avanzada.  
+**IMPACTO:** M1-1 queda sujeto a su gate ejecutable 26/26 y a revisión técnica posterior. Esta decisión no autoriza M1-2, M1-3 ni cierre o aprobación anticipada de M1-1.  
+**ESTADO:** APPROVED — M1-1 ONLY

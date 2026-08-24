@@ -1,10 +1,17 @@
-export type CountryId = 'ARDEN' | 'FLUMA' | 'URSARIA' | 'PRESQUE' | 'DINESIA';
-export type ParticipantRole = 'FACILITATOR' | 'PLAYER';
-export type ParticipantStatus = 'ACTIVE';
-export type SetupGamePhase = 'SETUP' | 'STRATEGY_STAGE' | 'INITIATIVE_STAGE';
-export type SetupGameOverlay = 'ACTIVE' | 'PAUSED';
-export type DiceMode = 'DIGITAL' | 'MANUAL_DIE_INPUT';
-export type SetupCardZone = 'STARTER_POOL' | 'OPERATIONS_POOL' | 'OPERATIONS_DECK' | 'HAND';
+export type CountryId = "ARDEN" | "FLUMA" | "URSARIA" | "PRESQUE" | "DINESIA";
+export type ParticipantRole = "FACILITATOR" | "PLAYER";
+export type ParticipantStatus = "ACTIVE";
+export type SetupGamePhase =
+  | "SETUP"
+  | "STRATEGY_STAGE"
+  | "INITIATIVE_STAGE"
+  | "ACTION_STAGE_PLAN"
+  | "ACTION_STAGE_LOCKED"
+  | "RESOLUTION_STAGE";
+export type SetupGameOverlay = "ACTIVE" | "PAUSED";
+export type DiceMode = "DIGITAL" | "MANUAL_DIE_INPUT";
+export type SetupCardZone =
+  "STARTER_POOL" | "OPERATIONS_POOL" | "OPERATIONS_DECK" | "HAND" | "DISCARD";
 
 export interface PinnedVersions {
   readonly rulesetVersion: string;
@@ -46,10 +53,10 @@ export interface ScenarioPopulationDemographic {
   readonly boardLabel: string;
   readonly demographicTokenIds: readonly string[];
   readonly initialInfluence: {
-    readonly type: 'MALIGN' | 'RESILIENCY';
+    readonly type: "MALIGN" | "RESILIENCY";
     readonly count: number;
     readonly attributionCountryId: CountryId;
-    readonly source: 'SCENARIO_SETUP';
+    readonly source: "SCENARIO_SETUP";
   };
 }
 
@@ -76,24 +83,126 @@ export interface StrategySetupState {
   submittedCardInstanceIds: string[];
   operationsDeckOrder: string[];
   handCardInstanceIds: string[];
+  discardCardInstanceIds: string[];
   locked: boolean;
 }
 
-export type SetupGameEventType =
-  | 'GAME_CREATED'
-  | 'PARTICIPANT_JOINED'
-  | 'PLAYER_SEAT_ASSIGNED'
-  | 'GAME_OPTION_CONFIGURED'
-  | 'GAME_STARTED'
-  | 'PHASE_CHANGED'
-  | 'OPERATIONS_DECK_SUBMITTED'
-  | 'DECK_SHUFFLED'
-  | 'CARD_DRAWN'
-  | 'PLAYER_READY_CHANGED'
-  | 'GAME_PAUSED'
-  | 'GAME_RESUMED';
+export interface InitiativeRollAudit {
+  readonly rngRequestId: string;
+  readonly source: "INITIATIVE";
+  readonly attempt: number;
+  readonly participantId: string;
+  readonly rawValue: number;
+  readonly consumptionOrder: number;
+}
 
-export type SetupEventVisibilityClass = 'PUBLIC' | 'OWNER_AND_FACILITATOR';
+export interface InitiativeMaintenanceState {
+  readonly participantId: string;
+  discardCardInstanceIds: string[];
+  submitted: boolean;
+  locked: boolean;
+  incomeApplied: boolean;
+}
+
+export interface InitiativeState {
+  status: "PENDING_ROLL" | "MAINTENANCE" | "COMPLETE";
+  rolls: InitiativeRollAudit[];
+  orderParticipantIds: string[];
+  winnerParticipantId?: string;
+  readonly maintenance: Record<string, InitiativeMaintenanceState>;
+}
+
+export type M1ActionType = "CONSTRUCT_CAMPAIGN" | "ACTIVATE_CAMPAIGN";
+
+export interface ConstructCampaignPlanPayload {
+  readonly row: "I";
+  readonly intentCardInstanceId: string;
+  readonly methodCardInstanceId: string;
+  readonly amplifierCardInstanceId?: string;
+  readonly targetDtId: string;
+}
+
+export interface ActivateCampaignPlanPayload {
+  readonly campaignId: string;
+  readonly requestedTargetPdId?: string;
+}
+
+export type M1ActionPayload =
+  ConstructCampaignPlanPayload | ActivateCampaignPlanPayload;
+
+export interface M1ActionPlanSlot {
+  readonly sequenceIndex: number;
+  readonly actionType: M1ActionType;
+  readonly actionPayload: M1ActionPayload;
+  readonly apCost: 1;
+  revealed: boolean;
+  terminalOutcome?: "NOT_EXECUTED";
+}
+
+export interface M1ActionPlanningParticipantState {
+  readonly participantId: string;
+  readonly apAllocated: 3;
+  apAvailable: number;
+  draftSlots: M1ActionPlanSlot[];
+  lockedSlots: M1ActionPlanSlot[];
+  locked: boolean;
+}
+
+export interface RevealedActionState {
+  readonly participantId: string;
+  readonly sequenceIndex: number;
+  readonly actionType: M1ActionType;
+}
+
+export interface ResourceLedgerEntry {
+  readonly id: string;
+  readonly participantId: string;
+  readonly countryId: CountryId;
+  readonly reason: "TURN_INCOME";
+  readonly delta: number;
+  readonly balanceAfter: number;
+  readonly gameVersion: number;
+}
+
+export interface ActionPointLedgerEntry {
+  readonly id: string;
+  readonly participantId: string;
+  readonly reason: "TURN_ALLOCATION" | "PLAN_COMMIT";
+  readonly delta: number;
+  readonly balanceAfter: number;
+  readonly gameVersion: number;
+}
+
+export interface SecretVictoryObjectiveState {
+  readonly id: string;
+  readonly condition: string;
+  readonly metadata: Readonly<Record<string, string | number | boolean>>;
+  readonly progress: number;
+}
+
+export type SetupGameEventType =
+  | "GAME_CREATED"
+  | "PARTICIPANT_JOINED"
+  | "PLAYER_SEAT_ASSIGNED"
+  | "GAME_OPTION_CONFIGURED"
+  | "GAME_STARTED"
+  | "PHASE_CHANGED"
+  | "OPERATIONS_DECK_SUBMITTED"
+  | "DECK_SHUFFLED"
+  | "CARD_DRAWN"
+  | "PLAYER_READY_CHANGED"
+  | "GAME_PAUSED"
+  | "GAME_RESUMED"
+  | "INITIATIVE_ROLLED"
+  | "INITIATIVE_ORDER_SET"
+  | "RESOURCE_CHANGED"
+  | "CARD_MOVED"
+  | "ACTION_PLAN_SAVED"
+  | "AP_COMMITTED"
+  | "ACTION_PLAN_LOCKED"
+  | "ACTION_REVEALED";
+
+export type SetupEventVisibilityClass = "PUBLIC" | "OWNER_AND_FACILITATOR";
 
 export interface SetupGameEvent {
   readonly id: string;
@@ -116,7 +225,7 @@ export interface SetupGameEvent {
 export interface SetupGameState {
   readonly id: string;
   version: number;
-  readonly scenarioId: 'BASE_2025';
+  readonly scenarioId: "BASE_2025";
   phase: SetupGamePhase;
   overlay: SetupGameOverlay;
   readonly versions: PinnedVersions;
@@ -130,10 +239,22 @@ export interface SetupGameState {
   readonly participants: Record<string, GameParticipant>;
   readonly seats: Record<string, PlayerSeat>;
   readonly countries: Record<CountryId, GameCountry>;
-  readonly populationDemographics: Record<string, ScenarioPopulationDemographic>;
+  readonly populationDemographics: Record<
+    string,
+    ScenarioPopulationDemographic
+  >;
   readonly cardDefinitions: Record<string, SetupCardDefinition>;
   readonly cards: Record<string, SetupCardInstance>;
   readonly strategy: Record<string, StrategySetupState>;
+  readonly initiative: InitiativeState;
+  readonly actionPlanning: Record<string, M1ActionPlanningParticipantState>;
+  readonly resourceLedger: ResourceLedgerEntry[];
+  readonly actionPointLedger: ActionPointLedgerEntry[];
+  readonly secretVictoryObjectives: Record<
+    string,
+    SecretVictoryObjectiveState[]
+  >;
+  currentRevealedAction?: RevealedActionState;
   readonly events: SetupGameEvent[];
 }
 
