@@ -30,7 +30,7 @@ describe('M1-0 oracle owner cases — setup, concurrency and facilitator overlay
     const before = completeSetup(testHarness);
 
     const result = startGame(testHarness);
-    const after = testHarness.app.gameSnapshot(GAME_ID);
+    const after = testHarness.store.snapshot(GAME_ID);
 
     expect(result.status).toBe('RESOLVED');
     expect(result.resultCode).toBe('GAME_STARTED');
@@ -101,12 +101,12 @@ describe('M1-0 oracle owner cases — setup, concurrency and facilitator overlay
         ? validDeckFor('P1').slice(0, 29)
         : [...validDeckFor('P1'), 'ARDEN-CARD-031'];
       seedSubmittedDeck(testHarness, 'P1', selected);
-      const before = testHarness.app.gameSnapshot(GAME_ID);
+      const before = testHarness.store.snapshot(GAME_ID);
 
       const result = lockStrategy(testHarness, 'P1');
 
       expect(result.resultCode).toBe('STRATEGY_DECK_SIZE_INVALID');
-      expect(testHarness.app.gameSnapshot(GAME_ID)).toEqual(before);
+      expect(testHarness.store.snapshot(GAME_ID)).toEqual(before);
       expect(testHarness.random.requests).toHaveLength(0);
     }
   });
@@ -116,12 +116,12 @@ describe('M1-0 oracle owner cases — setup, concurrency and facilitator overlay
     completeAndStart(testHarness);
     const selected = [...validDeckFor('P1').slice(0, 29), 'ARDEN-CARD-059'];
     seedSubmittedDeck(testHarness, 'P1', selected);
-    const before = testHarness.app.gameSnapshot(GAME_ID);
+    const before = testHarness.store.snapshot(GAME_ID);
 
     const result = lockStrategy(testHarness, 'P1');
 
     expect(result.resultCode).toBe('CARD_NOT_ELIGIBLE');
-    expect(testHarness.app.gameSnapshot(GAME_ID)).toEqual(before);
+    expect(testHarness.store.snapshot(GAME_ID)).toEqual(before);
     expect(testHarness.random.requests).toHaveLength(0);
   });
 
@@ -131,7 +131,7 @@ describe('M1-0 oracle owner cases — setup, concurrency and facilitator overlay
     expect(submitDeck(testHarness, 'P1').status).toBe('RESOLVED');
 
     const result = lockStrategy(testHarness, 'P1');
-    const state = testHarness.app.gameSnapshot(GAME_ID);
+    const state = testHarness.store.snapshot(GAME_ID);
     const p1Cards = Object.values(state?.cards ?? {}).filter(({ countryOwnerId }) => countryOwnerId === 'ARDEN');
 
     expect(result.status).toBe('RESOLVED');
@@ -152,7 +152,7 @@ describe('M1-0 oracle owner cases — setup, concurrency and facilitator overlay
     submitDeck(testHarness, 'P1');
 
     lockStrategy(testHarness, 'P1');
-    const state = testHarness.app.gameSnapshot(GAME_ID);
+    const state = testHarness.store.snapshot(GAME_ID);
     const strategy = state?.strategy.P1;
     const hand = strategy?.handCardInstanceIds.map((id) => state?.cards[id]).filter((card) => card !== undefined) ?? [];
     const drawnEvents = state?.events.filter(({ type, payload }) => type === 'CARD_DRAWN' && payload.participantId === 'P1') ?? [];
@@ -171,12 +171,12 @@ describe('M1-0 oracle owner cases — setup, concurrency and facilitator overlay
     const selected = [...validDeckFor('P1')];
     selected[29] = selected[0] ?? '';
     seedSubmittedDeck(testHarness, 'P1', selected);
-    const before = testHarness.app.gameSnapshot(GAME_ID);
+    const before = testHarness.store.snapshot(GAME_ID);
 
     const result = lockStrategy(testHarness, 'P1');
 
     expect(result.resultCode).toBe('DUPLICATE_CARD_INSTANCE');
-    expect(testHarness.app.gameSnapshot(GAME_ID)).toEqual(before);
+    expect(testHarness.store.snapshot(GAME_ID)).toEqual(before);
     expect(new Set(Object.keys(before?.cards ?? {})).size).toBe(540);
   });
 
@@ -184,14 +184,14 @@ describe('M1-0 oracle owner cases — setup, concurrency and facilitator overlay
     const testHarness = harness();
     completeAndStart(testHarness);
     const selected = [...validDeckFor('P1').slice(0, 29), validDeckFor('P2')[0] ?? ''];
-    const before = testHarness.app.gameSnapshot(GAME_ID);
+    const before = testHarness.store.snapshot(GAME_ID);
 
     const result = testHarness.app.execute(sessionId('P1'), command('SUBMIT_OPERATIONS_DECK', GAME_ID, before?.version ?? -1, {
       cardInstanceIds: selected,
     }));
 
     expect(result.resultCode).toBe('CARD_NOT_CONTROLLED');
-    expect(testHarness.app.gameSnapshot(GAME_ID)).toEqual(before);
+    expect(testHarness.store.snapshot(GAME_ID)).toEqual(before);
   });
 
   it('GE-CORE-003 rejects an obsolete expected game version with zero domain events', () => {
@@ -204,7 +204,7 @@ describe('M1-0 oracle owner cases — setup, concurrency and facilitator overlay
 
     expect(result.resultCode).toBe('STALE_STATE_VERSION');
     expect(result.emittedEventRefs).toEqual([]);
-    expect(testHarness.app.gameSnapshot(GAME_ID)).toEqual(state);
+    expect(testHarness.store.snapshot(GAME_ID)).toEqual(state);
   });
 
   it('GE-CORE-004 returns the original result for an exact idempotent retry without duplicating events or version', () => {
@@ -216,11 +216,11 @@ describe('M1-0 oracle owner cases — setup, concurrency and facilitator overlay
     });
 
     const first = testHarness.app.execute(sessionId('P1'), input);
-    const afterFirst = testHarness.app.gameSnapshot(GAME_ID);
+    const afterFirst = testHarness.store.snapshot(GAME_ID);
     const retry = testHarness.app.execute(sessionId('P1'), input);
 
     expect(retry).toEqual(first);
-    expect(testHarness.app.gameSnapshot(GAME_ID)).toEqual(afterFirst);
+    expect(testHarness.store.snapshot(GAME_ID)).toEqual(afterFirst);
     expect(afterFirst?.events.filter(({ type }) => type === 'OPERATIONS_DECK_SUBMITTED')).toHaveLength(1);
   });
 
@@ -228,7 +228,7 @@ describe('M1-0 oracle owner cases — setup, concurrency and facilitator overlay
     const testHarness = harness();
     const started = completeAndStart(testHarness);
     const paused = testHarness.app.execute(sessionId('F1'), command('PAUSE_GAME', GAME_ID, started.version, { reasonCode: 'TEST_PAUSE' }));
-    const pausedState = testHarness.app.gameSnapshot(GAME_ID);
+    const pausedState = testHarness.store.snapshot(GAME_ID);
 
     const blocked = testHarness.app.execute(sessionId('P1'), command('SUBMIT_OPERATIONS_DECK', GAME_ID, pausedState?.version ?? -1, {
       cardInstanceIds: validDeckFor('P1'),
@@ -239,29 +239,50 @@ describe('M1-0 oracle owner cases — setup, concurrency and facilitator overlay
     expect(blocked.resultCode).toBe('GAME_PAUSED');
     expect(blocked.gameVersionAfter).toBe(pausedState?.version);
     expect(resumed.resultCode).toBe('GAME_RESUMED');
-    expect(testHarness.app.gameSnapshot(GAME_ID)?.phase).toBe('STRATEGY_STAGE');
-    expect(testHarness.app.gameSnapshot(GAME_ID)?.overlay).toBe('ACTIVE');
+    expect(testHarness.store.snapshot(GAME_ID)?.phase).toBe('STRATEGY_STAGE');
+    expect(testHarness.store.snapshot(GAME_ID)?.overlay).toBe('ACTIVE');
   });
 
-  it('GE-CORE-010 allows only one of two strategy locks at the same expected version and never mixes state', () => {
+  it('GE-CORE-010 uses SUBMIT_OPERATIONS_DECK for the M1-0 same-participant Strategy double-submit', () => {
     const testHarness = harness();
     completeAndStart(testHarness);
-    submitDeck(testHarness, 'P1');
-    submitDeck(testHarness, 'P2');
-    const version = testHarness.app.gameSnapshot(GAME_ID)?.version ?? -1;
-    const lockP1 = command('LOCK_STRATEGY', GAME_ID, version, {}, { commandId: 'lock-p1-client-a', idempotencyKey: 'lock-p1-a' });
-    const lockP2 = command('LOCK_STRATEGY', GAME_ID, version, {}, { commandId: 'lock-p2-client-b', idempotencyKey: 'lock-p2-b' });
+    const before = testHarness.store.snapshot(GAME_ID);
+    const expectedVersion = before?.version ?? -1;
+    const clientASelection = [...validDeckFor('P1')];
+    const clientBSelection = [...validDeckFor('P1').slice(0, 29), 'ARDEN-CARD-031'];
+    const clientA = command('SUBMIT_OPERATIONS_DECK', GAME_ID, expectedVersion, { cardInstanceIds: clientASelection }, {
+      commandId: 'p1-strategy-client-a', idempotencyKey: 'p1-strategy-client-a',
+    });
+    const clientB = command('SUBMIT_OPERATIONS_DECK', GAME_ID, expectedVersion, { cardInstanceIds: clientBSelection }, {
+      commandId: 'p1-strategy-client-b', idempotencyKey: 'p1-strategy-client-b',
+    });
 
-    const first = testHarness.app.execute(sessionId('P1'), lockP1);
-    const second = testHarness.app.execute(sessionId('P2'), lockP2);
-    const state = testHarness.app.gameSnapshot(GAME_ID);
+    const first = testHarness.app.execute(sessionId('P1'), clientA);
+    const second = testHarness.app.execute(sessionId('P1'), clientB);
+    const afterRace = testHarness.store.snapshot(GAME_ID);
 
     expect(first.status).toBe('RESOLVED');
     expect(second.resultCode).toBe('STALE_STATE_VERSION');
-    expect(state?.strategy.P1?.locked).toBe(true);
-    expect(state?.strategy.P2?.locked).toBe(false);
-    expect(state?.strategy.P2?.submittedCardInstanceIds).toEqual(validDeckFor('P2'));
-    expect(state?.version).toBe(version + 1);
+    expect(afterRace?.strategy.P1?.submittedCardInstanceIds).toEqual(clientASelection);
+    expect(afterRace?.strategy.P1?.submittedCardInstanceIds).not.toEqual(clientBSelection);
+    expect(afterRace?.version).toBe(expectedVersion + 1);
+    expect(afterRace?.events.filter(({ type }) => type === 'OPERATIONS_DECK_SUBMITTED')).toHaveLength(1);
+    expect(testHarness.random.requests).toHaveLength(0);
+
+    const lock = lockStrategy(testHarness, 'P1');
+    const final = testHarness.store.snapshot(GAME_ID);
+    const finalStrategyCards = [
+      ...(final?.strategy.P1?.handCardInstanceIds.filter((id) => !id.endsWith('-059') && !id.endsWith('-063') && !id.endsWith('-075') && !id.endsWith('-085') && !id.endsWith('-093')) ?? []),
+      ...(final?.strategy.P1?.operationsDeckOrder ?? []),
+    ];
+    expect(lock.status).toBe('RESOLVED');
+    expect(lock.emittedEventRefs).toHaveLength(7);
+    expect(final?.strategy.P1?.submittedCardInstanceIds).toEqual(clientASelection);
+    expect(new Set(finalStrategyCards)).toEqual(new Set(clientASelection));
+    expect(final?.version).toBe(expectedVersion + 2);
+    expect(final?.events.filter(({ type }) => type === 'DECK_SHUFFLED')).toHaveLength(1);
+    expect(final?.events.filter(({ type }) => type === 'CARD_DRAWN')).toHaveLength(5);
+    expect(testHarness.random.requests).toHaveLength(29);
   });
 
   it('GE-FAC-001 pauses and resumes while preserving the underlying phase and auditing both decisions', () => {
@@ -269,9 +290,9 @@ describe('M1-0 oracle owner cases — setup, concurrency and facilitator overlay
     const started = completeAndStart(testHarness);
 
     const pause = testHarness.app.execute(sessionId('F1'), command('PAUSE_GAME', GAME_ID, started.version, { reasonCode: 'FACILITATOR_REVIEW' }));
-    const paused = testHarness.app.gameSnapshot(GAME_ID);
+    const paused = testHarness.store.snapshot(GAME_ID);
     const resume = testHarness.app.execute(sessionId('F1'), command('RESUME_GAME', GAME_ID, paused?.version ?? -1, { reasonCode: 'FACILITATOR_CONTINUE' }));
-    const resumed = testHarness.app.gameSnapshot(GAME_ID);
+    const resumed = testHarness.store.snapshot(GAME_ID);
 
     expect(pause.status).toBe('RESOLVED');
     expect(paused?.phase).toBe('STRATEGY_STAGE');

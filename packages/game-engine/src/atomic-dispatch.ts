@@ -68,22 +68,45 @@ type PreparedResolution<TState extends AtomicVersionedState> =
   | AtomicResolution<TState>
   | { readonly error: AnyEngineErrorCode; readonly version: number };
 
+// Stable recursive key ordering for validated JSON command payloads. This is
+// deliberately scoped to deterministic idempotency fingerprints, not full JCS.
+export const deterministicJsonSerialize = (value: unknown): string => {
+  if (value === null) return 'null';
+  if (typeof value === 'string' || typeof value === 'boolean') return JSON.stringify(value);
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return 'null';
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) return `[${value.map((item) => deterministicJsonSerialize(item)).join(',')}]`;
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${deterministicJsonSerialize(record[key])}`)
+      .join(',')}}`;
+  }
+  throw new TypeError('Unsupported JSON value');
+};
+
 export const dispatchAtomicCommand = <TState extends AtomicVersionedState, TCommandType extends string, TPayload>(options: {
   readonly envelope: Envelope<TCommandType, TPayload>;
   readonly store: AtomicCommandStore<TState>;
   readonly now: () => Date;
+  readonly validatePayload?: (envelope: Envelope<TCommandType, TPayload>) => AnyEngineErrorCode | undefined;
   readonly prepare: (before: TState | undefined, envelope: Envelope<TCommandType, TPayload>) => PreparedResolution<TState>;
 }): EngineCommandResult => {
   const { envelope, store } = options;
+  const before = store.load(envelope.gameId);
+  const beforeVersion = before?.version ?? 0;
+  const payloadError = options.validatePayload?.(envelope);
+  if (payloadError !== undefined) return rejectedResult(envelope, beforeVersion, payloadError, options.now);
   const identity = `${envelope.gameId}:${envelope.actorContext.actorId}:${envelope.idempotencyKey}`;
-  const commandFingerprint = JSON.stringify({
+  const commandFingerprint = deterministicJsonSerialize({
     commandType: envelope.commandType,
     payloadSchemaVersion: envelope.payloadSchemaVersion,
     payload: envelope.payload,
   });
   const previous = store.idempotencyGet(identity);
-  const before = store.load(envelope.gameId);
-  const beforeVersion = before?.version ?? 0;
   if (previous !== undefined) {
     if (previous.fingerprint === commandFingerprint) return previous.result;
     return rejectedResult(envelope, beforeVersion, 'IDEMPOTENCY_KEY_REUSED', options.now);

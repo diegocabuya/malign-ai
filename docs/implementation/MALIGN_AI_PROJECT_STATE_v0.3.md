@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-23  
-**Fase actual:** M1-0 IMPLEMENTED / PENDING REVIEW  
+**Fase actual:** M1-0 CORRECTION IMPLEMENTED / PENDING REVIEW  
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -24,11 +24,12 @@
 | M1 test baseline | **49 oracle v0.1 + 38 addendum = 87 casos únicos / 94 ejecuciones de gate** |
 | IQ-M1-001…003 | **RESOLVED mediante DEC-065** |
 | PTD-M1-001…005 | **APPROVED mediante DEC-065** |
-| M1-0 — GameSession/Participants/Seats/Setup/In-Memory State | **IMPLEMENTED / PENDING REVIEW** |
+| M1-0 — GameSession/Participants/Seats/Setup/In-Memory State | **CORRECTION IMPLEMENTED / PENDING REVIEW** |
 | M1-0 owner gate | **25/25 PASS, 0 skips, 0 todo** |
+| Regresiones M10-R01…R06 | **11/11 PASS, 0 skips, 0 todo** |
 | M1-0 pruebas complementarias | **3/3 PASS** |
 | Regresión M0 durante M1-0 | **55/55 PASS** |
-| Suite completa reportada M1-0 | **83/83 PASS, 0 skips, 0 todo** |
+| Suite completa reportada tras corrección M1-0 | **94/94 PASS, 0 skips, 0 todo** |
 | M1-1 | **NOT AUTHORIZED** |
 | M1-2 | **NOT AUTHORIZED** |
 | M1-3 | **NOT AUTHORIZED** |
@@ -61,11 +62,13 @@ El Product Owner mantiene aprobadas `ARC-01` a `ARC-12`. Las decisiones canónic
 | OpenAI/RAG | **NOT STARTED / NOT AUTHORIZED** |
 | Reaction/Veto | **NOT STARTED / NOT AUTHORIZED** |
 
-## Implementación M1-0 pendiente de revisión
+## Corrección M1-0 pendiente de revisión
 
 M1-0 implementa el aggregate autoritativo `Game` con `GameParticipant`, `PlayerSeat`, `GameCountry`, setup BASE_2025 versionado y Strategy inicial in-memory. `GameSession` agrupa membership/conexión en la capa de aplicación y construye `ActorContext` desde bindings de sesión verificados; no constituye una segunda autoridad de reglas.
 
-El lifecycle implementado se detiene exactamente en `INITIATIVE_STAGE` después de cinco locks Strategy válidos. La suite reporta 25/25 casos owner, 3/3 pruebas complementarias, regresión M0 55/55 y total 83/83, con 0 skips y 0 todo. Este resultado queda **PENDING REVIEW**; no equivale a aprobación técnica de M1-0.
+La corrección acotada M10-R01…R06 implementa el double-submit canónico de Strategy para `GE-CORE-010`, phase freeze completo bajo `PAUSED`, el envelope mínimo de eventos M1-0, fingerprints JSON deterministas, cierre de los leaks de raw-state/game-enumeration y validación runtime estricta de payloads. No añade una nueva decisión: permanece bajo la autorización de `DEC-066`.
+
+El lifecycle implementado se detiene exactamente en `INITIATIVE_STAGE` después de cinco locks Strategy válidos. La suite reporta 25/25 casos owner, 11/11 regresiones M10-R01…R06, 3/3 pruebas complementarias, regresión M0 55/55 y total 94/94, con 0 skips y 0 todo. Este resultado queda **PENDING REVIEW**; no equivale a aprobación técnica de M1-0.
 
 No se iniciaron iniciativa/rerolls, maintenance, planificación oculta, scheduler, adjudicación M1, ledgers/trace/replay, realtime/reconnect, persistencia productiva, UI final, auth productiva, IA ni Reaction/Veto.
 

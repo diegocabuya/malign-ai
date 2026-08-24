@@ -9,6 +9,7 @@ import {
   type DiceMode,
   type RandomProvider,
   type SetupCardInstance,
+  type SetupEventVisibilityClass,
   type SetupGameEvent,
   type SetupGameEventType,
   type SetupGameState,
@@ -89,7 +90,7 @@ const facilitatorCommands = new Set<SetupCommandType>([
   'PAUSE_GAME',
   'RESUME_GAME',
 ]);
-const gameplayCommands = new Set<SetupCommandType>(['SUBMIT_OPERATIONS_DECK', 'LOCK_STRATEGY']);
+const pauseBlockedCommands = new Set<SetupCommandType>(['START_GAME', 'SUBMIT_OPERATIONS_DECK', 'LOCK_STRATEGY']);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -98,6 +99,94 @@ const isDiceMode = (value: unknown): value is DiceMode => value === 'DIGITAL' ||
 
 const isPositiveInteger = (value: unknown): value is number =>
   typeof value === 'number' && Number.isInteger(value) && Number.isFinite(value) && value >= 1;
+
+const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
+
+const hasExactKeys = (
+  value: unknown,
+  required: readonly string[],
+  optional: readonly string[] = [],
+): value is Record<string, unknown> => {
+  if (!isRecord(value)) return false;
+  const keys = Object.keys(value);
+  const allowed = new Set([...required, ...optional]);
+  return required.every((key) => Object.hasOwn(value, key)) && keys.every((key) => allowed.has(key));
+};
+
+const isCountryId = (value: unknown): value is CountryId =>
+  BASE_2025_COUNTRIES.some(({ id }) => id === value);
+
+export const validateSetupCommandPayload = (
+  commandType: SetupCommandType,
+  payload: unknown,
+): AnyEngineErrorCode | undefined => {
+  switch (commandType) {
+    case 'CREATE_GAME':
+      if (
+        !hasExactKeys(payload, [
+          'scenarioDefinitionId',
+          'rulesetVersion',
+          'scenarioVersion',
+          'cardRegistryVersion',
+          'engineContractVersion',
+          'fixtureSchemaVersion',
+          'turnLimit',
+          'preferredDiceMode',
+        ]) ||
+        payload.scenarioDefinitionId !== 'BASE_2025' ||
+        !isNonEmptyString(payload.rulesetVersion) ||
+        !isNonEmptyString(payload.scenarioVersion) ||
+        !isNonEmptyString(payload.cardRegistryVersion) ||
+        !isNonEmptyString(payload.engineContractVersion) ||
+        !isNonEmptyString(payload.fixtureSchemaVersion) ||
+        !isPositiveInteger(payload.turnLimit) ||
+        !isDiceMode(payload.preferredDiceMode)
+      ) return 'INVALID_COMMAND_PAYLOAD';
+      return undefined;
+    case 'JOIN_GAME_MEMBERSHIP':
+    case 'START_GAME':
+    case 'LOCK_STRATEGY':
+      return hasExactKeys(payload, []) ? undefined : 'INVALID_COMMAND_PAYLOAD';
+    case 'ASSIGN_PLAYER_SEAT':
+      if (
+        !hasExactKeys(payload, ['playerParticipantId', 'countryId', 'seatIndex', 'clockwiseIndex']) ||
+        !isNonEmptyString(payload.playerParticipantId) ||
+        !isCountryId(payload.countryId) ||
+        !Number.isInteger(payload.seatIndex) ||
+        !Number.isFinite(payload.seatIndex) ||
+        (payload.seatIndex as number) < 0 ||
+        (payload.seatIndex as number) > 4 ||
+        !Number.isInteger(payload.clockwiseIndex) ||
+        !Number.isFinite(payload.clockwiseIndex) ||
+        (payload.clockwiseIndex as number) < 0 ||
+        (payload.clockwiseIndex as number) > 4
+      ) return 'INVALID_COMMAND_PAYLOAD';
+      return undefined;
+    case 'CONFIGURE_GAME_OPTION':
+      if (!hasExactKeys(payload, ['optionId', 'value'])) return 'INVALID_COMMAND_PAYLOAD';
+      if (payload.optionId === 'TURN_LIMIT') return isPositiveInteger(payload.value) ? undefined : 'INVALID_COMMAND_PAYLOAD';
+      if (payload.optionId === 'DICE_MODE') return isDiceMode(payload.value) ? undefined : 'INVALID_COMMAND_PAYLOAD';
+      return 'INVALID_COMMAND_PAYLOAD';
+    case 'PAUSE_GAME':
+      return hasExactKeys(payload, ['reasonCode'], ['reasonText']) &&
+        isNonEmptyString(payload.reasonCode) &&
+        (!Object.hasOwn(payload, 'reasonText') || typeof payload.reasonText === 'string')
+        ? undefined
+        : 'INVALID_COMMAND_PAYLOAD';
+    case 'RESUME_GAME':
+      return hasExactKeys(payload, [], ['reasonCode']) &&
+        (!Object.hasOwn(payload, 'reasonCode') || isNonEmptyString(payload.reasonCode))
+        ? undefined
+        : 'INVALID_COMMAND_PAYLOAD';
+    case 'SUBMIT_OPERATIONS_DECK':
+      return hasExactKeys(payload, ['cardInstanceIds']) &&
+        Array.isArray(payload.cardInstanceIds) &&
+        payload.cardInstanceIds.every((id) => isNonEmptyString(id))
+        ? undefined
+        : 'INVALID_COMMAND_PAYLOAD';
+  }
+  return 'INVALID_COMMAND_PAYLOAD';
+};
 
 export class InMemorySetupGameStore extends InMemoryAtomicStateStore<SetupGameState> {
   snapshot(gameId: string): SetupGameState | undefined { return this.load(gameId); }
@@ -115,6 +204,7 @@ export class SetupCommandDispatcher {
       envelope,
       store: this.store,
       now: this.now,
+      validatePayload: ({ commandType, payload }) => validateSetupCommandPayload(commandType, payload),
       prepare: (before, candidate) => this.prepare(before, candidate),
     });
   }
@@ -139,7 +229,7 @@ export class SetupCommandDispatcher {
     if (envelope.expectedGameVersion !== before.version) return { error: 'STALE_STATE_VERSION' as const, version: before.version };
     const actorError = this.validateActor(before, envelope);
     if (actorError !== undefined) return { error: actorError, version: before.version };
-    if (before.overlay === 'PAUSED' && gameplayCommands.has(envelope.commandType)) {
+    if (before.overlay === 'PAUSED' && pauseBlockedCommands.has(envelope.commandType)) {
       return { error: 'GAME_PAUSED' as const, version: before.version };
     }
 
@@ -194,8 +284,7 @@ export class SetupCommandDispatcher {
   }
 
   private createGame(envelope: SetupEnvelope) {
-    const payload: unknown = envelope.payload;
-    if (!this.validCreatePayload(payload)) return { error: 'INVALID_COMMAND_PAYLOAD' as const, version: 0 };
+    const payload = envelope.payload as CreateGamePayload;
     if (payload.scenarioDefinitionId !== 'BASE_2025') return { error: 'UNSUPPORTED_SCENARIO' as const, version: 0 };
     if (!isPositiveInteger(payload.turnLimit)) return { error: 'INVALID_TURN_LIMIT' as const, version: 0 };
     if (!isDiceMode(payload.preferredDiceMode)) return { error: 'INVALID_DICE_MODE' as const, version: 0 };
@@ -279,18 +368,6 @@ export class SetupCommandDispatcher {
     };
   }
 
-  private validCreatePayload(payload: unknown): payload is CreateGamePayload {
-    return isRecord(payload) &&
-      typeof payload.scenarioDefinitionId === 'string' &&
-      typeof payload.rulesetVersion === 'string' &&
-      typeof payload.scenarioVersion === 'string' &&
-      typeof payload.cardRegistryVersion === 'string' &&
-      typeof payload.engineContractVersion === 'string' &&
-      typeof payload.fixtureSchemaVersion === 'string' &&
-      typeof payload.turnLimit === 'number' &&
-      typeof payload.preferredDiceMode === 'string';
-  }
-
   private reduce(state: SetupGameState, envelope: SetupEnvelope):
     | { readonly resultCode: string; readonly resultPayload?: unknown; readonly events: SetupGameEvent[] }
     | { readonly error: AnyEngineErrorCode } {
@@ -325,8 +402,7 @@ export class SetupCommandDispatcher {
 
   private assignSeat(state: SetupGameState, envelope: SetupEnvelope) {
     if (state.phase !== 'SETUP') return { error: 'SEAT_ASSIGNMENT_LOCKED' as const };
-    const payload: unknown = envelope.payload;
-    if (!this.validSeatPayload(payload)) return { error: 'INVALID_COMMAND_PAYLOAD' as const };
+    const payload = envelope.payload as AssignPlayerSeatPayload;
     const participant = state.participants[payload.playerParticipantId];
     if (participant === undefined || participant.role !== 'PLAYER') return { error: 'PARTICIPANT_NOT_FOUND' as const };
     if (state.seats[payload.playerParticipantId] !== undefined) return { error: 'PARTICIPANT_ALREADY_SEATED' as const };
@@ -362,20 +438,9 @@ export class SetupCommandDispatcher {
     return { resultCode: 'PLAYER_SEAT_ASSIGNED', resultPayload: seat, events: [event] };
   }
 
-  private validSeatPayload(payload: unknown): payload is AssignPlayerSeatPayload {
-    return isRecord(payload) &&
-      typeof payload.playerParticipantId === 'string' &&
-      BASE_2025_COUNTRIES.some(({ id }) => id === payload.countryId) &&
-      typeof payload.seatIndex === 'number' && Number.isInteger(payload.seatIndex) && payload.seatIndex >= 0 && payload.seatIndex <= 4 &&
-      typeof payload.clockwiseIndex === 'number' && Number.isInteger(payload.clockwiseIndex) && payload.clockwiseIndex >= 0 && payload.clockwiseIndex <= 4;
-  }
-
   private configureOption(state: SetupGameState, envelope: SetupEnvelope) {
     if (state.phase !== 'SETUP') return { error: 'WRONG_PHASE' as const };
-    const payload: unknown = envelope.payload;
-    if (!isRecord(payload) || (payload.optionId !== 'TURN_LIMIT' && payload.optionId !== 'DICE_MODE')) {
-      return { error: 'INVALID_COMMAND_PAYLOAD' as const };
-    }
+    const payload = envelope.payload as ConfigureGameOptionPayload;
     if (payload.optionId === 'TURN_LIMIT') {
       if (!isPositiveInteger(payload.value)) return { error: 'INVALID_TURN_LIMIT' as const };
       state.turnLimit = payload.value;
@@ -383,7 +448,8 @@ export class SetupCommandDispatcher {
       if (!isDiceMode(payload.value)) return { error: 'INVALID_DICE_MODE' as const };
       state.diceMode = payload.value;
     }
-    const event = this.appendEvent(state, envelope, 'GAME_OPTION_CONFIGURED', { optionId: payload.optionId });
+    const appliedValue = payload.optionId === 'TURN_LIMIT' ? state.turnLimit : state.diceMode;
+    const event = this.appendEvent(state, envelope, 'GAME_OPTION_CONFIGURED', { optionId: payload.optionId, value: appliedValue });
     return { resultCode: 'GAME_OPTION_CONFIGURED', events: [event] };
   }
 
@@ -430,10 +496,11 @@ export class SetupCommandDispatcher {
   private pause(state: SetupGameState, envelope: SetupEnvelope) {
     if (state.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const };
     state.overlay = 'PAUSED';
-    const rawPayload: unknown = envelope.payload;
-    const payload = isRecord(rawPayload) && typeof rawPayload.reasonCode === 'string'
-      ? { reasonCode: rawPayload.reasonCode }
-      : { reasonCode: 'FACILITATOR_PAUSE' };
+    const rawPayload = envelope.payload as PauseGamePayload;
+    const payload = {
+      reasonCode: rawPayload.reasonCode,
+      ...(rawPayload.reasonText === undefined ? {} : { reasonText: rawPayload.reasonText }),
+    };
     const event = this.appendEvent(state, envelope, 'GAME_PAUSED', payload);
     return { resultCode: 'GAME_PAUSED', events: [event] };
   }
@@ -441,7 +508,8 @@ export class SetupCommandDispatcher {
   private resume(state: SetupGameState, envelope: SetupEnvelope) {
     if (state.overlay !== 'PAUSED') return { error: 'ILLEGAL_STATE_TRANSITION' as const };
     state.overlay = 'ACTIVE';
-    const event = this.appendEvent(state, envelope, 'GAME_RESUMED', {});
+    const rawPayload = envelope.payload as ResumeGamePayload;
+    const event = this.appendEvent(state, envelope, 'GAME_RESUMED', rawPayload.reasonCode === undefined ? {} : { reasonCode: rawPayload.reasonCode });
     return { resultCode: 'GAME_RESUMED', events: [event] };
   }
 
@@ -452,10 +520,7 @@ export class SetupCommandDispatcher {
     const strategy = state.strategy[participantId];
     if (strategy === undefined) return { error: 'NOT_AUTHORIZED' as const };
     if (strategy.locked) return { error: 'STRATEGY_ALREADY_LOCKED' as const };
-    const payload: unknown = envelope.payload;
-    if (!isRecord(payload) || !Array.isArray(payload.cardInstanceIds) || !payload.cardInstanceIds.every((id) => typeof id === 'string')) {
-      return { error: 'INVALID_COMMAND_PAYLOAD' as const };
-    }
+    const payload = envelope.payload as SubmitOperationsDeckPayload;
     const selected = payload.cardInstanceIds;
     const eligibilityError = this.deckEligibilityError(state, participantId, selected);
     if (eligibilityError !== undefined) return { error: eligibilityError };
@@ -559,13 +624,26 @@ export class SetupCommandDispatcher {
     payload: Readonly<Record<string, string | number | boolean>>,
   ): SetupGameEvent {
     const sequenceNumber = state.events.length + 1;
+    const eventId = `${state.id}:event:${sequenceNumber}`;
+    const actorParticipantId = envelope.actorContext.participantId;
+    if (actorParticipantId === undefined) throw new Error('Setup events require a verified participant actor');
+    const visibilityClass: SetupEventVisibilityClass = type === 'CARD_DRAWN'
+      ? 'OWNER_AND_FACILITATOR'
+      : 'PUBLIC';
     const event: SetupGameEvent = {
-      id: `${envelope.commandId}:${type.toLowerCase()}:${sequenceNumber}`,
+      id: eventId,
+      eventId,
       gameId: state.id,
       type,
+      eventType: type,
       sequenceNumber,
       gameVersion: state.version + 1,
-      actorId: envelope.actorContext.actorId,
+      actorParticipantId,
+      payloadSchemaVersion: envelope.payloadSchemaVersion,
+      versions: structuredClone(state.versions),
+      correlationId: envelope.correlationId ?? envelope.commandId,
+      causationId: envelope.causationId ?? null,
+      visibilityClass,
       occurredAt: this.now().toISOString(),
       payload,
     };

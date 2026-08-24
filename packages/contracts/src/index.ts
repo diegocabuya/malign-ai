@@ -29,6 +29,7 @@ export interface CommandEnvelope<TCommandType extends string, TPayload> {
   readonly payloadSchemaVersion: string;
   readonly payload: TPayload;
   readonly correlationId?: string;
+  readonly causationId?: string;
 }
 
 export type EngineErrorCode =

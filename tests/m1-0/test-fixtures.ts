@@ -78,7 +78,12 @@ export const command = (
   gameId: string,
   expectedGameVersion: number,
   payload: SetupCommandPayload,
-  options: { readonly commandId?: string; readonly idempotencyKey?: string } = {},
+  options: {
+    readonly commandId?: string;
+    readonly idempotencyKey?: string;
+    readonly correlationId?: string;
+    readonly causationId?: string;
+  } = {},
 ): SessionCommandInput => {
   commandSequence += 1;
   return {
@@ -90,6 +95,8 @@ export const command = (
     commandType,
     payloadSchemaVersion: M1_0_BASELINE_VERSIONS.fixtureSchemaVersion,
     payload,
+    ...(options.correlationId === undefined ? {} : { correlationId: options.correlationId }),
+    ...(options.causationId === undefined ? {} : { causationId: options.causationId }),
   };
 };
 
@@ -108,7 +115,7 @@ export const createGame = (testHarness: M1Harness, gameId = GAME_ID, suffix = ''
 
 export const joinPlayers = (testHarness: M1Harness, gameId = GAME_ID, suffix = ''): void => {
   for (const participantId of ['P1', 'P2', 'P3', 'P4', 'P5']) {
-    const state = testHarness.app.gameSnapshot(gameId);
+    const state = testHarness.store.snapshot(gameId);
     if (state === undefined) throw new Error('Game must exist before join');
     const result = testHarness.app.execute(
       sessionId(participantId, suffix),
@@ -121,7 +128,7 @@ export const joinPlayers = (testHarness: M1Harness, gameId = GAME_ID, suffix = '
 export const assignCanonicalSeats = (testHarness: M1Harness, gameId = GAME_ID, suffix = ''): void => {
   const players = PARTICIPANT_FIXTURE.participants.filter((participant) => participant.role === 'PLAYER');
   for (const player of players) {
-    const state = testHarness.app.gameSnapshot(gameId);
+    const state = testHarness.store.snapshot(gameId);
     if (
       state === undefined ||
       player.country_id === undefined ||
@@ -143,13 +150,13 @@ export const completeSetup = (testHarness: M1Harness, gameId = GAME_ID, suffix =
   if (created.status !== 'RESOLVED') throw new Error('Game creation failed');
   joinPlayers(testHarness, gameId, suffix);
   assignCanonicalSeats(testHarness, gameId, suffix);
-  const state = testHarness.app.gameSnapshot(gameId);
+  const state = testHarness.store.snapshot(gameId);
   if (state === undefined) throw new Error('Completed setup state missing');
   return state;
 };
 
 export const startGame = (testHarness: M1Harness, gameId = GAME_ID, suffix = '') => {
-  const state = testHarness.app.gameSnapshot(gameId);
+  const state = testHarness.store.snapshot(gameId);
   if (state === undefined) throw new Error('Game missing');
   return testHarness.app.execute(sessionId('F1', suffix), command('START_GAME', gameId, state.version, {}));
 };
@@ -158,7 +165,7 @@ export const completeAndStart = (testHarness: M1Harness, gameId = GAME_ID, suffi
   completeSetup(testHarness, gameId, suffix);
   const result = startGame(testHarness, gameId, suffix);
   if (result.status !== 'RESOLVED') throw new Error('Game start failed');
-  const state = testHarness.app.gameSnapshot(gameId);
+  const state = testHarness.store.snapshot(gameId);
   if (state === undefined) throw new Error('Started state missing');
   return state;
 };
@@ -173,7 +180,7 @@ export const validDeckFor = (participantId: string): readonly string[] =>
   STRATEGY_FIXTURE.operations_decks[countryForParticipant(participantId)];
 
 export const submitDeck = (testHarness: M1Harness, participantId: string, gameId = GAME_ID, suffix = '') => {
-  const state = testHarness.app.gameSnapshot(gameId);
+  const state = testHarness.store.snapshot(gameId);
   if (state === undefined) throw new Error('Game missing');
   return testHarness.app.execute(sessionId(participantId, suffix), command('SUBMIT_OPERATIONS_DECK', gameId, state.version, {
     cardInstanceIds: validDeckFor(participantId),
@@ -181,7 +188,7 @@ export const submitDeck = (testHarness: M1Harness, participantId: string, gameId
 };
 
 export const lockStrategy = (testHarness: M1Harness, participantId: string, gameId = GAME_ID, suffix = '') => {
-  const state = testHarness.app.gameSnapshot(gameId);
+  const state = testHarness.store.snapshot(gameId);
   if (state === undefined) throw new Error('Game missing');
   return testHarness.app.execute(sessionId(participantId, suffix), command('LOCK_STRATEGY', gameId, state.version, {}));
 };

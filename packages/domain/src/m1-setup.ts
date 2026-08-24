@@ -93,13 +93,22 @@ export type SetupGameEventType =
   | 'GAME_PAUSED'
   | 'GAME_RESUMED';
 
+export type SetupEventVisibilityClass = 'PUBLIC' | 'OWNER_AND_FACILITATOR';
+
 export interface SetupGameEvent {
   readonly id: string;
+  readonly eventId: string;
   readonly gameId: string;
   readonly type: SetupGameEventType;
+  readonly eventType: SetupGameEventType;
   readonly sequenceNumber: number;
   readonly gameVersion: number;
-  readonly actorId: string;
+  readonly actorParticipantId: string;
+  readonly payloadSchemaVersion: string;
+  readonly versions: PinnedVersions;
+  readonly correlationId: string;
+  readonly causationId: string | null;
+  readonly visibilityClass: SetupEventVisibilityClass;
   readonly occurredAt: string;
   readonly payload: Readonly<Record<string, string | number | boolean>>;
 }

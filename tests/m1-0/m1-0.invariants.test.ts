@@ -30,7 +30,7 @@ describe('M1-0 complementary invariants', () => {
   it('keeps explicit BASE_2025 fixture counts, resources, income and attributed influence exact', () => {
     const testHarness = harness();
     createGame(testHarness);
-    const state = testHarness.app.gameSnapshot(GAME_ID);
+    const state = testHarness.store.snapshot(GAME_ID);
 
     expect(scenarioFixture.fixture_schema_version).toBe('0.1');
     expect(Object.values(state?.countries ?? {}).map(({ id, resources, turnIncome }) => ({ id, starting_resources: resources, turn_income: turnIncome }))).toEqual(scenarioFixture.countries);
@@ -50,7 +50,7 @@ describe('M1-0 complementary invariants', () => {
       joinPlayers(testHarness);
       const order = [...players.slice(rotation), ...players.slice(0, rotation)];
       for (const player of order) {
-        const before = testHarness.app.gameSnapshot(GAME_ID);
+        const before = testHarness.store.snapshot(GAME_ID);
         if (player.country_id === undefined || player.seat_index === undefined || player.clockwise_index === undefined) throw new Error('Invalid fixture');
         const result = testHarness.app.execute(sessionId('F1'), command('ASSIGN_PLAYER_SEAT', GAME_ID, before?.version ?? -1, {
           playerParticipantId: player.participant_id,
@@ -58,7 +58,7 @@ describe('M1-0 complementary invariants', () => {
           seatIndex: player.seat_index,
           clockwiseIndex: player.clockwise_index,
         }));
-        const seats = Object.values(testHarness.app.gameSnapshot(GAME_ID)?.seats ?? {});
+        const seats = Object.values(testHarness.store.snapshot(GAME_ID)?.seats ?? {});
         expect(result.status).toBe('RESOLVED');
         expect(new Set(seats.map(({ participantId }) => participantId)).size).toBe(seats.length);
         expect(new Set(seats.map(({ countryId }) => countryId)).size).toBe(seats.length);
@@ -75,7 +75,7 @@ describe('M1-0 complementary invariants', () => {
       expect(submitDeck(testHarness, participantId).status).toBe('RESOLVED');
       expect(lockStrategy(testHarness, participantId).status).toBe('RESOLVED');
     }
-    const state = testHarness.app.gameSnapshot(GAME_ID);
+    const state = testHarness.store.snapshot(GAME_ID);
 
     expect(state?.phase).toBe('INITIATIVE_STAGE');
     expect(Object.values(state?.strategy ?? {}).every(({ locked }) => locked)).toBe(true);

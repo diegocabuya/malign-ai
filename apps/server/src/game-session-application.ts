@@ -1,11 +1,11 @@
 import { InMemorySessionAuthority } from '@malign-ai/authz';
 import { engineErrorFor, type AnyEngineErrorCode, type EngineCommandResult } from '@malign-ai/contracts';
-import type { SetupGameState } from '@malign-ai/domain';
 import {
   type SetupCommandPayload,
   type SetupCommandType,
   SetupCommandDispatcher,
   InMemorySetupGameStore,
+  validateSetupCommandPayload,
 } from '@malign-ai/game-engine';
 import { buildSetupGameProjection, type SetupGameProjection } from '@malign-ai/projections';
 
@@ -19,6 +19,7 @@ export interface SessionCommandInput {
   readonly payloadSchemaVersion: string;
   readonly payload: SetupCommandPayload;
   readonly correlationId?: string;
+  readonly causationId?: string;
 }
 
 export type ProjectionQueryResult =
@@ -39,6 +40,8 @@ export class InMemoryGameSessionApplication {
   ) {}
 
   execute(authenticatedSessionId: string, input: SessionCommandInput): EngineCommandResult {
+    const scope = this.authority.verifyGameScope(authenticatedSessionId, input.gameId);
+    if (!scope.ok) return this.reject(input, 0, scope.error);
     const state = this.store.snapshot(input.gameId);
     const resolution = input.commandType === 'CREATE_GAME'
       ? this.authority.resolveForCreate(authenticatedSessionId, input.gameId)
@@ -51,6 +54,8 @@ export class InMemoryGameSessionApplication {
           : this.authority.resolve(authenticatedSessionId, input.gameId, state);
     if (!resolution.ok) return this.reject(input, state?.version ?? 0, resolution.error);
     if (payloadClaimsAuthority(input.payload)) return this.reject(input, state?.version ?? 0, 'INVALID_ACTOR_CONTEXT');
+    const payloadError = validateSetupCommandPayload(input.commandType, input.payload);
+    if (payloadError !== undefined) return this.reject(input, state?.version ?? 0, payloadError);
     const envelope = {
       ...input,
       actorContext: resolution.actorContext,
@@ -64,15 +69,13 @@ export class InMemoryGameSessionApplication {
   }
 
   getGameProjection(authenticatedSessionId: string, gameId: string): ProjectionQueryResult {
+    const scope = this.authority.verifyGameScope(authenticatedSessionId, gameId);
+    if (!scope.ok) return { ok: false, error: engineErrorFor(scope.error) };
     const state = this.store.snapshot(gameId);
     if (state === undefined) return { ok: false, error: engineErrorFor('GAME_NOT_FOUND') };
     const resolution = this.authority.resolve(authenticatedSessionId, gameId, state);
     if (!resolution.ok) return { ok: false, error: engineErrorFor(resolution.error) };
     return { ok: true, projection: buildSetupGameProjection(state, resolution.actorContext) };
-  }
-
-  gameSnapshot(gameId: string): SetupGameState | undefined {
-    return this.store.snapshot(gameId);
   }
 
   private reject(input: SessionCommandInput, version: number, code: AnyEngineErrorCode): EngineCommandResult {
