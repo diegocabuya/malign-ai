@@ -1,54 +1,43 @@
-import type { CommandEnvelope, EngineCommandResult, EngineError, EngineErrorCategory, EngineErrorCode } from '@malign-ai/contracts';
+import type { CommandEnvelope, EngineCommandResult, EngineErrorCode } from '@malign-ai/contracts';
 import { calculateCampaignValue, type AssignedCampaignComponent } from '@malign-ai/rules';
 import type { ActivateCampaignPayload, CampaignState, ConstructCampaignPayload, GameCommandPayload, GameCommandType, GameEvent, GameState, ModifyCampaignPayload, SetActionPlanPayload } from './model.js';
+import { dispatchAtomicCommand, InMemoryAtomicStateStore } from './atomic-dispatch.js';
 
 type Envelope = CommandEnvelope<GameCommandType, GameCommandPayload>;
-interface StoredIdempotency { readonly fingerprint: string; readonly result: EngineCommandResult; }
 
-const categoryFor = (code: EngineErrorCode): EngineErrorCategory => {
-  if (code === 'STALE_STATE_VERSION' || code === 'IDEMPOTENCY_KEY_REUSED') return 'CONCURRENCY';
-  if (code === 'NOT_AUTHORIZED' || code === 'INVALID_ACTOR_CONTEXT') return 'AUTHORIZATION';
-  if (code === 'INSUFFICIENT_AP' || code === 'INSUFFICIENT_RESOURCES') return 'RESOURCE';
-  if (code.startsWith('CARD_')) return 'CARD';
-  if (code.startsWith('INVALID_DT') || code.startsWith('INVALID_TARGET')) return 'TARGETING';
-  if (code.startsWith('CAMPAIGN_') || code === 'INVALID_SLOT') return 'CAMPAIGN';
-  return 'PHASE_STATE';
-};
-const engineError = (code: EngineErrorCode): EngineError => ({ code, category: categoryFor(code), retryable: code === 'STALE_STATE_VERSION', safeMessageKey: `engine.error.${code.toLowerCase()}` });
-const fingerprint = (envelope: Envelope): string => JSON.stringify({ commandType: envelope.commandType, payloadSchemaVersion: envelope.payloadSchemaVersion, payload: envelope.payload });
-
-export class InMemoryGameStore {
-  #state: GameState;
-  readonly #idempotency = new Map<string, StoredIdempotency>();
-  constructor(initialState: GameState) { this.#state = structuredClone(initialState); }
-  snapshot(): GameState { return structuredClone(this.#state); }
-  idempotencyGet(key: string): StoredIdempotency | undefined { return this.#idempotency.get(key); }
-  idempotencySet(key: string, value: StoredIdempotency): void { this.#idempotency.set(key, value); }
-  commit(expectedVersion: number, next: GameState): boolean { if (this.#state.version !== expectedVersion) return false; this.#state = structuredClone(next); return true; }
+export class InMemoryGameStore extends InMemoryAtomicStateStore<GameState> {
+  readonly #gameId: string;
+  constructor(initialState: GameState) { super([initialState]); this.#gameId = initialState.id; }
+  override load(gameId: string): GameState | undefined { void gameId; return super.load(this.#gameId); }
+  snapshot(): GameState { const state = super.load(this.#gameId); if (state === undefined) throw new Error('Game state missing'); return state; }
+  commit(expectedVersion: number, next: GameState): boolean { return super.commitState(this.#gameId, expectedVersion, next); }
 }
 
 export class CommandDispatcher {
   constructor(private readonly store: InMemoryGameStore, private readonly now: () => Date) {}
 
   dispatch(envelope: Envelope): EngineCommandResult {
-    const before = this.store.snapshot();
-    const idempotencyIdentity = `${envelope.gameId}:${envelope.actorContext.actorId}:${envelope.idempotencyKey}`;
-    const commandFingerprint = fingerprint(envelope);
-    const previous = this.store.idempotencyGet(idempotencyIdentity);
-    if (previous !== undefined) return previous.fingerprint === commandFingerprint ? previous.result : this.reject(envelope, before.version, 'IDEMPOTENCY_KEY_REUSED');
-    if (envelope.gameId !== before.id) return this.reject(envelope, before.version, 'GAME_ID_MISMATCH');
-    if (envelope.actorContext.actorType !== 'PLAYER' || envelope.actorContext.participantId === undefined || before.participants[envelope.actorContext.participantId] === undefined) return this.reject(envelope, before.version, 'INVALID_ACTOR_CONTEXT');
-    if (envelope.expectedGameVersion !== before.version) return this.reject(envelope, before.version, 'STALE_STATE_VERSION');
-    if (before.overlay === 'PAUSED') return this.reject(envelope, before.version, 'GAME_PAUSED');
-
-    const working = structuredClone(before);
-    const outcome = this.reduce(working, envelope);
-    if ('error' in outcome) return this.reject(envelope, before.version, outcome.error);
-    working.version = before.version + 1;
-    if (!this.store.commit(before.version, working)) return this.reject(envelope, this.store.snapshot().version, 'STALE_STATE_VERSION');
-    const result: EngineCommandResult = { commandId: envelope.commandId, gameId: envelope.gameId, status: 'RESOLVED', gameVersionBefore: before.version, gameVersionAfter: working.version, resultCode: outcome.code, ...(outcome.payload === undefined ? {} : { resultPayload: outcome.payload }), emittedEventRefs: outcome.events.map(({ id }) => id), adjudicationTraceRefs: [], resolvedAt: this.now().toISOString() };
-    this.store.idempotencySet(idempotencyIdentity, { fingerprint: commandFingerprint, result });
-    return result;
+    return dispatchAtomicCommand({
+      envelope,
+      store: this.store,
+      now: this.now,
+      prepare: (loaded, candidate) => {
+        const before = loaded ?? this.store.snapshot();
+        if (candidate.gameId !== before.id) return { error: 'GAME_ID_MISMATCH' as const, version: before.version };
+        if (candidate.actorContext.actorType !== 'PLAYER' || candidate.actorContext.participantId === undefined || before.participants[candidate.actorContext.participantId] === undefined) return { error: 'INVALID_ACTOR_CONTEXT' as const, version: before.version };
+        if (candidate.expectedGameVersion !== before.version) return { error: 'STALE_STATE_VERSION' as const, version: before.version };
+        if (before.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const, version: before.version };
+        const working = structuredClone(before);
+        const outcome = this.reduce(working, candidate);
+        if ('error' in outcome) return { error: outcome.error, version: before.version };
+        return {
+          nextState: working,
+          resultCode: outcome.code,
+          ...(outcome.payload === undefined ? {} : { resultPayload: outcome.payload }),
+          emittedEventRefs: outcome.events.map(({ id }) => id),
+        };
+      },
+    });
   }
 
   #actorParticipant(state: GameState, envelope: Envelope) {
@@ -164,7 +153,4 @@ export class CommandDispatcher {
     return { code: 'CAMPAIGN_ACTIVATED', payload: cv, events: [event] };
   }
 
-  private reject(envelope: Envelope, version: number, code: EngineErrorCode): EngineCommandResult {
-    return { commandId: envelope.commandId, gameId: envelope.gameId, status: 'REJECTED', gameVersionBefore: version, gameVersionAfter: version, resultCode: code, emittedEventRefs: [], adjudicationTraceRefs: [], error: engineError(code), resolvedAt: this.now().toISOString() };
-  }
 }

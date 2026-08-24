@@ -720,3 +720,13 @@ Quedan aprobadas como baseline de implementación:
 **JUSTIFICACIÓN:** La revisión del commit `937d2be6eb2159f899df34016684f55b897e095a` aprobó el gate M1 con una enmienda documental que debía cerrar IDs, boundaries y decisiones sin escribir código.  
 **IMPACTO:** El planning gate queda en estado `AMENDED / PENDING FINAL REVIEW`. M0 permanece intacto. PostgreSQL, outbox, WebSocket productivo, UI, auth productiva, IA, Reaction/Veto y M2/M3 permanecen no iniciados/no autorizados. `DEC-065` **no autoriza implementación M1 ni M1-0**.  
 **ESTADO:** APPROVED — DOCUMENTATION AMENDMENT ONLY
+
+---
+
+## DEC-066 — Aprobación del planning gate M1 y autorización exclusiva de M1-0
+**FECHA:** 2026-08-23  
+**TEMA:** Inicio acotado de M1 — GameSession, Participants, Seats, Setup and In-Memory State.  
+**DECISIÓN:** El planning gate M1 enmendado queda aprobado contra el commit `c4e70047ce69adc50b46d61d8450dafb8b83fa33`. Se autoriza exclusivamente M1-0 para implementar GameSession/membership verificada, participantes, seats, setup BASE_2025, Strategy inicial determinística, proyección mínima y transaction boundary in-memory. El gate exige los 25 casos owner M1-0 y la regresión completa M0 55/55.  
+**JUSTIFICACIÓN:** El baseline documental aprobado fija topología, lifecycle, datos versionados, autoridad, seguridad, atomicidad e IDs canónicos suficientes para ejecutar M1-0 sin inventar reglas.  
+**IMPACTO:** M1-1, M1-2 y M1-3 permanecen **NOT AUTHORIZED**. PostgreSQL, realtime productivo, UI final, autenticación productiva, OpenAI/RAG, IA y Reaction/Veto permanecen **NOT STARTED / NOT AUTHORIZED**. La implementación M1-0 queda sujeta a revisión técnica posterior y DEC-066 no la aprueba anticipadamente.  
+**ESTADO:** APPROVED — M1-0 ONLY

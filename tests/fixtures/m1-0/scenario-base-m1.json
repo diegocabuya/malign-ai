@@ -1,0 +1,129 @@
+{
+  "fixture_schema_version": "0.1",
+  "scenario_id": "BASE_2025",
+  "versions": {
+    "ruleset_version": "0.1",
+    "scenario_version": "0.1",
+    "card_registry_version": "0.1",
+    "engine_contract_version": "0.1"
+  },
+  "countries": [
+    {
+      "id": "ARDEN",
+      "starting_resources": 2,
+      "turn_income": 2
+    },
+    {
+      "id": "FLUMA",
+      "starting_resources": 2,
+      "turn_income": 1
+    },
+    {
+      "id": "URSARIA",
+      "starting_resources": 3,
+      "turn_income": 2
+    },
+    {
+      "id": "PRESQUE",
+      "starting_resources": 3,
+      "turn_income": 2
+    },
+    {
+      "id": "DINESIA",
+      "starting_resources": 4,
+      "turn_income": 3
+    }
+  ],
+  "pd_initial_influence": [
+    [
+      "PRESQUE_PD_1",
+      "RESILIENCY",
+      1,
+      "PRESQUE"
+    ],
+    [
+      "PRESQUE_PD_2",
+      "RESILIENCY",
+      2,
+      "PRESQUE"
+    ],
+    [
+      "PRESQUE_PD_3",
+      "RESILIENCY",
+      6,
+      "PRESQUE"
+    ],
+    [
+      "DINESIA_PD_1",
+      "MALIGN",
+      1,
+      "URSARIA"
+    ],
+    [
+      "DINESIA_PD_2",
+      "RESILIENCY",
+      3,
+      "DINESIA"
+    ],
+    [
+      "DINESIA_PD_3",
+      "MALIGN",
+      2,
+      "PRESQUE"
+    ],
+    [
+      "URSARIA_PD_1",
+      "MALIGN",
+      1,
+      "PRESQUE"
+    ],
+    [
+      "URSARIA_PD_2",
+      "RESILIENCY",
+      3,
+      "URSARIA"
+    ],
+    [
+      "URSARIA_PD_3",
+      "MALIGN",
+      1,
+      "ARDEN"
+    ],
+    [
+      "FLUMA_PD_1",
+      "MALIGN",
+      1,
+      "URSARIA"
+    ],
+    [
+      "FLUMA_PD_2",
+      "RESILIENCY",
+      4,
+      "FLUMA"
+    ],
+    [
+      "ARDEN_PD_1",
+      "RESILIENCY",
+      2,
+      "ARDEN"
+    ],
+    [
+      "ARDEN_PD_2",
+      "RESILIENCY",
+      1,
+      "ARDEN"
+    ],
+    [
+      "ARDEN_PD_3",
+      "RESILIENCY",
+      6,
+      "ARDEN"
+    ]
+  ],
+  "base_ap_per_turn": 3,
+  "strategy_deck_size": 30,
+  "starter_cards_per_player": 5,
+  "hand_limit": 10,
+  "cards_per_country": 108,
+  "operations_pool_per_country": 103
+}

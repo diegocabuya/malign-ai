@@ -12,6 +12,8 @@ export interface ActorContext {
   readonly actorId: string;
   readonly actorType: ActorType;
   readonly participantId?: string;
+  readonly playerSeatId?: string;
+  readonly countryId?: string;
   readonly authenticatedSessionId: string;
   readonly permissions: readonly string[];
 }
@@ -58,9 +60,33 @@ export type EngineErrorCode =
   | 'INVALID_DT'
   | 'INVALID_TARGET_PD';
 
-export type EngineErrorCategory = 'AUTHORIZATION' | 'PHASE_STATE' | 'CONCURRENCY' | 'RESOURCE' | 'CARD' | 'CAMPAIGN' | 'TARGETING' | 'RULE_INVARIANT';
+export type SetupEngineErrorCode =
+  | 'GAME_NOT_FOUND'
+  | 'GAME_ALREADY_EXISTS'
+  | 'SETUP_INVALID'
+  | 'INVALID_TURN_LIMIT'
+  | 'INVALID_DICE_MODE'
+  | 'UNSUPPORTED_SCENARIO'
+  | 'UNSUPPORTED_CONTRACT_VERSION'
+  | 'UNSUPPORTED_PAYLOAD_VERSION'
+  | 'INVALID_COMMAND_PAYLOAD'
+  | 'PARTICIPANT_NOT_FOUND'
+  | 'PARTICIPANT_ALREADY_EXISTS'
+  | 'PARTICIPANT_ALREADY_SEATED'
+  | 'COUNTRY_ALREADY_ASSIGNED'
+  | 'SEAT_INDEX_ALREADY_ASSIGNED'
+  | 'CLOCKWISE_INDEX_ALREADY_ASSIGNED'
+  | 'SEAT_ASSIGNMENT_LOCKED'
+  | 'STRATEGY_DECK_SIZE_INVALID'
+  | 'STRATEGY_DECK_NOT_SUBMITTED'
+  | 'STRATEGY_ALREADY_LOCKED'
+  | 'RANDOM_PROVIDER_FAILURE';
+
+export type AnyEngineErrorCode = EngineErrorCode | SetupEngineErrorCode;
+
+export type EngineErrorCategory = 'AUTHORIZATION' | 'PHASE_STATE' | 'CONCURRENCY' | 'RESOURCE' | 'CARD' | 'CAMPAIGN' | 'TARGETING' | 'RULE_INVARIANT' | 'CONTRACT';
 export interface EngineError {
-  readonly code: EngineErrorCode;
+  readonly code: AnyEngineErrorCode;
   readonly category: EngineErrorCategory;
   readonly retryable: boolean;
   readonly safeMessageKey: string;
@@ -80,3 +106,21 @@ export interface EngineCommandResult<TPayload = unknown> {
   readonly error?: EngineError;
   readonly resolvedAt: string;
 }
+
+export const engineErrorFor = (code: AnyEngineErrorCode): EngineError => {
+  let category: EngineErrorCategory = 'PHASE_STATE';
+  if (code === 'STALE_STATE_VERSION' || code === 'IDEMPOTENCY_KEY_REUSED') category = 'CONCURRENCY';
+  else if (code === 'NOT_AUTHORIZED' || code === 'INVALID_ACTOR_CONTEXT' || code === 'PARTICIPANT_NOT_FOUND') category = 'AUTHORIZATION';
+  else if (code === 'INSUFFICIENT_AP' || code === 'INSUFFICIENT_RESOURCES') category = 'RESOURCE';
+  else if (code.startsWith('CARD_') || code.startsWith('STRATEGY_') || code === 'DUPLICATE_CARD_INSTANCE') category = 'CARD';
+  else if (code.startsWith('INVALID_DT') || code.startsWith('INVALID_TARGET')) category = 'TARGETING';
+  else if (code.startsWith('CAMPAIGN_') || code === 'INVALID_SLOT') category = 'CAMPAIGN';
+  else if (code.startsWith('UNSUPPORTED_') || code === 'INVALID_COMMAND_PAYLOAD') category = 'CONTRACT';
+  else if (code.includes('ALREADY_ASSIGNED') || code.includes('ALREADY_SEATED') || code === 'PARTICIPANT_ALREADY_EXISTS' || code === 'SETUP_INVALID') category = 'RULE_INVARIANT';
+  return {
+    code,
+    category,
+    retryable: code === 'STALE_STATE_VERSION',
+    safeMessageKey: `engine.error.${code.toLowerCase()}`,
+  };
+};

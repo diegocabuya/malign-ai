@@ -35,12 +35,21 @@ importers:
 
   apps/server:
     dependencies:
+      '@malign-ai/authz':
+        specifier: workspace:*
+        version: link:../../packages/authz
       '@malign-ai/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
       '@malign-ai/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@malign-ai/game-engine':
+        specifier: workspace:*
+        version: link:../../packages/game-engine
+      '@malign-ai/projections':
+        specifier: workspace:*
+        version: link:../../packages/projections
 
   apps/web:
     dependencies:
@@ -63,6 +72,9 @@ importers:
 
   packages/authz:
     dependencies:
+      '@malign-ai/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@malign-ai/domain':
         specifier: workspace:*
         version: link:../domain
