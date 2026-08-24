@@ -10,6 +10,7 @@ import type {
 } from '@malign-ai/domain';
 import {
   buildM1AdjudicationProjection,
+  projectCanonicalM1Event,
   type M1AdjudicationProjection,
 } from './m1-adjudication-projection.js';
 
@@ -44,43 +45,9 @@ export interface M1RealtimeProjection {
   readonly game: M1AdjudicationProjection['game'];
   readonly pendingChoice?: M1AdjudicationProjection['pendingChoice'];
   readonly pendingNarrativeRequest?: M1AdjudicationProjection['pendingNarrativeRequest'];
+  readonly events: readonly ProjectedM1Event[];
   readonly audit: M1AdjudicationProjection['audit'];
 }
-
-const playerPrivateArtifactKeys = new Set([
-  'pendingResolutionJson',
-  'pendingResolutionDigest',
-  'influenceResolutionJson',
-  'influenceResolutionDigest',
-  'traceDigest',
-  'preStateHash',
-  'postStateHash',
-]);
-
-const futureDeckArtifactKeys = new Set([
-  'operationsDeckOrder',
-  'futureDeckOrder',
-  'topCardId',
-  'topCardIdentity',
-]);
-
-const eventOwnerParticipantId = (event: SetupGameEvent): string | null => {
-  if (event.actorParticipantId !== null) return event.actorParticipantId;
-  for (const key of ['actorParticipantId', 'participantId']) {
-    const value = event.payload[key];
-    if (typeof value === 'string') return value;
-  }
-  return null;
-};
-
-const projectedPayload = (
-  event: SetupGameEvent,
-  facilitator: boolean,
-): Readonly<Record<string, string | number | boolean>> => Object.fromEntries(
-  Object.entries(event.payload).filter(([key]) =>
-    !futureDeckArtifactKeys.has(key) && (facilitator || !playerPrivateArtifactKeys.has(key)),
-  ),
-);
 
 export const realtimeProjectionId = (viewer: ActorContext): string => {
   if (viewer.participantId === undefined || viewer.actorType === 'SYSTEM') {
@@ -114,29 +81,26 @@ export const projectM1EventForViewer = (
   if (participantId === undefined || viewer.actorType === 'SYSTEM') {
     throw new Error('Projected realtime events require a verified human participant');
   }
-  const facilitator = viewer.actorType === 'FACILITATOR';
-  if (
-    event.visibilityClass === 'OWNER_AND_FACILITATOR' &&
-    !facilitator &&
-    eventOwnerParticipantId(event) !== participantId
-  ) return undefined;
+  const canonical = projectCanonicalM1Event(event, viewer);
+  if (!canonical.authorized) return undefined;
+  const projected = canonical.event;
 
   return {
     kind: 'PROJECTED_EVENT',
-    eventId: event.eventId,
-    gameId: event.gameId,
-    eventType: event.eventType,
-    sequenceNumber: event.sequenceNumber,
-    gameVersion: event.gameVersion,
-    actorType: event.actorType,
-    actorParticipantId: event.actorParticipantId,
-    payloadSchemaVersion: event.payloadSchemaVersion,
-    versions: structuredClone(event.versions),
-    correlationId: event.correlationId,
-    causationId: event.causationId,
-    visibilityClass: event.visibilityClass,
-    occurredAt: event.occurredAt,
-    payload: projectedPayload(event, facilitator),
+    eventId: projected.eventId,
+    gameId: projected.gameId,
+    eventType: projected.eventType,
+    sequenceNumber: projected.sequenceNumber,
+    gameVersion: projected.gameVersion,
+    actorType: projected.actorType,
+    actorParticipantId: projected.actorParticipantId,
+    payloadSchemaVersion: projected.payloadSchemaVersion,
+    versions: structuredClone(projected.versions),
+    correlationId: projected.correlationId,
+    causationId: projected.causationId,
+    visibilityClass: projected.visibilityClass,
+    occurredAt: projected.occurredAt,
+    payload: structuredClone(projected.payload),
   };
 };
 
@@ -146,13 +110,14 @@ export const buildM1RealtimeProjection = (
 ): M1RealtimeProjection => {
   const projection = buildM1AdjudicationProjection(state, viewer);
   return {
-    game: projection.game,
-    ...(projection.pendingChoice === undefined
-      ? {}
-      : { pendingChoice: structuredClone(projection.pendingChoice) }),
+    game: structuredClone(projection.game),
+    ...(projection.pendingChoice === undefined ? {} : { pendingChoice: structuredClone(projection.pendingChoice) }),
     ...(projection.pendingNarrativeRequest === undefined
       ? {}
       : { pendingNarrativeRequest: structuredClone(projection.pendingNarrativeRequest) }),
+    events: state.events
+      .map((event) => projectM1EventForViewer(event, viewer))
+      .filter((event): event is ProjectedM1Event => event !== undefined),
     audit: structuredClone(projection.audit),
   };
 };

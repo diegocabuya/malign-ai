@@ -102,7 +102,7 @@ describe('M1-3 explicit cross-boundary regressions', () => {
       sessionId('P1'),
       command('LOCK_ACTION_PLAN', GAME_ID, beforeLock.version, {}),
     ).status).toBe('RESOLVED');
-    const reconnect = testHarness.app.reconnectM1(sessionId('P2'), GAME_ID, () => undefined);
+    const reconnect = testHarness.app.reconnectM1(sessionId('P2'), GAME_ID);
     expect(reconnect.ok).toBe(true);
     const serialized = JSON.stringify({
       channel: testHarness.realtime.deliveriesFor(p2.subscriptionId),
@@ -126,7 +126,7 @@ describe('M1-3 explicit cross-boundary regressions', () => {
       sessionId('P1'),
       command('LOCK_ACTION_PLAN', GAME_ID, beforeLock.version, {}),
     ).status).toBe('RESOLVED');
-    const reconnect = testHarness.app.reconnectM1(sessionId('P2'), GAME_ID, () => undefined);
+    const reconnect = testHarness.app.reconnectM1(sessionId('P2'), GAME_ID);
     const serialized = JSON.stringify({
       channel: testHarness.realtime.deliveriesFor(p2.subscriptionId),
       reconnect,
@@ -151,8 +151,8 @@ describe('M1-3 explicit cross-boundary regressions', () => {
       sessionId('P1'),
       command('LOCK_ACTION_PLAN', GAME_ID, beforeLock.version, {}),
     ).status).toBe('RESOLVED');
-    const p2Recovery = testHarness.app.reconnectM1(sessionId('P2'), GAME_ID, () => undefined);
-    const f1Recovery = testHarness.app.reconnectM1(sessionId('F1'), GAME_ID, () => undefined);
+    const p2Recovery = testHarness.app.reconnectM1(sessionId('P2'), GAME_ID);
+    const f1Recovery = testHarness.app.reconnectM1(sessionId('F1'), GAME_ID);
     const serialized = JSON.stringify({
       p2Channel: testHarness.realtime.deliveriesFor(p2.subscriptionId),
       f1Channel: testHarness.realtime.deliveriesFor(f1.subscriptionId),
@@ -177,7 +177,7 @@ describe('M1-3 explicit cross-boundary regressions', () => {
       sessionId('P1'),
       command('LOCK_ACTION_PLAN', GAME_ID, beforeLock.version, {}),
     ).status).toBe('RESOLVED');
-    const reconnect = testHarness.app.reconnectM1(sessionId('P2'), GAME_ID, () => undefined);
+    const reconnect = testHarness.app.reconnectM1(sessionId('P2'), GAME_ID);
     const serialized = JSON.stringify({
       channel: testHarness.realtime.deliveriesFor(p2.subscriptionId),
       reconnect,

@@ -292,6 +292,7 @@ export class SetupCommandDispatcher {
 
   dispatch(envelope: SetupEnvelope): EngineCommandResult {
     const checkpoint = this.random.checkpoint();
+    let notifyStableCommit: (() => void) | undefined;
     try {
       const result = dispatchAtomicCommand({
         envelope,
@@ -299,9 +300,12 @@ export class SetupCommandDispatcher {
         now: this.now,
         validatePayload: ({ commandType, payload }) => validateSetupCommandPayload(commandType, payload),
         prepare: (before, candidate) => this.prepare(before, candidate),
+        deferStableNotification: (notify) => { notifyStableCommit = notify; },
       });
-      if (result.status === 'RESOLVED') this.random.commit(checkpoint);
-      else this.random.restore(checkpoint);
+      if (result.status === 'RESOLVED') {
+        this.random.commit(checkpoint);
+        notifyStableCommit?.();
+      } else this.random.restore(checkpoint);
       return result;
     } catch (error) {
       this.random.restore(checkpoint);

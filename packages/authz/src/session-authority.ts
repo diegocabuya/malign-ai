@@ -53,6 +53,7 @@ export class InMemorySessionAuthority {
     const participant = state.participants[binding.participantId];
     if (
       membership === undefined ||
+      membership.connected !== true ||
       membership.authenticatedSessionId !== authenticatedSessionId ||
       participant === undefined ||
       participant.userId !== binding.userId ||
@@ -86,6 +87,16 @@ export class InMemorySessionAuthority {
   sessionSnapshot(gameId: string): GameSession | undefined {
     const session = this.#sessions.get(gameId);
     return session === undefined ? undefined : structuredClone(session);
+  }
+
+  /** In-memory session lifecycle seam; it does not alter deterministic game state. */
+  invalidateSession(authenticatedSessionId: string): void {
+    this.#bindings.delete(authenticatedSessionId);
+    for (const session of this.#sessions.values()) {
+      for (const membership of Object.values(session.memberships)) {
+        if (membership.authenticatedSessionId === authenticatedSessionId) membership.connected = false;
+      }
+    }
   }
 
   private contextFrom(

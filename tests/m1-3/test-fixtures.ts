@@ -151,6 +151,7 @@ export const rehydratedRealtimeHarness = (state: SetupGameState): M13PlanningHar
 export const connectConsumer = (
   testHarness: M13RealtimeHarness | M13PlanningHarness,
   participantId: string,
+  handler?: (delivery: Parameters<InMemoryProjectedEventConsumer['receive']>[0]) => void,
 ): {
   readonly consumer: InMemoryProjectedEventConsumer;
   readonly subscriptionId: string;
@@ -163,8 +164,14 @@ export const connectConsumer = (
     sessionId(participantId),
     GAME_ID,
     initial.value.cursor,
-    consumer.receive,
   );
   if (!subscribed.ok) throw new Error(`Realtime subscription failed: ${subscribed.error.code}`);
+  const activated = testHarness.app.activateM1Realtime(
+    sessionId(participantId),
+    GAME_ID,
+    subscribed.value.subscription,
+    handler ?? consumer.receive,
+  );
+  if (!activated.ok) throw new Error(`Realtime activation failed: ${activated.error.code}`);
   return { consumer, subscriptionId: subscribed.value.subscription.subscriptionId };
 };

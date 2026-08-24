@@ -11,14 +11,17 @@ import {
 import {
   GAME_ID,
   FULL_CAMPAIGN,
+  planningState,
   runActivation,
   runConstruct,
 } from '../m1-2/test-fixtures.js';
-import { sessionId } from '../m1-0/test-fixtures.js';
+import { command, sessionId } from '../m1-0/test-fixtures.js';
+import { constructSlot, savePlan } from '../m1-1/test-fixtures.js';
 import {
   connectConsumer,
   RECONNECT_FIXTURE,
   realtimeAdjudicationHarness,
+  realtimePlanningHarness,
   rehydratedRealtimeHarness,
 } from './test-fixtures.js';
 
@@ -46,17 +49,28 @@ describe('M1-3 canonical realtime and reconnect gate', () => {
       sessionId('P1'),
       GAME_ID,
       initial.value.cursor,
-      consumer.receive,
     );
     expect(subscribed.ok).toBe(true);
     if (!subscribed.ok) return;
-    const campaignCreated = subscribed.value.catchup.events.filter(({ eventType }) =>
+    const afterRegistration = runActivation(testHarness);
+    expect(afterRegistration.status).toBe('RESOLVED');
+    expect(testHarness.realtime.deliveriesFor(subscribed.value.subscription.subscriptionId)).toHaveLength(0);
+    const activated = testHarness.app.activateM1Realtime(
+      sessionId('P1'),
+      GAME_ID,
+      subscribed.value.subscription,
+      consumer.receive,
+    );
+    expect(activated.ok).toBe(true);
+    if (!activated.ok) return;
+    const campaignCreated = activated.value.catchup.events.filter(({ eventType }) =>
       eventType === RECONNECT_FIXTURE.initial_sync.concurrent_commit,
     );
     expect(campaignCreated).toHaveLength(RECONNECT_FIXTURE.initial_sync.expected_application_count);
     expect(new Set(campaignCreated.map(({ eventId }) => eventId)).size).toBe(1);
-    expect(consumer.cursor).toEqual(subscribed.value.catchup.cursor);
-    expect(consumer.projection).toEqual(subscribed.value.catchup.projection);
+    expect(consumer.appliedEventCount).toBe(activated.value.catchup.events.length);
+    expect(consumer.cursor).toEqual(activated.value.catchup.cursor);
+    expect(consumer.projection).toEqual(activated.value.catchup.projection);
   });
 
   it('GE-M1-RT-002 broadcasts the same public meaning with canonical identity to every viewer', () => {
@@ -93,16 +107,35 @@ describe('M1-3 canonical realtime and reconnect gate', () => {
     const p2 = connectConsumer(testHarness, 'P2');
     const f1 = connectConsumer(testHarness, 'F1');
     expect(runConstruct(testHarness).status).toBe('RESOLVED');
+    const rivalDeliveryCount = testHarness.realtime.deliveriesFor(p2.subscriptionId).length;
     expect(runActivation(testHarness).status).toBe('REQUIRES_CHOICE');
 
     const ownerEvents = lastDelivery(testHarness.realtime.deliveriesFor(p1.subscriptionId)).events;
-    const rivalEvents = lastDelivery(testHarness.realtime.deliveriesFor(p2.subscriptionId)).events;
+    const rivalDeliveries = testHarness.realtime.deliveriesFor(p2.subscriptionId);
+    const rivalEvents = rivalDeliveries.slice(rivalDeliveryCount).flatMap(({ events }) => events);
     const facilitatorEvents = lastDelivery(testHarness.realtime.deliveriesFor(f1.subscriptionId)).events;
     expect(ownerEvents.some(({ eventType }) => eventType === 'NARRATIVE_REQUESTED')).toBe(true);
     expect(facilitatorEvents.some(({ eventType }) => eventType === 'NARRATIVE_REQUESTED')).toBe(true);
     expect(rivalEvents.some(({ eventType }) => eventType === 'NARRATIVE_REQUESTED')).toBe(false);
     expect(JSON.stringify(rivalEvents)).not.toContain('narrative-request');
     expect(JSON.stringify(rivalEvents)).not.toContain('pendingResolution');
+    const rivalCursor = p2.consumer.cursor;
+    expect(rivalCursor).toBeDefined();
+    const rivalFeed = testHarness.app.getM1EventFeed(sessionId('P2'), GAME_ID, {
+      ...rivalCursor!,
+      gameVersion: 0,
+      lastSequenceNumber: 0,
+    });
+    const rivalReconnect = testHarness.app.reconnectM1(sessionId('P2'), GAME_ID);
+    expect(JSON.stringify({ rivalFeed, rivalReconnect })).not.toContain('NARRATIVE_REQUESTED');
+    expect(JSON.stringify({ rivalFeed, rivalReconnect })).not.toContain('pendingResolution');
+
+    const privateOnlyState = planningState();
+    const privateOnlyHarness = realtimePlanningHarness(privateOnlyState);
+    const privateOnlyRival = connectConsumer(privateOnlyHarness, 'P2');
+    const beforePrivateOnly = privateOnlyHarness.realtime.deliveriesFor(privateOnlyRival.subscriptionId).length;
+    expect(savePlan(privateOnlyHarness, 'P1', [constructSlot(privateOnlyState, 'P1')]).status).toBe('RESOLVED');
+    expect(privateOnlyHarness.realtime.deliveriesFor(privateOnlyRival.subscriptionId)).toHaveLength(beforePrivateOnly);
   });
 
   it('GE-M1-RT-004 gives F1 the audited allowed stream without future deck order', () => {
@@ -162,15 +195,33 @@ describe('M1-3 canonical realtime and reconnect gate', () => {
 
   it('GE-M1-RT-007 deduplicates duplicate delivery by canonical event identity and sequence', () => {
     const testHarness = realtimeAdjudicationHarness();
-    const p1 = connectConsumer(testHarness, 'P1');
+    const initial = testHarness.app.getM1InitialSync(sessionId('P1'), GAME_ID);
+    expect(initial.ok).toBe(true);
+    if (!initial.ok) return;
+    const subscribed = testHarness.app.subscribeM1Realtime(
+      sessionId('P1'),
+      GAME_ID,
+      initial.value.cursor,
+    );
+    expect(subscribed.ok).toBe(true);
+    if (!subscribed.ok) return;
     expect(runConstruct(testHarness).status).toBe('RESOLVED');
-    const appliedOnce = p1.consumer.appliedEventCount;
-    testHarness.realtime.redeliver(p1.subscriptionId, 0);
-    expect(p1.consumer.appliedEventCount).toBe(appliedOnce);
-    expect(p1.consumer.lastResult).toMatchObject({
+    const consumer = new InMemoryProjectedEventConsumer();
+    consumer.initialize(initial.value);
+    const activated = testHarness.app.activateM1Realtime(
+      sessionId('P1'),
+      GAME_ID,
+      subscribed.value.subscription,
+      consumer.receive,
+    );
+    expect(activated.ok).toBe(true);
+    if (!activated.ok) return;
+    expect(testHarness.realtime.deliveriesFor(subscribed.value.subscription.subscriptionId)).toHaveLength(2);
+    expect(consumer.appliedEventCount).toBe(activated.value.catchup.events.length);
+    expect(consumer.lastResult).toMatchObject({
       status: 'DEDUPLICATED',
       appliedEvents: 0,
-      duplicateEvents: appliedOnce,
+      duplicateEvents: activated.value.catchup.events.length,
     });
   });
 
@@ -206,6 +257,17 @@ describe('M1-3 canonical realtime and reconnect gate', () => {
     })).toMatchObject({ ok: false, error: { code: 'REALTIME_CURSOR_INVALID' } });
     expect(testHarness.app.getM1EventFeed(sessionId('P1'), 'other-game', latest.value.cursor))
       .toMatchObject({ ok: false, error: { code: 'GAME_ID_MISMATCH' } });
+
+    const planning = planningState();
+    const authorizedOmission = realtimePlanningHarness(planning);
+    const rival = connectConsumer(authorizedOmission, 'P2');
+    expect(savePlan(authorizedOmission, 'P1', [constructSlot(planning, 'P1')]).status).toBe('RESOLVED');
+    const beforeLock = authorizedOmission.store.snapshot(GAME_ID)!;
+    expect(authorizedOmission.app.execute(
+      sessionId('P1'),
+      command('LOCK_ACTION_PLAN', GAME_ID, beforeLock.version, {}),
+    ).status).toBe('RESOLVED');
+    expect(rival.consumer.lastResult?.status).toBe('APPLIED');
   });
 
   it('GE-M1-RT-009 reconnects the designated actor with pending interaction and no mutation or RNG', () => {
@@ -219,10 +281,20 @@ describe('M1-3 canonical realtime and reconnect gate', () => {
     const restored = rehydratedRealtimeHarness(restoredState);
     const before = restored.store.snapshot(GAME_ID)!;
     const beforeRandomCursor = restored.random.cursor;
-    const reconnect = restored.app.reconnectM1(sessionId('P1'), GAME_ID, () => undefined);
+    const reconnect = restored.app.reconnectM1(sessionId('P1'), GAME_ID);
     expect(reconnect.ok).toBe(true);
     if (!reconnect.ok) return;
+    const consumer = new InMemoryProjectedEventConsumer();
+    consumer.initialize(reconnect.value);
+    const activated = restored.app.activateM1Realtime(
+      sessionId('P1'),
+      GAME_ID,
+      reconnect.value.subscription,
+      consumer.receive,
+    );
+    expect(activated.ok).toBe(true);
     expect(reconnect.value.projection.pendingNarrativeRequest?.actorParticipantId).toBe('P1');
+    expect(consumer.projection?.pendingNarrativeRequest?.actorParticipantId).toBe('P1');
     expect(reconnect.value.cursor.gameVersion).toBe(before.version);
     const after = restored.store.snapshot(GAME_ID)!;
     expect(hashM1GameplayState(after)).toBe(hashM1GameplayState(before));
@@ -242,10 +314,19 @@ describe('M1-3 canonical realtime and reconnect gate', () => {
       rehydrateM1StateSnapshot(createM1StateSnapshot(pendingState)),
     );
     const normal = restored.app.getM1InitialSync(sessionId('P2'), GAME_ID);
-    const reconnect = restored.app.reconnectM1(sessionId('P2'), GAME_ID, () => undefined);
+    const reconnect = restored.app.reconnectM1(sessionId('P2'), GAME_ID);
     expect(normal.ok).toBe(true);
     expect(reconnect.ok).toBe(true);
     if (!normal.ok || !reconnect.ok) return;
+    const consumer = new InMemoryProjectedEventConsumer();
+    consumer.initialize(reconnect.value);
+    const activated = restored.app.activateM1Realtime(
+      sessionId('P2'),
+      GAME_ID,
+      reconnect.value.subscription,
+      consumer.receive,
+    );
+    expect(activated.ok).toBe(true);
     expect(reconnect.value.projection).toEqual(normal.value.projection);
     expect(reconnect.value.projection.pendingNarrativeRequest).toBeUndefined();
     expect(reconnect.value.projection.pendingChoice).toBeUndefined();

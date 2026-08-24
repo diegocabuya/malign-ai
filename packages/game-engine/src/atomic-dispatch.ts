@@ -13,6 +13,7 @@ interface StoredIdempotency {
 export interface AtomicCommandStore<TState extends AtomicVersionedState> {
   load(gameId: string): TState | undefined;
   commitState(gameId: string, expectedVersion: number, next: TState): boolean;
+  notifyCommitted?(before: TState | undefined, after: TState): void;
   idempotencyGet(identity: string): StoredIdempotency | undefined;
   idempotencySet(identity: string, value: StoredIdempotency): void;
 }
@@ -46,16 +47,19 @@ export class InMemoryAtomicStateStore<TState extends AtomicVersionedState> imple
     if (current === undefined ? expectedVersion !== 0 : current.version !== expectedVersion) return false;
     if (current === undefined && this.#states.has(gameId)) return false;
     this.#states.set(gameId, structuredClone(next));
+    return true;
+  }
+
+  notifyCommitted(before: TState | undefined, after: TState): void {
     for (const listener of this.#commitListeners) {
       try {
-        listener(current === undefined ? undefined : structuredClone(current), structuredClone(next));
+        listener(before === undefined ? undefined : structuredClone(before), structuredClone(after));
       } catch (error) {
-        // A post-commit observer cannot roll back or invalidate an accepted command.
-        // Recovery reads the authoritative event log if an operational delivery fails.
+        // Stable post-commit observers are isolated. The accepted command and
+        // every other observer remain valid; recovery reads the event log.
         this.#commitListenerErrors.push(error);
       }
     }
-    return true;
   }
 
   onCommitted(listener: StateCommitListener<TState>): () => void {
@@ -121,6 +125,7 @@ export const dispatchAtomicCommand = <TState extends AtomicVersionedState, TComm
   readonly now: () => Date;
   readonly validatePayload?: (envelope: Envelope<TCommandType, TPayload>) => AnyEngineErrorCode | undefined;
   readonly prepare: (before: TState | undefined, envelope: Envelope<TCommandType, TPayload>) => PreparedResolution<TState>;
+  readonly deferStableNotification?: (notify: () => void) => void;
 }): EngineCommandResult => {
   const { envelope, store } = options;
   const before = store.load(envelope.gameId);
@@ -159,6 +164,9 @@ export const dispatchAtomicCommand = <TState extends AtomicVersionedState, TComm
     resolvedAt: options.now().toISOString(),
   };
   store.idempotencySet(identity, { fingerprint: commandFingerprint, result });
+  const notify = (): void => store.notifyCommitted?.(before, prepared.nextState);
+  if (options.deferStableNotification === undefined) notify();
+  else options.deferStableNotification(notify);
   return result;
 };
 

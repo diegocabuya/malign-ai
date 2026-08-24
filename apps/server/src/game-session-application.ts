@@ -24,13 +24,14 @@ import {
   buildM1AuthorizedEventFeed,
   isM1RealtimeCursor,
   validateM1RealtimeCursor,
-  type AuthorizedRealtimeSubscription,
+  type InternalRealtimeSubscription,
   type M1AuthorizedEventFeed,
   type M1InitialSync,
   type M1RealtimeDelivery,
   type M1RealtimeDeliveryHandler,
   type M1RealtimeOperationResult,
   type M1RealtimePort,
+  type M1RealtimeSubscriptionHandle,
 } from './m1-realtime.js';
 
 export interface SessionCommandInput {
@@ -68,13 +69,19 @@ export type M1ProjectionQueryResult =
   | { readonly ok: false; readonly error: ReturnType<typeof engineErrorFor> };
 
 export interface M1RealtimeSubscriptionResult {
-  readonly subscription: AuthorizedRealtimeSubscription;
-  readonly catchup: M1AuthorizedEventFeed;
+  readonly subscription: M1RealtimeSubscriptionHandle;
 }
 
 export interface M1ReconnectResult extends M1InitialSync {
-  readonly subscription: AuthorizedRealtimeSubscription;
+  readonly subscription: M1RealtimeSubscriptionHandle;
+}
+
+export interface M1RealtimeActivationResult {
   readonly catchup: M1AuthorizedEventFeed;
+}
+
+export interface M1RealtimeUnsubscribeResult {
+  readonly unsubscribed: true;
 }
 
 const freeAuthorityFields = new Set(['actorId', 'participantId', 'permissions', 'authenticatedSessionId', 'actorContext', 'gameId']);
@@ -193,7 +200,6 @@ export class InMemoryGameSessionApplication {
     authenticatedSessionId: string,
     gameId: string,
     afterCursor: unknown,
-    handler: M1RealtimeDeliveryHandler,
   ): M1RealtimeOperationResult<M1RealtimeSubscriptionResult> {
     if (this.realtime === undefined) return { ok: false, error: engineErrorFor('NOT_AUTHORIZED') };
     const initialViewer = this.resolveRealtimeViewer(authenticatedSessionId, gameId);
@@ -206,53 +212,87 @@ export class InMemoryGameSessionApplication {
     if (participantId === undefined || initialViewer.actorContext.actorType === 'SYSTEM') {
       return { ok: false, error: engineErrorFor('INVALID_ACTOR_CONTEXT') };
     }
-    const subscription = this.realtime.subscribe({
+    const subscription = this.realtime.register({
       authenticatedSessionId,
       gameId,
       viewerParticipantId: participantId,
       viewerRole: initialViewer.actorContext.actorType,
       projectionId: realtimeProjectionId(initialViewer.actorContext),
-    }, handler);
-
-    // Register first, then catch up. A commit between these two operations can
-    // arrive live and in this feed; the consumer deduplicates canonical IDs.
-    const catchupViewer = this.resolveRealtimeViewer(authenticatedSessionId, gameId);
-    if (!catchupViewer.ok) {
-      this.realtime.unsubscribe(subscription.subscriptionId);
-      return catchupViewer;
-    }
-    const catchup = buildM1AuthorizedEventFeed(catchupViewer.state, catchupViewer.actorContext, afterCursor);
-    if (catchup.cursor.lastSequenceNumber > afterCursor.lastSequenceNumber) {
-      this.realtime.publish(subscription.subscriptionId, {
-        ...catchup,
-        deliveryId: `${gameId}:recovery:${afterCursor.lastSequenceNumber}:${catchup.cursor.lastSequenceNumber}:${subscription.subscriptionId}`,
-        deliveryKind: 'RECOVERY',
-      });
-    }
-    return { ok: true, value: { subscription, catchup } };
+      startCursor: structuredClone(afterCursor),
+    });
+    return { ok: true, value: { subscription } };
   }
 
   reconnectM1(
     authenticatedSessionId: string,
     gameId: string,
-    handler: M1RealtimeDeliveryHandler,
   ): M1RealtimeOperationResult<M1ReconnectResult> {
-    const initial = this.getM1InitialSync(authenticatedSessionId, gameId);
-    if (!initial.ok) return initial;
-    const subscribed = this.subscribeM1Realtime(authenticatedSessionId, gameId, initial.value.cursor, handler);
-    if (!subscribed.ok) return subscribed;
+    if (this.realtime === undefined) return { ok: false, error: engineErrorFor('NOT_AUTHORIZED') };
+    const viewer = this.resolveRealtimeViewer(authenticatedSessionId, gameId);
+    if (!viewer.ok) return viewer;
+    const participantId = viewer.actorContext.participantId;
+    if (participantId === undefined || viewer.actorContext.actorType === 'SYSTEM') {
+      return { ok: false, error: engineErrorFor('INVALID_ACTOR_CONTEXT') };
+    }
+    const initial: M1InitialSync = {
+      projection: buildM1RealtimeProjection(viewer.state, viewer.actorContext),
+      cursor: buildM1RealtimeCursor(viewer.state, viewer.actorContext),
+    };
+    const subscription = this.realtime.register({
+      authenticatedSessionId,
+      gameId,
+      viewerParticipantId: participantId,
+      viewerRole: viewer.actorContext.actorType,
+      projectionId: realtimeProjectionId(viewer.actorContext),
+      startCursor: initial.cursor,
+    });
     return {
       ok: true,
       value: {
-        ...initial.value,
-        subscription: subscribed.value.subscription,
-        catchup: subscribed.value.catchup,
+        ...initial,
+        subscription,
       },
     };
   }
 
-  unsubscribeM1Realtime(subscriptionId: string): void {
-    this.realtime?.unsubscribe(subscriptionId);
+  activateM1Realtime(
+    authenticatedSessionId: string,
+    gameId: string,
+    handle: M1RealtimeSubscriptionHandle,
+    handler: M1RealtimeDeliveryHandler,
+  ): M1RealtimeOperationResult<M1RealtimeActivationResult> {
+    if (this.realtime === undefined) return { ok: false, error: engineErrorFor('NOT_AUTHORIZED') };
+    const viewer = this.resolveRealtimeViewer(authenticatedSessionId, gameId);
+    if (!viewer.ok) return viewer;
+    const subscription = this.ownedSubscription(authenticatedSessionId, gameId, handle, viewer.actorContext);
+    if (subscription === undefined) return { ok: false, error: engineErrorFor('NOT_AUTHORIZED') };
+    const cursorError = validateM1RealtimeCursor(viewer.state, viewer.actorContext, subscription.startCursor);
+    if (cursorError !== undefined) return { ok: false, error: engineErrorFor(cursorError) };
+    const catchup = buildM1AuthorizedEventFeed(viewer.state, viewer.actorContext, subscription.startCursor);
+    const delivery = catchup.cursor.lastSequenceNumber > catchup.fromCursor.lastSequenceNumber ||
+      catchup.cursor.gameVersion > catchup.fromCursor.gameVersion
+      ? {
+          ...catchup,
+          deliveryId: `${gameId}:recovery:${catchup.fromCursor.lastSequenceNumber}:${catchup.cursor.lastSequenceNumber}:${handle.subscriptionId}`,
+          deliveryKind: 'RECOVERY' as const,
+        }
+      : undefined;
+    this.realtime.activate(handle.subscriptionId, handler, delivery);
+    return { ok: true, value: { catchup } };
+  }
+
+  unsubscribeM1Realtime(
+    authenticatedSessionId: string,
+    gameId: string,
+    handle: M1RealtimeSubscriptionHandle,
+  ): M1RealtimeOperationResult<M1RealtimeUnsubscribeResult> {
+    if (this.realtime === undefined) return { ok: false, error: engineErrorFor('NOT_AUTHORIZED') };
+    const viewer = this.resolveRealtimeViewer(authenticatedSessionId, gameId);
+    if (!viewer.ok) return viewer;
+    const subscription = this.ownedSubscription(authenticatedSessionId, gameId, handle, viewer.actorContext);
+    if (subscription === undefined) return { ok: false, error: engineErrorFor('NOT_AUTHORIZED') };
+    this.realtime.unsubscribe(subscription.subscriptionId);
+    return { ok: true, value: { unsubscribed: true } };
   }
 
   private resolveRealtimeViewer(
@@ -281,13 +321,19 @@ export class InMemoryGameSessionApplication {
         after.id,
         after,
       );
-      if (!resolution.ok) continue;
+      if (!resolution.ok) {
+        this.realtime.unsubscribe(subscription.subscriptionId);
+        continue;
+      }
       const actor = resolution.actorContext;
       if (
         actor.participantId !== subscription.viewerParticipantId ||
         actor.actorType !== subscription.viewerRole ||
         realtimeProjectionId(actor) !== subscription.projectionId
-      ) continue;
+      ) {
+        this.realtime.unsubscribe(subscription.subscriptionId);
+        continue;
+      }
       const projectedEvents = committedEvents
         .map((event) => projectM1EventForViewer(event, actor))
         .filter((event): event is NonNullable<typeof event> => event !== undefined);
@@ -297,11 +343,32 @@ export class InMemoryGameSessionApplication {
         deliveryId: `${after.id}:live:${after.version}:${subscription.subscriptionId}`,
         deliveryKind: 'LIVE',
         projection: buildM1RealtimeProjection(after, actor),
+        fromCursor: structuredClone(subscription.lastIssuedCursor),
         cursor,
         events: projectedEvents,
       };
       this.realtime.publish(subscription.subscriptionId, delivery);
     }
+  }
+
+  private ownedSubscription(
+    authenticatedSessionId: string,
+    gameId: string,
+    handle: M1RealtimeSubscriptionHandle,
+    actorContext: ActorContext,
+  ): InternalRealtimeSubscription | undefined {
+    const participantId = actorContext.participantId;
+    if (participantId === undefined || actorContext.actorType === 'SYSTEM') return undefined;
+    const target = {
+      authenticatedSessionId,
+      gameId,
+      viewerParticipantId: participantId,
+      viewerRole: actorContext.actorType,
+      projectionId: realtimeProjectionId(actorContext),
+    };
+    if (!this.realtime?.matches(handle.subscriptionId, target)) return undefined;
+    return this.realtime.subscriptionsForGame(gameId)
+      .find(({ subscriptionId }) => subscriptionId === handle.subscriptionId);
   }
 
   private reject(

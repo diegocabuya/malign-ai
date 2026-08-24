@@ -20,6 +20,7 @@ export interface M1InitialSync {
 }
 
 export interface M1AuthorizedEventFeed extends M1InitialSync {
+  readonly fromCursor: M1RealtimeCursor;
   readonly events: readonly ProjectedM1Event[];
 }
 
@@ -32,81 +33,152 @@ export type M1RealtimeOperationResult<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: EngineError };
 
-export interface AuthorizedRealtimeSubscription {
+/** Opaque public handle. Session authority never crosses the application boundary. */
+export interface M1RealtimeSubscriptionHandle {
   readonly subscriptionId: string;
+}
+
+export interface InternalRealtimeSubscription extends M1RealtimeSubscriptionHandle {
   readonly authenticatedSessionId: string;
   readonly gameId: string;
   readonly viewerParticipantId: string;
   readonly viewerRole: ParticipantRole;
   readonly projectionId: string;
+  readonly startCursor: M1RealtimeCursor;
+  readonly lastIssuedCursor: M1RealtimeCursor;
+  readonly active: boolean;
 }
 
 export type M1RealtimeDeliveryHandler = (delivery: M1RealtimeDelivery) => void;
 
 export interface M1RealtimePort {
-  subscribe(
-    target: Omit<AuthorizedRealtimeSubscription, 'subscriptionId'>,
-    handler: M1RealtimeDeliveryHandler,
-  ): AuthorizedRealtimeSubscription;
-  subscriptionsForGame(gameId: string): readonly AuthorizedRealtimeSubscription[];
+  register(
+    target: Omit<InternalRealtimeSubscription, 'subscriptionId' | 'lastIssuedCursor' | 'active'>,
+  ): M1RealtimeSubscriptionHandle;
+  subscriptionsForGame(gameId: string): readonly InternalRealtimeSubscription[];
+  matches(
+    subscriptionId: string,
+    target: Pick<InternalRealtimeSubscription, 'authenticatedSessionId' | 'gameId' | 'viewerParticipantId' | 'viewerRole' | 'projectionId'>,
+  ): boolean;
   publish(subscriptionId: string, delivery: M1RealtimeDelivery): void;
+  activate(
+    subscriptionId: string,
+    handler: M1RealtimeDeliveryHandler,
+    catchup?: M1RealtimeDelivery,
+  ): void;
   unsubscribe(subscriptionId: string): void;
 }
 
 interface StoredSubscription {
-  readonly target: AuthorizedRealtimeSubscription;
-  readonly handler: M1RealtimeDeliveryHandler;
+  readonly target: Omit<InternalRealtimeSubscription, 'lastIssuedCursor' | 'active'>;
+  handler?: M1RealtimeDeliveryHandler;
+  lastIssuedCursor: M1RealtimeCursor;
+  active: boolean;
+  readonly bufferedDeliveries: M1RealtimeDelivery[];
   readonly deliveries: M1RealtimeDelivery[];
   readonly droppedDeliveries: M1RealtimeDelivery[];
+  readonly handlerErrors: unknown[];
   dropNext: boolean;
 }
 
-/**
- * Operational test adapter only. It owns no rules, state or authorization
- * decisions and intentionally has no network or production transport.
- */
+const cursorScopeMatches = (left: M1RealtimeCursor, right: M1RealtimeCursor): boolean =>
+  left.gameId === right.gameId &&
+  left.viewerParticipantId === right.viewerParticipantId &&
+  left.viewerRole === right.viewerRole &&
+  left.projectionId === right.projectionId;
+
+const cursorPositionAtOrAfter = (left: M1RealtimeCursor, right: M1RealtimeCursor): boolean =>
+  left.lastSequenceNumber > right.lastSequenceNumber ||
+  (left.lastSequenceNumber === right.lastSequenceNumber && left.gameVersion >= right.gameVersion);
+
+/** Operational adapter used only inside deterministic in-memory tests. */
 export class InMemoryRealtimeTestAdapter implements M1RealtimePort {
   readonly #subscriptions = new Map<string, StoredSubscription>();
   #nextSubscription = 1;
 
-  subscribe(
-    target: Omit<AuthorizedRealtimeSubscription, 'subscriptionId'>,
-    handler: M1RealtimeDeliveryHandler,
-  ): AuthorizedRealtimeSubscription {
+  register(
+    target: Omit<InternalRealtimeSubscription, 'subscriptionId' | 'lastIssuedCursor' | 'active'>,
+  ): M1RealtimeSubscriptionHandle {
     const subscriptionId = `m1-rt-subscription-${this.#nextSubscription}`;
     this.#nextSubscription += 1;
-    const authorized = { ...structuredClone(target), subscriptionId };
+    const storedTarget = { ...structuredClone(target), subscriptionId };
     this.#subscriptions.set(subscriptionId, {
-      target: authorized,
-      handler,
+      target: storedTarget,
+      lastIssuedCursor: structuredClone(target.startCursor),
+      active: false,
+      bufferedDeliveries: [],
       deliveries: [],
       droppedDeliveries: [],
+      handlerErrors: [],
       dropNext: false,
     });
-    return structuredClone(authorized);
+    return { subscriptionId };
   }
 
-  subscriptionsForGame(gameId: string): readonly AuthorizedRealtimeSubscription[] {
+  subscriptionsForGame(gameId: string): readonly InternalRealtimeSubscription[] {
     return [...this.#subscriptions.values()]
       .filter(({ target }) => target.gameId === gameId)
-      .map(({ target }) => structuredClone(target));
+      .map(({ target, lastIssuedCursor, active }) => ({
+        ...structuredClone(target),
+        lastIssuedCursor: structuredClone(lastIssuedCursor),
+        active,
+      }));
+  }
+
+  matches(
+    subscriptionId: string,
+    target: Pick<InternalRealtimeSubscription, 'authenticatedSessionId' | 'gameId' | 'viewerParticipantId' | 'viewerRole' | 'projectionId'>,
+  ): boolean {
+    const stored = this.#subscriptions.get(subscriptionId)?.target;
+    return stored !== undefined &&
+      stored.authenticatedSessionId === target.authenticatedSessionId &&
+      stored.gameId === target.gameId &&
+      stored.viewerParticipantId === target.viewerParticipantId &&
+      stored.viewerRole === target.viewerRole &&
+      stored.projectionId === target.projectionId;
   }
 
   publish(subscriptionId: string, delivery: M1RealtimeDelivery): void {
     const subscription = this.#subscriptions.get(subscriptionId);
     if (subscription === undefined) return;
     if (
-      delivery.cursor.gameId !== subscription.target.gameId ||
-      delivery.cursor.projectionId !== subscription.target.projectionId
+      !cursorScopeMatches(delivery.fromCursor, subscription.target.startCursor) ||
+      !cursorScopeMatches(delivery.cursor, subscription.target.startCursor) ||
+      !cursorPositionAtOrAfter(delivery.cursor, delivery.fromCursor)
     ) throw new Error('Realtime adapter received a delivery outside its authorized subscription');
     const stableDelivery = structuredClone(delivery);
+    if (cursorPositionAtOrAfter(stableDelivery.cursor, subscription.lastIssuedCursor)) {
+      subscription.lastIssuedCursor = structuredClone(stableDelivery.cursor);
+    }
     if (subscription.dropNext) {
       subscription.dropNext = false;
       subscription.droppedDeliveries.push(stableDelivery);
       return;
     }
-    subscription.deliveries.push(stableDelivery);
-    subscription.handler(structuredClone(stableDelivery));
+    if (!subscription.active) {
+      subscription.bufferedDeliveries.push(stableDelivery);
+      return;
+    }
+    this.deliver(subscription, stableDelivery);
+  }
+
+  activate(
+    subscriptionId: string,
+    handler: M1RealtimeDeliveryHandler,
+    catchup?: M1RealtimeDelivery,
+  ): void {
+    const subscription = this.#subscriptions.get(subscriptionId);
+    if (subscription === undefined) return;
+    subscription.handler = handler;
+    subscription.active = true;
+    if (catchup !== undefined) {
+      if (cursorPositionAtOrAfter(catchup.cursor, subscription.lastIssuedCursor)) {
+        subscription.lastIssuedCursor = structuredClone(catchup.cursor);
+      }
+      this.deliver(subscription, structuredClone(catchup));
+    }
+    const buffered = subscription.bufferedDeliveries.splice(0);
+    for (const delivery of buffered) this.deliver(subscription, delivery);
   }
 
   unsubscribe(subscriptionId: string): void {
@@ -121,6 +193,10 @@ export class InMemoryRealtimeTestAdapter implements M1RealtimePort {
     return structuredClone(this.#subscriptions.get(subscriptionId)?.droppedDeliveries ?? []);
   }
 
+  handlerErrorsFor(subscriptionId: string): readonly unknown[] {
+    return [...(this.#subscriptions.get(subscriptionId)?.handlerErrors ?? [])];
+  }
+
   dropNextDelivery(subscriptionId: string): void {
     const subscription = this.#subscriptions.get(subscriptionId);
     if (subscription === undefined) throw new Error('Unknown realtime subscription');
@@ -131,7 +207,20 @@ export class InMemoryRealtimeTestAdapter implements M1RealtimePort {
     const subscription = this.#subscriptions.get(subscriptionId);
     const delivery = subscription?.deliveries[deliveryIndex];
     if (subscription === undefined || delivery === undefined) throw new Error('Unknown realtime delivery');
-    subscription.handler(structuredClone(delivery));
+    this.invokeHandler(subscription, structuredClone(delivery));
+  }
+
+  private deliver(subscription: StoredSubscription, delivery: M1RealtimeDelivery): void {
+    subscription.deliveries.push(structuredClone(delivery));
+    this.invokeHandler(subscription, delivery);
+  }
+
+  private invokeHandler(subscription: StoredSubscription, delivery: M1RealtimeDelivery): void {
+    try {
+      subscription.handler?.(structuredClone(delivery));
+    } catch (error) {
+      subscription.handlerErrors.push(error);
+    }
   }
 }
 
@@ -189,6 +278,7 @@ export const buildM1AuthorizedEventFeed = (
   afterCursor: M1RealtimeCursor,
 ): M1AuthorizedEventFeed => ({
   projection: buildM1RealtimeProjection(state, viewer),
+  fromCursor: structuredClone(afterCursor),
   cursor: buildM1RealtimeCursor(state, viewer),
   events: state.events
     .filter(({ sequenceNumber }) => sequenceNumber > afterCursor.lastSequenceNumber)
@@ -203,7 +293,7 @@ export interface ProjectedDeliveryResult {
   readonly gapAfterSequenceNumber?: number;
 }
 
-/** Test consumer proving authoritative identity dedupe and explicit gap recovery. */
+/** Test consumer proving identity dedupe and authorization-aware transport gaps. */
 export class InMemoryProjectedEventConsumer {
   readonly #eventIdBySequence = new Map<number, string>();
   readonly #sequenceByEventId = new Map<string, number>();
@@ -223,7 +313,7 @@ export class InMemoryProjectedEventConsumer {
 
   recover(feed: M1AuthorizedEventFeed): ProjectedDeliveryResult {
     this.assertInitializedFor(feed.cursor);
-    this.assertProjectedEventsMatchCursor(feed.events, feed.cursor);
+    this.assertRange(feed.fromCursor, feed.cursor, feed.events);
     const counts = this.recordEvents(feed.events);
     this.#cursor = structuredClone(feed.cursor);
     this.#projection = structuredClone(feed.projection);
@@ -254,13 +344,10 @@ export class InMemoryProjectedEventConsumer {
 
   private applyLive(delivery: M1RealtimeDelivery): ProjectedDeliveryResult {
     this.assertInitializedFor(delivery.cursor);
-    this.assertProjectedEventsMatchCursor(delivery.events, delivery.cursor);
+    this.assertRange(delivery.fromCursor, delivery.cursor, delivery.events);
     const cursor = this.#cursor;
     if (cursor === undefined) throw new Error('Realtime consumer is not initialized');
-    const firstUnseen = delivery.events.find((event) =>
-      !this.#sequenceByEventId.has(event.eventId) && event.sequenceNumber > cursor.lastSequenceNumber,
-    );
-    if (firstUnseen !== undefined && firstUnseen.sequenceNumber > cursor.lastSequenceNumber + 1) {
+    if (delivery.fromCursor.lastSequenceNumber > cursor.lastSequenceNumber) {
       return {
         status: 'GAP_DETECTED',
         appliedEvents: 0,
@@ -269,8 +356,10 @@ export class InMemoryProjectedEventConsumer {
       };
     }
     const counts = this.recordEvents(delivery.events);
-    this.#cursor = structuredClone(delivery.cursor);
-    this.#projection = structuredClone(delivery.projection);
+    if (cursorPositionAtOrAfter(delivery.cursor, cursor)) {
+      this.#cursor = structuredClone(delivery.cursor);
+      this.#projection = structuredClone(delivery.projection);
+    }
     return {
       status: counts.applied === 0 ? 'DEDUPLICATED' : 'APPLIED',
       appliedEvents: counts.applied,
@@ -282,34 +371,36 @@ export class InMemoryProjectedEventConsumer {
     if (this.#cursor === undefined || this.#projection === undefined) {
       throw new Error('Realtime consumer must be initialized from an authorized projection');
     }
-    if (
-      cursor.gameId !== this.#cursor.gameId ||
-      cursor.projectionId !== this.#cursor.projectionId
-    ) throw new Error('Realtime consumer cursor scope mismatch');
-    if (
-      cursor.lastSequenceNumber < this.#cursor.lastSequenceNumber ||
-      cursor.gameVersion < this.#cursor.gameVersion
-    ) throw new Error('Realtime consumer cursor cannot move backwards');
+    if (!cursorScopeMatches(cursor, this.#cursor)) {
+      throw new Error('Realtime consumer cursor scope mismatch');
+    }
   }
 
-  private assertProjectedEventsMatchCursor(
+  private assertRange(
+    fromCursor: M1RealtimeCursor,
+    toCursor: M1RealtimeCursor,
     events: readonly ProjectedM1Event[],
-    cursor: M1RealtimeCursor,
   ): void {
-    if (events.some((event) =>
-      event.gameId !== cursor.gameId ||
-      event.sequenceNumber > cursor.lastSequenceNumber ||
-      event.gameVersion > cursor.gameVersion
-    )) throw new Error('Projected event lies outside its authorized cursor');
+    if (!cursorScopeMatches(fromCursor, toCursor) || !cursorPositionAtOrAfter(toCursor, fromCursor)) {
+      throw new Error('Realtime delivery cursor range is invalid');
+    }
+    let previousSequence = fromCursor.lastSequenceNumber;
+    for (const event of events) {
+      if (
+        event.gameId !== toCursor.gameId ||
+        event.sequenceNumber <= fromCursor.lastSequenceNumber ||
+        event.sequenceNumber <= previousSequence ||
+        event.sequenceNumber > toCursor.lastSequenceNumber ||
+        event.gameVersion > toCursor.gameVersion
+      ) throw new Error('Projected event lies outside its authorized cursor range');
+      previousSequence = event.sequenceNumber;
+    }
   }
 
   private recordEvents(events: readonly ProjectedM1Event[]): { readonly applied: number; readonly duplicates: number } {
     let applied = 0;
     let duplicates = 0;
-    let previousSequence = -1;
     for (const event of events) {
-      if (event.sequenceNumber <= previousSequence) throw new Error('Projected events are not ordered');
-      previousSequence = event.sequenceNumber;
       const knownSequence = this.#sequenceByEventId.get(event.eventId);
       const knownEventId = this.#eventIdBySequence.get(event.sequenceNumber);
       if (knownSequence !== undefined || knownEventId !== undefined) {

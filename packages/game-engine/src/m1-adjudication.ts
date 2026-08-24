@@ -542,11 +542,12 @@ export class M1AdjudicationEngine {
 
   runNext(options: SchedulerRunOptions): EngineCommandResult {
     const envelope = this.internalEnvelope(options);
-    return this.withTransactionalRandom(() => dispatchAtomicCommand({
+    return this.withTransactionalRandom((deferStableNotification) => dispatchAtomicCommand({
       envelope,
       store: this.store,
       now: this.now,
       prepare: (before, candidate) => this.prepareScheduler(before, candidate),
+      deferStableNotification,
     }));
   }
 
@@ -573,7 +574,7 @@ export class M1AdjudicationEngine {
     if (envelope.commandType !== 'SUBMIT_CHOICE' && envelope.commandType !== 'SUBMIT_CAMPAIGN_NARRATIVE') {
       return rejectedResult(envelope, beforeVersion, 'NOT_AUTHORIZED', this.now);
     }
-    return this.withTransactionalRandom(() => dispatchAtomicCommand({
+    return this.withTransactionalRandom((deferStableNotification) => dispatchAtomicCommand({
       envelope,
       store: this.store,
       now: this.now,
@@ -583,15 +584,22 @@ export class M1AdjudicationEngine {
       prepare: (before, candidate) => candidate.commandType === 'SUBMIT_CHOICE'
         ? this.prepareChoice(before, candidate)
         : this.prepareNarrative(before, candidate),
+      deferStableNotification,
     }));
   }
 
-  private withTransactionalRandom(operation: () => EngineCommandResult): EngineCommandResult {
+  private withTransactionalRandom(
+    operation: (deferStableNotification: (notify: () => void) => void) => EngineCommandResult,
+  ): EngineCommandResult {
     const checkpoint = this.random.checkpoint();
+    let notifyStableCommit: (() => void) | undefined;
     try {
-      const result = operation();
+      const result = operation((notify) => { notifyStableCommit = notify; });
       if (result.status === 'REJECTED') this.random.restore(checkpoint);
-      else this.random.commit(checkpoint);
+      else {
+        this.random.commit(checkpoint);
+        notifyStableCommit?.();
+      }
       return result;
     } catch (error) {
       this.random.restore(checkpoint);
@@ -877,6 +885,7 @@ export class M1AdjudicationEngine {
         requestId,
         campaignId: campaign.id,
         actorParticipantId: participantId,
+        ownerParticipantId: participantId,
         pendingResolutionJson,
         pendingResolutionDigest: sha256CanonicalJson(pending),
       }, started.id, 'OWNER_AND_FACILITATOR');
@@ -1081,6 +1090,7 @@ export class M1AdjudicationEngine {
         choiceId,
         choiceVersion: 1,
         actorParticipantId: participantId,
+        ownerParticipantId: participantId,
         optionCount: options.length,
         minSelections: resolution.oppositeRemoved,
         maxSelections: resolution.oppositeRemoved,
@@ -1158,6 +1168,7 @@ export class M1AdjudicationEngine {
       inputId: provenance.inputId,
       source: provenance.source,
       text: provenance.text,
+      ownerParticipantId: workingPending.participantId,
     }, workingPending.causationId, 'OWNER_AND_FACILITATOR');
     delete working.adjudication.pendingResolution;
     working.adjudication.scheduler.status = 'READY';
@@ -1231,6 +1242,7 @@ export class M1AdjudicationEngine {
       source: narrative.source,
       text: narrative.text,
       inputCausationId: narrative.causationId,
+      ownerParticipantId: state.adjudication.campaigns[campaignId]?.ownerParticipantId ?? '',
     }, causationId, 'OWNER_AND_FACILITATOR');
   }
 
@@ -1272,6 +1284,7 @@ export class M1AdjudicationEngine {
       choiceId: payload.choiceId,
       choiceVersion: payload.choiceVersion,
       selectionCount: payload.selectedOptionIds.length,
+      ownerParticipantId: workingPending.participantId,
     }, workingPending.causationId);
     const eventRefs = [...workingPending.continuation.eventRefsBeforeChoice, choiceEvent.id];
     const ledgerRefs = [...workingPending.continuation.ledgerRefsBeforeChoice];
