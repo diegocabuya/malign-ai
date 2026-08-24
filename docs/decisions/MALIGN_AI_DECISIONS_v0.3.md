@@ -866,3 +866,26 @@ Quedan aprobadas como baseline de implementación:
 **JUSTIFICACIÓN:** La revisión técnica aprobó la implementación corregida de M1-2 y aceptó el cierre de M12-R01…R07 sin requerir nuevas correcciones de código.
 **IMPACTO:** M1-2 queda formalmente cerrado. M1-3 y todos los componentes diferidos permanecen **NOT STARTED / NOT AUTHORIZED**.
 **ESTADO:** APPROVED — M1-2 CLOSED
+
+---
+
+## DEC-072 — Autorización exclusiva de M1-3
+
+**FECHA:** 2026-08-24
+**TEMA:** Realtime Test Adapter, Multiplayer Integration and Reconnect/Recovery.
+**DECISIÓN:**
+
+- DEC-071 cerró formalmente M1-2.
+- M0, M1-0, M1-1 y M1-2 permanecen **IMPLEMENTED AND APPROVED**.
+- Se autoriza exclusivamente M1-3 — realtime port/adapter in-memory test-only, broadcast autorizado, multiplayer integration y reconnect/recovery dentro del proceso de test.
+- La implementación debe cumplir PTD-M1-001 y PTD-M1-005 aprobadas mediante DEC-065.
+- El cursor realtime se compone de `game_version + last_sequence_number`; `sequence_number` mantiene la autoridad de ordering.
+- El gate M1-3 contiene 10 IDs del addendum y 7 regresiones explícitas, para 17/17 ejecuciones asignadas.
+- La suite acumulada de entrada es **186/186 PASS, 0 skips, 0 todo y 0 waivers**.
+- DEC-072 autoriza implementación, pero **NO aprueba anticipadamente M1-3 ni cierra M1**.
+- PostgreSQL, migraciones, outbox, durabilidad entre procesos o nodos, WebSocket/realtime productivo, UI, autenticación productiva, IA/OpenAI/RAG, Reaction/Veto, Cleanup, End Turn, objectives y victory permanecen **NOT STARTED / NOT AUTHORIZED**.
+- Estado: `APPROVED — M1-3 IMPLEMENTATION ONLY`.
+
+**JUSTIFICACIÓN:** M1-2 está formalmente cerrado y proporciona el estado, event log, proyecciones, snapshots y replay necesarios para implementar y verificar exclusivamente la integración multiplayer y recovery in-memory de M1-3.
+**IMPACTO:** M1-3 queda sujeto al gate 17/17, a la regresión acumulada y a revisión técnica posterior. Esta decisión no autoriza infraestructura productiva, M2, M3 ni el cierre de M1.
+**ESTADO:** APPROVED — M1-3 IMPLEMENTATION ONLY

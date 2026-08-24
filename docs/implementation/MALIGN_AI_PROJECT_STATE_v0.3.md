@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-24  
-**Fase actual:** M1-2 IMPLEMENTED AND APPROVED / M1-3 NOT AUTHORIZED
+**Fase actual:** M1 IMPLEMENTATION COMPLETED / PENDING TECHNICAL REVIEW
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -60,7 +60,14 @@
 | M1-1 preservado durante M1-2 | **30/30 PASS** |
 | Suite acumulada al cierre de M1-2 | **186/186 PASS, 0 skips, 0 todo, 0 waivers** |
 | IMPLEMENTATION_QUESTION de M1-2 | **Ninguna pendiente** |
-| M1-3 | **NOT AUTHORIZED** |
+| M1-3 | **IMPLEMENTED / PENDING REVIEW mediante DEC-072** |
+| Commit funcional M1-3 | `d04cedf81b5ca3d739f060213052440202b069ed` |
+| M1-3 addendum realtime/reconnect | **10/10 PASS** |
+| M1-3 regresiones explícitas `[REGRESSION]` | **7/7 PASS** |
+| Gate M1-3 | **17/17 PASS, 0 skips, 0 todo, 0 waivers** |
+| Suite acumulada tras M1-3 | **203/203 PASS en 26 archivos, 0 skips, 0 todo, 0 waivers** |
+| IMPLEMENTATION_QUESTION de M1-3 | **Ninguna pendiente** |
+| M1 global | **IMPLEMENTATION COMPLETED / PENDING TECHNICAL REVIEW** |
 
 PR-1 fue aprobado técnicamente contra el commit `69ded64d912fc0231b82046fecad024baf8ec67e`. No requiere correcciones de código.
 
@@ -82,13 +89,16 @@ El Product Owner mantiene aprobadas `ARC-01` a `ARC-12`. Las decisiones canónic
 
 | Componente | Estado |
 |---|---|
-| PostgreSQL productivo | **NOT STARTED / NOT AUTHORIZED** |
-| Transactional Outbox productivo | **NOT STARTED / NOT AUTHORIZED** |
-| Realtime productivo | **NOT STARTED / NOT AUTHORIZED** |
+| PostgreSQL productivo y migraciones | **NOT STARTED / NOT AUTHORIZED** |
+| Transactional Outbox y durabilidad entre procesos/nodos | **NOT STARTED / NOT AUTHORIZED** |
+| Realtime/WebSocket productivo | **NOT STARTED / NOT AUTHORIZED** |
 | Autenticación productiva | **NOT STARTED / NOT AUTHORIZED** |
 | UI final | **NOT STARTED / NOT AUTHORIZED** |
 | IA / OpenAI / RAG | **NOT STARTED / NOT AUTHORIZED** |
 | Reaction/Veto | **NOT STARTED / NOT AUTHORIZED** |
+| Cleanup / End Turn | **NOT STARTED / NOT AUTHORIZED** |
+| Objectives / Victory | **NOT STARTED / NOT AUTHORIZED** |
+| M2 / M3 | **NOT STARTED / NOT AUTHORIZED** |
 
 ## Cierre formal de M1-0
 
@@ -122,7 +132,19 @@ M1-2 implementa un scheduler interno determinístico con autoridad `SYSTEM`, ord
 
 El commit funcional final `c7714d3205d0e19916912cf51a745c3816e35f3a` reporta **17/17 IDs oracle v0.1 + 9/9 IDs addendum M1 v0.1 = 26/26 owner PASS**, **12/12 pruebas complementarias existentes** y **24/24 regresiones M12-R01…R07**, para un total M1-2 de **62/62 PASS**. M0 permanece **55/55 PASS**, M1-0 **39/39 PASS** y M1-1 **30/30 PASS**. La suite acumulada queda en **186/186 PASS, 0 skips, 0 todo y 0 waivers**. No existe `IMPLEMENTATION_QUESTION` pendiente para M1-2.
 
-La revisión técnica aprobó M1-2 y aceptó M12-R01…R07. Mediante `DEC-071`, DEC-070 queda cumplida, M12-R01…R07 quedan **CLOSED** y M1-2 queda **IMPLEMENTED AND APPROVED** sin nuevas correcciones de código. DEC-071 cierra exclusivamente M1-2 y **NO autoriza M1-3**. M1-3, Reaction/Veto, PostgreSQL/outbox productivo, realtime/WebSocket productivo, UI final, autenticación productiva e IA/OpenAI/RAG permanecen **NOT STARTED / NOT AUTHORIZED**.
+La revisión técnica aprobó M1-2 y aceptó M12-R01…R07. Mediante `DEC-071`, DEC-070 queda cumplida, M12-R01…R07 quedan **CLOSED** y M1-2 queda **IMPLEMENTED AND APPROVED** sin nuevas correcciones de código. DEC-071 cerró exclusivamente M1-2 y no autorizó M1-3; DEC-072 autorizó posteriormente sólo la implementación M1-3 descrita a continuación. Reaction/Veto, PostgreSQL/outbox productivo, realtime/WebSocket productivo, UI final, autenticación productiva e IA/OpenAI/RAG permanecen **NOT STARTED / NOT AUTHORIZED**.
+
+## Implementación M1-3 pendiente de revisión
+
+DEC-072 autoriza exclusivamente M1-3. El commit funcional `d04cedf81b5ca3d739f060213052440202b069ed` implementa un realtime port y un adapter in-memory/test-only desacoplados del Game Engine. El store CAS notifica únicamente commits aceptados; la capa de aplicación vuelve a resolver sesión, membership y viewer antes de construir `ProjectedEvent`, proyección y cursor segmentados para owner, rival y F1. El adapter no calcula reglas, no conserva autoridad del juego y no contiene red, sockets ni infraestructura productiva.
+
+El cursor autorizado fija `gameVersion + lastSequenceNumber`, conserva `sequenceNumber` como ordering canónico y queda ligado a juego, participante, rol y projection ID. Initial sync registra la suscripción antes de consultar el catch-up feed; un commit ocurrido entre la proyección inicial y subscribe queda cubierto por el feed, y cualquier duplicado live/feed converge mediante deduplicación por `eventId + sequenceNumber`. Los gaps se detectan y se recuperan exclusivamente desde el event log autorizado junto con la latest projection; no se reconstruye estado desde mensajes incompletos.
+
+Reconnect ejecuta `authenticate → verify game membership → fetch latest authorized projection → obtain cursor → subscribe from cursor`. La recuperación usa `M1StateSnapshot` serializado y un nuevo instance in-memory dentro del mismo proceso de test. Con `PendingResolution`, sólo el actor designado y F1 reciben la interacción completa; el rival conserva las redacciones. Reconnect no realiza auto-pass, timeout, respuesta, resume, RNG ni mutación de state, ledgers, trace, events o version.
+
+El gate reporta **10/10 IDs addendum + 7/7 regresiones explícitas = 17/17 PASS**. M0 permanece **55/55**, M1-0 **39/39**, M1-1 **30/30** y M1-2 **62/62**. La suite acumulada queda en **203/203 PASS en 26 archivos, 0 skips, 0 todo y 0 waivers**. No existe `IMPLEMENTATION_QUESTION` pendiente para M1-3.
+
+M1-3 queda **IMPLEMENTED / PENDING REVIEW**. Los cuatro bloques M1 están implementados y la suite está verde, por lo que M1 global queda **IMPLEMENTATION COMPLETED / PENDING TECHNICAL REVIEW**; ni M1-3 ni M1 figuran `APPROVED` o `CLOSED`. PostgreSQL/migraciones, outbox, durabilidad entre procesos/nodos, realtime/WebSocket productivo, UI, autenticación productiva, IA/OpenAI/RAG, Reaction/Veto, Cleanup, End Turn, objectives, victory, M2 y M3 permanecen **NOT STARTED / NOT AUTHORIZED**.
 
 ## Cierre de implementación PR-2
 
@@ -134,8 +156,8 @@ La corrección posterior al gate `CHANGES REQUIRED` endurece phase enforcement, 
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069 y M1-2 mediante DEC-071. M1-2 queda **IMPLEMENTED AND APPROVED** y M12-R01…R07 quedan **CLOSED**. M1-3 permanece **NOT AUTHORIZED** y no puede comenzar sin autorización expresa posterior.
+M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069 y M1-2 mediante DEC-071. M1-3 fue implementado exclusivamente mediante DEC-072 y permanece **PENDING REVIEW**. M1 global está **IMPLEMENTATION COMPLETED / PENDING TECHNICAL REVIEW** y no está aprobado ni cerrado. M2 y M3 permanecen **NOT AUTHORIZED** y no pueden comenzar sin autorización expresa posterior.
 
 ## Continuidad documental
 
-Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. M1-2 preserva intactos el oracle v0.1 con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92` y el addendum M1 v0.1 con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`, y no altera las reglas aprobadas ni los package boundaries.
+Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. M1-3 preserva intactos el oracle v0.1 con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92` y el addendum M1 v0.1 con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`, y no altera las reglas aprobadas ni los package boundaries.
