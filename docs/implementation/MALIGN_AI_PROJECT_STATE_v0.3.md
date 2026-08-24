@@ -60,12 +60,16 @@
 | M1-1 preservado durante M1-2 | **30/30 PASS** |
 | Suite acumulada al cierre de M1-2 | **186/186 PASS, 0 skips, 0 todo, 0 waivers** |
 | IMPLEMENTATION_QUESTION de M1-2 | **Ninguna pendiente** |
-| M1-3 | **IMPLEMENTED / PENDING REVIEW mediante DEC-072** |
-| Commit funcional M1-3 | `d04cedf81b5ca3d739f060213052440202b069ed` |
+| M1-3 | **CORRECTION IMPLEMENTED / PENDING REVIEW mediante DEC-072** |
+| Commit funcional inicial M1-3 | `d04cedf81b5ca3d739f060213052440202b069ed` |
+| Commit funcional de corrección M1-3 | `46046eb9ab6d761b20f2b77edfa4780fc6b8cd22` |
+| M13-R01…R06 | **IMPLEMENTED / PENDING REVIEW** |
 | M1-3 addendum realtime/reconnect | **10/10 PASS** |
 | M1-3 regresiones explícitas `[REGRESSION]` | **7/7 PASS** |
-| Gate M1-3 | **17/17 PASS, 0 skips, 0 todo, 0 waivers** |
-| Suite acumulada tras M1-3 | **203/203 PASS en 26 archivos, 0 skips, 0 todo, 0 waivers** |
+| Gate nominal M1-3 preservado | **17/17 PASS, 0 skips, 0 todo, 0 waivers** |
+| Regresiones nuevas M13-R01…R06 | **12/12 PASS** |
+| Total M1-3 tras corrección | **29/29 PASS** |
+| Suite acumulada tras corrección M1-3 | **215/215 PASS en 27 archivos, 0 skips, 0 todo, 0 waivers** |
 | IMPLEMENTATION_QUESTION de M1-3 | **Ninguna pendiente** |
 | M1 global | **IMPLEMENTATION COMPLETED / PENDING TECHNICAL REVIEW** |
 
@@ -134,7 +138,7 @@ El commit funcional final `c7714d3205d0e19916912cf51a745c3816e35f3a` reporta **1
 
 La revisión técnica aprobó M1-2 y aceptó M12-R01…R07. Mediante `DEC-071`, DEC-070 queda cumplida, M12-R01…R07 quedan **CLOSED** y M1-2 queda **IMPLEMENTED AND APPROVED** sin nuevas correcciones de código. DEC-071 cerró exclusivamente M1-2 y no autorizó M1-3; DEC-072 autorizó posteriormente sólo la implementación M1-3 descrita a continuación. Reaction/Veto, PostgreSQL/outbox productivo, realtime/WebSocket productivo, UI final, autenticación productiva e IA/OpenAI/RAG permanecen **NOT STARTED / NOT AUTHORIZED**.
 
-## Implementación M1-3 pendiente de revisión
+## Corrección M1-3 pendiente de revisión
 
 DEC-072 autoriza exclusivamente M1-3. El commit funcional `d04cedf81b5ca3d739f060213052440202b069ed` implementa un realtime port y un adapter in-memory/test-only desacoplados del Game Engine. El store CAS notifica únicamente commits aceptados; la capa de aplicación vuelve a resolver sesión, membership y viewer antes de construir `ProjectedEvent`, proyección y cursor segmentados para owner, rival y F1. El adapter no calcula reglas, no conserva autoridad del juego y no contiene red, sockets ni infraestructura productiva.
 
@@ -142,9 +146,11 @@ El cursor autorizado fija `gameVersion + lastSequenceNumber`, conserva `sequence
 
 Reconnect ejecuta `authenticate → verify game membership → fetch latest authorized projection → obtain cursor → subscribe from cursor`. La recuperación usa `M1StateSnapshot` serializado y un nuevo instance in-memory dentro del mismo proceso de test. Con `PendingResolution`, sólo el actor designado y F1 reciben la interacción completa; el rival conserva las redacciones. Reconnect no realiza auto-pass, timeout, respuesta, resume, RNG ni mutación de state, ledgers, trace, events o version.
 
-El gate reporta **10/10 IDs addendum + 7/7 regresiones explícitas = 17/17 PASS**. M0 permanece **55/55**, M1-0 **39/39**, M1-1 **30/30** y M1-2 **62/62**. La suite acumulada queda en **203/203 PASS en 26 archivos, 0 skips, 0 todo y 0 waivers**. No existe `IMPLEMENTATION_QUESTION` pendiente para M1-3.
+La revisión técnica del commit inicial produjo `CHANGES REQUIRED — M1-3 NOT APPROVED`. Bajo la misma autorización DEC-072, el commit funcional de corrección `46046eb9ab6d761b20f2b77edfa4780fc6b8cd22` implementa M13-R01…R06: publicación sólo después de estabilizar CAS, resultado idempotente y transacción RNG; handshake inactivo con catch-up y live buffered hasta que el consumidor inicializa; aislamiento de observers y handlers; handles opacos y lifecycle autenticado de suscripción; rangos `fromCursor → cursor` que separan omisiones autorizadas de pérdidas reales; y una política canónica fail-closed compartida por query, initial sync, feed, realtime y reconnect.
 
-M1-3 queda **IMPLEMENTED / PENDING REVIEW**. Los cuatro bloques M1 están implementados y la suite está verde, por lo que M1 global queda **IMPLEMENTATION COMPLETED / PENDING TECHNICAL REVIEW**; ni M1-3 ni M1 figuran `APPROVED` o `CLOSED`. PostgreSQL/migraciones, outbox, durabilidad entre procesos/nodos, realtime/WebSocket productivo, UI, autenticación productiva, IA/OpenAI/RAG, Reaction/Veto, Cleanup, End Turn, objectives, victory, M2 y M3 permanecen **NOT STARTED / NOT AUTHORIZED**.
+El gate nominal se preserva en **10/10 IDs addendum + 7/7 regresiones explícitas = 17/17 PASS**. Las regresiones nuevas M13-R01…R06 reportan **12/12 PASS**, para **29/29 pruebas M1-3**. M0 permanece **55/55**, M1-0 **39/39**, M1-1 **30/30** y M1-2 **62/62**. La suite acumulada queda en **215/215 PASS en 27 archivos, 0 skips, 0 todo y 0 waivers**. No existe `IMPLEMENTATION_QUESTION` pendiente para M1-3.
+
+M13-R01…R06 quedan **IMPLEMENTED / PENDING REVIEW** y M1-3 queda **CORRECTION IMPLEMENTED / PENDING REVIEW**. Los cuatro bloques M1 están implementados y la suite está verde, por lo que M1 global continúa **IMPLEMENTATION COMPLETED / PENDING TECHNICAL REVIEW**; ni M1-3 ni M1 figuran `APPROVED` o `CLOSED`. PostgreSQL/migraciones, outbox, durabilidad entre procesos/nodos, realtime/WebSocket productivo, UI, autenticación productiva, IA/OpenAI/RAG, Reaction/Veto, Cleanup, End Turn, objectives, victory, M2 y M3 permanecen **NOT STARTED / NOT AUTHORIZED**.
 
 ## Cierre de implementación PR-2
 
@@ -156,7 +162,7 @@ La corrección posterior al gate `CHANGES REQUIRED` endurece phase enforcement, 
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069 y M1-2 mediante DEC-071. M1-3 fue implementado exclusivamente mediante DEC-072 y permanece **PENDING REVIEW**. M1 global está **IMPLEMENTATION COMPLETED / PENDING TECHNICAL REVIEW** y no está aprobado ni cerrado. M2 y M3 permanecen **NOT AUTHORIZED** y no pueden comenzar sin autorización expresa posterior.
+M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069 y M1-2 mediante DEC-071. La corrección M13-R01…R06 fue implementada exclusivamente bajo DEC-072 y M1-3 permanece **PENDING REVIEW**. M1 global está **IMPLEMENTATION COMPLETED / PENDING TECHNICAL REVIEW** y no está aprobado ni cerrado. M2 y M3 permanecen **NOT AUTHORIZED** y no pueden comenzar sin autorización expresa posterior.
 
 ## Continuidad documental
 
