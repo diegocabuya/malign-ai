@@ -98,6 +98,8 @@ export type M1AdjudicationErrorCode =
   | 'INVALID_CHOICE_OPTION'
   | 'COST_PAYMENT_FAILED'
   | 'NARRATIVE_NOT_AUTHORIZED'
+  | 'REALTIME_CURSOR_INVALID'
+  | 'REALTIME_CURSOR_SCOPE_MISMATCH'
   | 'SCHEDULER_SUSPENDED'
   | 'SCHEDULER_COMPLETE';
 
@@ -134,6 +136,7 @@ export const engineErrorFor = (code: AnyEngineErrorCode): EngineError => {
   else if (code.startsWith('CARD_') || code.startsWith('STRATEGY_') || code === 'DUPLICATE_CARD_INSTANCE') category = 'CARD';
   else if (code.startsWith('INVALID_DT') || code.startsWith('INVALID_TARGET')) category = 'TARGETING';
   else if (code.startsWith('CHOICE_') || code === 'INVALID_CHOICE_OPTION' || code === 'NARRATIVE_NOT_AUTHORIZED') category = 'CHOICE';
+  else if (code.startsWith('REALTIME_CURSOR_')) category = code.endsWith('SCOPE_MISMATCH') ? 'AUTHORIZATION' : 'CONTRACT';
   else if (code.startsWith('CAMPAIGN_') || code === 'INVALID_SLOT') category = 'CAMPAIGN';
   else if (code === 'COST_PAYMENT_FAILED') category = 'RESOURCE';
   else if (code.startsWith('UNSUPPORTED_') || code === 'INVALID_COMMAND_PAYLOAD') category = 'CONTRACT';

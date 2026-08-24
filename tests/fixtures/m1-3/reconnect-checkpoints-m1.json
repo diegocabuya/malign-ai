@@ -1,0 +1,44 @@
+{
+  "fixture_schema_version": "0.1",
+  "game_id": "game-m1-0",
+  "fixed_timestamp": "2026-08-24T12:00:00.000Z",
+  "cursor_contract": ["game_version", "last_sequence_number"],
+  "snapshot_serialized": {
+    "source_fixture": "../m1-2/full-campaign-m1.json",
+    "checkpoint": "NARRATIVE_REQUIRED",
+    "serializer": "createM1StateSnapshot",
+    "canonical_state_json_required": true,
+    "rehydrate_in_new_in_memory_instance": true
+  },
+  "initial_sync": {
+    "concurrent_commit": "CAMPAIGN_CREATED",
+    "expected_application_count": 1
+  },
+  "delivery_duplicate": {
+    "identity": ["event_id", "sequence_number"],
+    "expected_application_count": 1
+  },
+  "known_gap": {
+    "drop_delivery": 1,
+    "recover_with": "GET_EVENT_FEED",
+    "expected_convergence": "LATEST_AUTHORIZED_PROJECTION"
+  },
+  "pending_resolution": {
+    "kind": "NARRATIVE",
+    "actor_participant_id": "P1",
+    "owner_session_id": "session-p1",
+    "rival_session_id": "session-p2",
+    "facilitator_session_id": "session-f1",
+    "reconnect_auto_pass": false,
+    "reconnect_consumes_rng": false
+  },
+  "negative_assertions": [
+    "HAND_P1_CONTENTS",
+    "SECRET_VO_P1",
+    "FUTURE_DECK_ORDER",
+    "P1_FACE_DOWN_PLAN",
+    "PRIVATE_CHOICE_OPTIONS",
+    "SYSTEM_ONLY_ARTIFACTS",
+    "PRIVATE_STATE_HASHES"
+  ]
+}

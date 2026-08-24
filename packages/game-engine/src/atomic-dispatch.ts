@@ -17,9 +17,16 @@ export interface AtomicCommandStore<TState extends AtomicVersionedState> {
   idempotencySet(identity: string, value: StoredIdempotency): void;
 }
 
+export type StateCommitListener<TState extends AtomicVersionedState> = (
+  before: TState | undefined,
+  after: TState,
+) => void;
+
 export class InMemoryAtomicStateStore<TState extends AtomicVersionedState> implements AtomicCommandStore<TState> {
   readonly #states = new Map<string, TState>();
   readonly #idempotency = new Map<string, StoredIdempotency>();
+  readonly #commitListeners = new Set<StateCommitListener<TState>>();
+  readonly #commitListenerErrors: unknown[] = [];
 
   constructor(initialStates: readonly TState[] = []) {
     for (const state of initialStates) this.#states.set(state.id, structuredClone(state));
@@ -39,7 +46,25 @@ export class InMemoryAtomicStateStore<TState extends AtomicVersionedState> imple
     if (current === undefined ? expectedVersion !== 0 : current.version !== expectedVersion) return false;
     if (current === undefined && this.#states.has(gameId)) return false;
     this.#states.set(gameId, structuredClone(next));
+    for (const listener of this.#commitListeners) {
+      try {
+        listener(current === undefined ? undefined : structuredClone(current), structuredClone(next));
+      } catch (error) {
+        // A post-commit observer cannot roll back or invalidate an accepted command.
+        // Recovery reads the authoritative event log if an operational delivery fails.
+        this.#commitListenerErrors.push(error);
+      }
+    }
     return true;
+  }
+
+  onCommitted(listener: StateCommitListener<TState>): () => void {
+    this.#commitListeners.add(listener);
+    return () => this.#commitListeners.delete(listener);
+  }
+
+  commitListenerErrors(): readonly unknown[] {
+    return [...this.#commitListenerErrors];
   }
 
   idempotencyGet(identity: string): StoredIdempotency | undefined {
