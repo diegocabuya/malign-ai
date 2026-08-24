@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { InMemorySessionAuthority } from '../../packages/authz/src/index.js';
-import { M1_0_BASELINE_VERSIONS, type CountryId, type RandomProvider, type SetupGameState, type TrustedSessionBinding } from '../../packages/domain/src/index.js';
+import { M1_0_BASELINE_VERSIONS, type CountryId, type RandomProviderCheckpoint, type SetupGameState, type TransactionalRandomProvider, type TrustedSessionBinding } from '../../packages/domain/src/index.js';
 import { InMemorySetupGameStore, SetupCommandDispatcher, type SetupCommandPayload, type SetupCommandType } from '../../packages/game-engine/src/index.js';
 import { InMemoryGameSessionApplication, type SessionCommandInput } from '../../apps/server/src/game-session-application.js';
 
@@ -34,23 +34,48 @@ export const STRATEGY_FIXTURE = loadJson<StrategyFixture>('../fixtures/m1-0/stra
 export const GAME_ID = PARTICIPANT_FIXTURE.game_id;
 export const FIXED_INSTANT = new Date('2026-08-23T12:00:00.000Z');
 
-export class MinimumRandomProvider implements RandomProvider {
+export class MinimumRandomProvider implements TransactionalRandomProvider {
   readonly requests: { readonly minInclusive: number; readonly maxInclusive: number }[] = [];
-  readonly #queued: number[] = [];
+  readonly #script: number[] = [];
+  #cursor = 0;
   #strict = false;
 
   enqueue(...values: readonly number[]): void {
-    this.#queued.push(...values);
+    this.#script.push(...values);
   }
 
   requireScript(): void {
     this.#strict = true;
   }
 
+  get cursor(): number {
+    return this.#cursor;
+  }
+
+  checkpoint(): RandomProviderCheckpoint {
+    return { cursor: this.#cursor };
+  }
+
+  restore(checkpoint: RandomProviderCheckpoint): void {
+    if (!Number.isInteger(checkpoint.cursor) || checkpoint.cursor < 0 || checkpoint.cursor > this.#script.length) {
+      throw new Error('Invalid random checkpoint');
+    }
+    this.#cursor = checkpoint.cursor;
+  }
+
+  commit(checkpoint: RandomProviderCheckpoint): void {
+    if (!Number.isInteger(checkpoint.cursor) || checkpoint.cursor < 0 || checkpoint.cursor > this.#cursor) {
+      throw new Error('Invalid random checkpoint');
+    }
+  }
+
   integer(minInclusive: number, maxInclusive: number): number {
     this.requests.push({ minInclusive, maxInclusive });
-    const scripted = this.#queued.shift();
-    if (scripted !== undefined) return scripted;
+    const scripted = this.#script[this.#cursor];
+    if (scripted !== undefined) {
+      this.#cursor += 1;
+      return scripted;
+    }
     if (this.#strict) throw new Error('Deterministic random script exhausted');
     return minInclusive;
   }
@@ -77,9 +102,10 @@ export const trustedBindings = (gameId = GAME_ID, sessionSuffix = ''): TrustedSe
 
 export const harness = (options: {
   readonly bindings?: readonly TrustedSessionBinding[];
+  readonly store?: InMemorySetupGameStore;
   readonly states?: readonly SetupGameState[];
 } = {}): M1Harness => {
-  const store = new InMemorySetupGameStore(options.states ?? []);
+  const store = options.store ?? new InMemorySetupGameStore(options.states ?? []);
   const random = new MinimumRandomProvider();
   const authority = new InMemorySessionAuthority(options.bindings ?? trustedBindings());
   const dispatcher = new SetupCommandDispatcher(store, random, () => new Date(FIXED_INSTANT));

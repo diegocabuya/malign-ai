@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-23  
-**Fase actual:** M1-1 IMPLEMENTED / PENDING REVIEW  
+**Fase actual:** M1-1 CORRECTION IMPLEMENTED / PENDING REVIEW  
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -33,11 +33,13 @@
 | Regresión M0 durante M1-0 | **55/55 PASS** |
 | Suite acumulada al cierre de M1-0 | **94/94 PASS, 0 skips, 0 todo** |
 | IMPLEMENTATION_QUESTION de M1-0 | **Ninguna pendiente** |
-| M1-1 | **IMPLEMENTED / PENDING REVIEW mediante DEC-068** |
+| M1-1 | **CORRECTION IMPLEMENTED / PENDING REVIEW mediante DEC-068** |
 | M1-1 owner gate | **26/26 PASS, 0 skips, 0 todo** |
 | M1-1 oracle v0.1 | **17/17 PASS** |
 | M1-1 addendum v0.1 | **9/9 PASS** |
-| Suite acumulada tras M1-1 | **120/120 PASS, 0 skips, 0 todo** |
+| Regresiones M11-R01…R04 | **4/4 PASS, 0 skips, 0 todo** |
+| Suite previa preservada tras corrección M1-1 | **120/120 PASS** |
+| Suite acumulada tras corrección M1-1 | **124/124 PASS, 0 skips, 0 todo** |
 | IMPLEMENTATION_QUESTION de M1-1 | **Ninguna pendiente** |
 | M1-2 | **NOT AUTHORIZED** |
 | M1-3 | **NOT AUTHORIZED** |
@@ -82,13 +84,15 @@ Mediante `DEC-067`, DEC-066 queda cumplida y M1-0 queda **IMPLEMENTED AND APPROV
 
 En el momento de su cierre, M1-0 no había iniciado iniciativa/rerolls, maintenance, planificación oculta, scheduler, adjudicación M1, ledgers/trace/replay, realtime/reconnect, persistencia productiva, UI final, auth productiva, IA ni Reaction/Veto. DEC-068 autorizó posteriormente sólo el slice M1-1 descrito a continuación.
 
-## Implementación M1-1 pendiente de revisión
+## Corrección M1-1 pendiente de revisión
 
 M1-1 extiende el mismo aggregate autoritativo de M1-0 con iniciativa digital determinística y rerolls exclusivos de empatados en el máximo, maintenance mínimo con descarte/fill-to-10/reshuffle e ingreso por país, planificación oculta server-side en el adapter in-memory, lock con compromiso y ledger mínimo de AP, y `AuthorizedProjection` diferenciada para owner, rival y facilitator. El boundary interno mínimo de reveal revela únicamente el slot actual sin ejecutar campañas ni convertirse en scheduler.
 
-El gate owner M1-1 reporta **17/17 IDs oracle v0.1 + 9/9 IDs addendum v0.1 = 26/26 PASS**. M0 permanece **55/55 PASS**; todo M1-0 permanece **39/39 PASS** (25 owner, 11 regresiones M10-R01…R06 y 3 complementarias); la suite acumulada queda en **120/120 PASS, 0 skips y 0 todo**. No existe `IMPLEMENTATION_QUESTION` pendiente para M1-1.
+La corrección acotada M11-R01…R04 elimina la inferencia rival sobre drafts no bloqueados, registra de forma veraz la actoría `SYSTEM` del reveal interno, sustituye el helper tautológico de `NOT_EXECUTED` por un seam puro propiedad del Game Engine y hace transaccional el cursor RNG in-memory frente a exhaustion, valores fuera de rango, rechazos del reducer y fallos CAS. Las cuatro regresiones nuevas reportan **4/4 PASS**; `GE-PLAN-004` y `GE-M1-IPL-008` continúan dentro del owner gate y ejercitan código real del Engine.
 
-M1-1 permanece **IMPLEMENTED / PENDING REVIEW**. DEC-068 no aprueba anticipadamente su resultado. No se iniciaron M1-2, M1-3, scheduler completo, resolución/adjudicación de campañas, Reaction/Veto, replay, realtime productivo, persistencia productiva, UI final, auth productiva ni IA/OpenAI/RAG.
+El gate owner M1-1 reporta **17/17 IDs oracle v0.1 + 9/9 IDs addendum v0.1 = 26/26 PASS**. M0 permanece **55/55 PASS**; todo M1-0 permanece **39/39 PASS** (25 owner, 11 regresiones M10-R01…R06 y 3 complementarias); la suite previa permanece **120/120 PASS** y la suite acumulada con las cuatro regresiones queda en **124/124 PASS, 0 skips y 0 todo**. No existe `IMPLEMENTATION_QUESTION` pendiente para M1-1.
+
+M1-1 permanece **CORRECTION IMPLEMENTED / PENDING REVIEW**. DEC-068 sigue siendo la única autorización y no aprueba anticipadamente su resultado. No se registró una decisión adicional. No se iniciaron M1-2, M1-3, scheduler completo, resolución/adjudicación de campañas, Reaction/Veto, replay, realtime productivo, persistencia productiva, UI final, auth productiva ni IA/OpenAI/RAG.
 
 ## Cierre de implementación PR-2
 
@@ -100,7 +104,7 @@ La corrección posterior al gate `CHANGES REQUIRED` endurece phase enforcement, 
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-M1-0 está formalmente cerrado. M1-1 fue implementado exclusivamente bajo DEC-068 y permanece **PENDING REVIEW**. M1-2 y M1-3 permanecen **NOT AUTHORIZED** y no pueden comenzar sin autorización expresa posterior.
+M1-0 está formalmente cerrado. La corrección M11-R01…R04 de M1-1 fue implementada exclusivamente bajo DEC-068 y permanece **PENDING REVIEW**. M1-2 y M1-3 permanecen **NOT AUTHORIZED** y no pueden comenzar sin autorización expresa posterior.
 
 ## Continuidad documental
 

@@ -7,6 +7,16 @@ export interface RandomProvider {
   integer(minInclusive: number, maxInclusive: number): number;
 }
 
+export interface RandomProviderCheckpoint {
+  readonly cursor: number;
+}
+
+export interface TransactionalRandomProvider extends RandomProvider {
+  checkpoint(): RandomProviderCheckpoint;
+  restore(checkpoint: RandomProviderCheckpoint): void;
+  commit(checkpoint: RandomProviderCheckpoint): void;
+}
+
 export interface Clock {
   now(): Date;
 }

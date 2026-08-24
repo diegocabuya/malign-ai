@@ -275,6 +275,8 @@ describe("M1-1 oracle/addendum owner cases — deterministic initiative and mini
       reachInitiative(testHarness);
       const before = testHarness.store.snapshot(GAME_ID);
       const requestsBefore = testHarness.random.requests.length;
+      const cursorBefore = testHarness.random.cursor;
+      const idempotencyBefore = testHarness.store.idempotencyCount();
       testHarness.random.enqueue(...values);
       testHarness.random.requireScript();
 
@@ -292,6 +294,8 @@ describe("M1-1 oracle/addendum owner cases — deterministic initiative and mini
 
       expect(result.resultCode).toBe("RANDOM_PROVIDER_FAILURE");
       expect(testHarness.store.snapshot(GAME_ID)).toEqual(before);
+      expect(testHarness.random.cursor).toBe(cursorBefore);
+      expect(testHarness.store.idempotencyCount()).toBe(idempotencyBefore);
       expect(testHarness.random.requests.length - requestsBefore).toBe(
         values.length === 2 ? 3 : 3,
       );

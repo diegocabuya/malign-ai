@@ -9,7 +9,7 @@ import {
   type DiceMode,
   type M1ActionPlanSlot,
   type M1ActionType,
-  type RandomProvider,
+  type TransactionalRandomProvider,
   type SetupCardInstance,
   type SetupEventVisibilityClass,
   type SetupGameEvent,
@@ -285,18 +285,27 @@ export class InMemorySetupGameStore extends InMemoryAtomicStateStore<SetupGameSt
 export class SetupCommandDispatcher {
   constructor(
     private readonly store: InMemorySetupGameStore,
-    private readonly random: RandomProvider,
+    private readonly random: TransactionalRandomProvider,
     private readonly now: () => Date,
   ) {}
 
   dispatch(envelope: SetupEnvelope): EngineCommandResult {
-    return dispatchAtomicCommand({
-      envelope,
-      store: this.store,
-      now: this.now,
-      validatePayload: ({ commandType, payload }) => validateSetupCommandPayload(commandType, payload),
-      prepare: (before, candidate) => this.prepare(before, candidate),
-    });
+    const checkpoint = this.random.checkpoint();
+    try {
+      const result = dispatchAtomicCommand({
+        envelope,
+        store: this.store,
+        now: this.now,
+        validatePayload: ({ commandType, payload }) => validateSetupCommandPayload(commandType, payload),
+        prepare: (before, candidate) => this.prepare(before, candidate),
+      });
+      if (result.status === 'RESOLVED') this.random.commit(checkpoint);
+      else this.random.restore(checkpoint);
+      return result;
+    } catch (error) {
+      this.random.restore(checkpoint);
+      throw error;
+    }
   }
 
   revealCurrentAction(options: {
@@ -314,7 +323,6 @@ export class SetupCommandDispatcher {
       actorContext: {
         actorId: 'M1_INTERNAL_COORDINATOR',
         actorType: 'SYSTEM',
-        participantId: 'F1',
         authenticatedSessionId: 'internal:m1-1',
         permissions: ['game:internal-reveal'],
       },
@@ -1273,8 +1281,10 @@ export class SetupCommandDispatcher {
   ): SetupGameEvent {
     const sequenceNumber = state.events.length + 1;
     const eventId = `${state.id}:event:${sequenceNumber}`;
-    const actorParticipantId = envelope.actorContext.participantId;
-    if (actorParticipantId === undefined) throw new Error('Setup events require a verified participant actor');
+    const actorParticipantId = envelope.actorContext.actorType === 'SYSTEM'
+      ? null
+      : envelope.actorContext.participantId;
+    if (actorParticipantId === undefined) throw new Error('Human setup events require a verified participant actor');
     const visibilityClass: SetupEventVisibilityClass = [
       'CARD_DRAWN',
       'CARD_MOVED',
@@ -1292,6 +1302,8 @@ export class SetupCommandDispatcher {
       eventType: type,
       sequenceNumber,
       gameVersion: state.version + 1,
+      actorType: envelope.actorContext.actorType,
+      actorId: envelope.actorContext.actorId,
       actorParticipantId,
       payloadSchemaVersion: envelope.payloadSchemaVersion,
       versions: structuredClone(state.versions),

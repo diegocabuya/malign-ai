@@ -162,21 +162,6 @@ export const seedSecretObjectives = (testHarness: M1Harness): void => {
     throw new Error("Secret fixture CAS failed");
 };
 
-export const terminalNonExecutionFixture = (
-  state: SetupGameState,
-  participantId: string,
-  sequenceIndex: number,
-): SetupGameState => {
-  const fixture = structuredClone(state);
-  const slot = fixture.actionPlanning[participantId]?.lockedSlots.find(
-    (candidate) => candidate.sequenceIndex === sequenceIndex,
-  );
-  if (slot === undefined)
-    throw new Error("Terminal outcome fixture slot missing");
-  slot.terminalOutcome = "NOT_EXECUTED";
-  return fixture;
-};
-
 export const seedInvalidFourSlotDraft = (
   testHarness: M1Harness,
   participantId: string,

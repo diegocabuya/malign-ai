@@ -104,6 +104,20 @@ export const buildSetupGameProjection = (state: SetupGameState, viewer: ActorCon
       const strategy = state.strategy[candidate.id];
       const planning = state.actionPlanning[candidate.id];
       const initiativePosition = state.initiative.orderParticipantIds.indexOf(candidate.id);
+      const mayInspectDraft = participant.role === 'FACILITATOR' || candidate.id === viewerParticipantId;
+      const visiblePlanSummary = planning?.locked === true
+        ? {
+            actionPlanStatus: planStatus(planning),
+            actionCount: planning.lockedSlots.length,
+            ...(mayInspectDraft ? { apAvailable: planning.apAvailable } : {}),
+          }
+        : mayInspectDraft
+          ? {
+              actionPlanStatus: planStatus(planning),
+              actionCount: planning?.draftSlots.length ?? 0,
+              apAvailable: planning?.apAvailable ?? state.baseApPerTurn,
+            }
+          : {};
       return {
         participantId: candidate.id,
         role: candidate.role,
@@ -119,9 +133,7 @@ export const buildSetupGameProjection = (state: SetupGameState, viewer: ActorCon
         ...(!includeM1 || candidate.role !== 'PLAYER' ? {} : {
           ...(initiativePosition < 0 ? {} : { initiativePosition: initiativePosition + 1 }),
           maintenanceLocked: state.initiative.maintenance[candidate.id]?.locked ?? false,
-          actionPlanStatus: planStatus(planning),
-          actionCount: planning?.locked === true ? planning.lockedSlots.length : planning?.draftSlots.length ?? 0,
-          apAvailable: planning?.apAvailable ?? state.baseApPerTurn,
+          ...visiblePlanSummary,
         }),
       };
     });

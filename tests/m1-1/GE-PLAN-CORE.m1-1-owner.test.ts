@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { applyNotExecutedTerminalDisposition } from "../../packages/game-engine/src/index.js";
 import {
   GAME_ID,
   PLAYER_IDS,
@@ -12,7 +13,6 @@ import {
   savePlan,
   seedInvalidFourSlotDraft,
   sessionId,
-  terminalNonExecutionFixture,
 } from "./test-fixtures.js";
 
 const lockRemainingPlayers = (
@@ -79,18 +79,34 @@ describe("M1-1 oracle/addendum owner cases — hidden planning, AP and minimal r
     const locked = testHarness.store.snapshot(GAME_ID);
     if (locked === undefined) throw new Error("Locked state missing");
 
-    const downstreamFixture = terminalNonExecutionFixture(locked, "P1", 1);
+    const applied = applyNotExecutedTerminalDisposition(locked, "P1", 1);
+    if (!applied.ok) throw new Error(`Engine seam rejected: ${applied.error}`);
+    const downstreamState = applied.nextState;
 
     expect(
-      downstreamFixture.actionPlanning.P1?.lockedSlots[0]?.terminalOutcome,
+      downstreamState.actionPlanning.P1?.lockedSlots[0]?.terminalOutcome,
     ).toBe("NOT_EXECUTED");
-    expect(downstreamFixture.actionPlanning.P1?.apAvailable).toBe(0);
-    expect(downstreamFixture.actionPointLedger).toEqual(
+    expect(downstreamState.actionPlanning.P1?.apAvailable).toBe(0);
+    expect(downstreamState.actionPointLedger).toEqual(
       locked.actionPointLedger,
     );
     expect(
-      downstreamFixture.events.some(({ type }) => type.includes("VETO")),
+      downstreamState.events.some(({ type }) => type.includes("VETO")),
     ).toBe(false);
+    const withoutTerminalOutcome = structuredClone(downstreamState);
+    delete withoutTerminalOutcome.actionPlanning.P1?.lockedSlots[0]
+      ?.terminalOutcome;
+    expect(withoutTerminalOutcome).toEqual(locked);
+    const beforeInvalid = structuredClone(locked);
+    expect(applyNotExecutedTerminalDisposition(locked, "P9", 1)).toEqual({
+      ok: false,
+      error: "ACTION_PLAN_NOT_FOUND",
+    });
+    expect(applyNotExecutedTerminalDisposition(locked, "P1", 99)).toEqual({
+      ok: false,
+      error: "INVALID_SLOT",
+    });
+    expect(locked).toEqual(beforeInvalid);
   });
 
   it("GE-PLAN-005 rejects any complete draft replacement after the owner has locked", () => {
@@ -224,12 +240,16 @@ describe("M1-1 oracle/addendum owner cases — hidden planning, AP and minimal r
     const locked = testHarness.store.snapshot(GAME_ID);
     if (locked === undefined) throw new Error("Locked state missing");
 
-    const terminal = terminalNonExecutionFixture(locked, "P1", 1);
-    const p1Ledger = terminal.actionPointLedger.filter(
+    const applied = applyNotExecutedTerminalDisposition(locked, "P1", 1);
+    if (!applied.ok) throw new Error(`Engine seam rejected: ${applied.error}`);
+    const p1Ledger = applied.nextState.actionPointLedger.filter(
       ({ participantId }) => participantId === "P1",
     );
 
-    expect(terminal.actionPlanning.P1?.apAvailable).toBe(1);
+    expect(applied.nextState.actionPlanning.P1?.apAvailable).toBe(1);
+    expect(applied.nextState.actionPointLedger).toEqual(
+      locked.actionPointLedger,
+    );
     expect(
       p1Ledger.map(({ reason, delta, balanceAfter }) => ({
         reason,

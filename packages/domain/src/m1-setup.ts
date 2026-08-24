@@ -201,6 +201,7 @@ export type SetupGameEventType =
   | 'ACTION_REVEALED';
 
 export type SetupEventVisibilityClass = 'PUBLIC' | 'OWNER_AND_FACILITATOR';
+export type SetupEventActorType = ParticipantRole | 'SYSTEM';
 
 export interface SetupGameEvent {
   readonly id: string;
@@ -210,7 +211,9 @@ export interface SetupGameEvent {
   readonly eventType: SetupGameEventType;
   readonly sequenceNumber: number;
   readonly gameVersion: number;
-  readonly actorParticipantId: string;
+  readonly actorType: SetupEventActorType;
+  readonly actorId: string;
+  readonly actorParticipantId: string | null;
   readonly payloadSchemaVersion: string;
   readonly versions: PinnedVersions;
   readonly correlationId: string;
