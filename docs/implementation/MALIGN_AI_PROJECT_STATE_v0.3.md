@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-23  
-**Fase actual:** M1-0 CORRECTION IMPLEMENTED / PENDING REVIEW  
+**Fase actual:** M1-0 IMPLEMENTED AND APPROVED  
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -24,12 +24,15 @@
 | M1 test baseline | **49 oracle v0.1 + 38 addendum = 87 casos únicos / 94 ejecuciones de gate** |
 | IQ-M1-001…003 | **RESOLVED mediante DEC-065** |
 | PTD-M1-001…005 | **APPROVED mediante DEC-065** |
-| M1-0 — GameSession/Participants/Seats/Setup/In-Memory State | **CORRECTION IMPLEMENTED / PENDING REVIEW** |
+| M1-0 — GameSession/Participants/Seats/Setup/In-Memory State | **IMPLEMENTED AND APPROVED mediante DEC-067** |
+| Commit final M1-0 | `bb0771513263660bb59f281029771753cb7e8c35` |
+| M10-R01…R06 | **CLOSED** |
 | M1-0 owner gate | **25/25 PASS, 0 skips, 0 todo** |
 | Regresiones M10-R01…R06 | **11/11 PASS, 0 skips, 0 todo** |
 | M1-0 pruebas complementarias | **3/3 PASS** |
 | Regresión M0 durante M1-0 | **55/55 PASS** |
-| Suite completa reportada tras corrección M1-0 | **94/94 PASS, 0 skips, 0 todo** |
+| Suite acumulada al cierre de M1-0 | **94/94 PASS, 0 skips, 0 todo** |
+| IMPLEMENTATION_QUESTION de M1-0 | **Ninguna pendiente** |
 | M1-1 | **NOT AUTHORIZED** |
 | M1-2 | **NOT AUTHORIZED** |
 | M1-3 | **NOT AUTHORIZED** |
@@ -59,16 +62,18 @@ El Product Owner mantiene aprobadas `ARC-01` a `ARC-12`. Las decisiones canónic
 | Realtime productivo | **NOT STARTED / NOT AUTHORIZED** |
 | Autenticación productiva | **NOT STARTED / NOT AUTHORIZED** |
 | UI final | **NOT STARTED / NOT AUTHORIZED** |
-| OpenAI/RAG | **NOT STARTED / NOT AUTHORIZED** |
+| IA / OpenAI / RAG | **NOT STARTED / NOT AUTHORIZED** |
 | Reaction/Veto | **NOT STARTED / NOT AUTHORIZED** |
 
-## Corrección M1-0 pendiente de revisión
+## Cierre formal de M1-0
 
 M1-0 implementa el aggregate autoritativo `Game` con `GameParticipant`, `PlayerSeat`, `GameCountry`, setup BASE_2025 versionado y Strategy inicial in-memory. `GameSession` agrupa membership/conexión en la capa de aplicación y construye `ActorContext` desde bindings de sesión verificados; no constituye una segunda autoridad de reglas.
 
-La corrección acotada M10-R01…R06 implementa el double-submit canónico de Strategy para `GE-CORE-010`, phase freeze completo bajo `PAUSED`, el envelope mínimo de eventos M1-0, fingerprints JSON deterministas, cierre de los leaks de raw-state/game-enumeration y validación runtime estricta de payloads. No añade una nueva decisión: permanece bajo la autorización de `DEC-066`.
+La corrección acotada M10-R01…R06 implementó el double-submit canónico de Strategy para `GE-CORE-010`, phase freeze completo bajo `PAUSED`, el envelope mínimo de eventos M1-0, fingerprints JSON deterministas, cierre de los leaks de raw-state/game-enumeration y validación runtime estricta de payloads. Los seis hallazgos quedan **CLOSED** en el commit final `bb0771513263660bb59f281029771753cb7e8c35`.
 
-El lifecycle implementado se detiene exactamente en `INITIATIVE_STAGE` después de cinco locks Strategy válidos. La suite reporta 25/25 casos owner, 11/11 regresiones M10-R01…R06, 3/3 pruebas complementarias, regresión M0 55/55 y total 94/94, con 0 skips y 0 todo. Este resultado queda **PENDING REVIEW**; no equivale a aprobación técnica de M1-0.
+El lifecycle implementado se detiene exactamente en `INITIATIVE_STAGE` después de cinco locks Strategy válidos. El cierre reporta 25/25 casos owner, 11/11 regresiones M10-R01…R06, 3/3 pruebas complementarias, M0 preservado 55/55 y total 94/94, con 0 skips y 0 todo. No queda ninguna `IMPLEMENTATION_QUESTION` pendiente para M1-0.
+
+Mediante `DEC-067`, DEC-066 queda cumplida y M1-0 queda **IMPLEMENTED AND APPROVED**. No se requieren nuevas correcciones de código. `DEC-067` cierra exclusivamente M1-0 y no autoriza M1-1, M1-2 ni M1-3.
 
 No se iniciaron iniciativa/rerolls, maintenance, planificación oculta, scheduler, adjudicación M1, ledgers/trace/replay, realtime/reconnect, persistencia productiva, UI final, auth productiva, IA ni Reaction/Veto.
 
@@ -82,8 +87,8 @@ La corrección posterior al gate `CHANGES REQUIRED` endurece phase enforcement, 
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-El próximo paso es la revisión externa de M1-0. M1-1, M1-2 y M1-3 permanecen **NOT AUTHORIZED** y no pueden comenzar sin autorización expresa posterior.
+M1-0 está formalmente cerrado. M1-1, M1-2 y M1-3 permanecen **NOT AUTHORIZED** y no pueden comenzar sin autorización expresa posterior.
 
 ## Continuidad documental
 
-Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. M1-0 preserva intactos el oracle v0.1 y el addendum M1 v0.1, y no altera las reglas aprobadas ni los package boundaries.
+Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. M1-0 preserva intactos el oracle v0.1 con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92` y el addendum M1 v0.1 con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`, y no altera las reglas aprobadas ni los package boundaries.

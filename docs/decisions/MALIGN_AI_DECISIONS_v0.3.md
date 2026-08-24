@@ -730,3 +730,28 @@ Quedan aprobadas como baseline de implementación:
 **JUSTIFICACIÓN:** El baseline documental aprobado fija topología, lifecycle, datos versionados, autoridad, seguridad, atomicidad e IDs canónicos suficientes para ejecutar M1-0 sin inventar reglas.  
 **IMPACTO:** M1-1, M1-2 y M1-3 permanecen **NOT AUTHORIZED**. PostgreSQL, realtime productivo, UI final, autenticación productiva, OpenAI/RAG, IA y Reaction/Veto permanecen **NOT STARTED / NOT AUTHORIZED**. La implementación M1-0 queda sujeta a revisión técnica posterior y DEC-066 no la aprueba anticipadamente.  
 **ESTADO:** APPROVED — M1-0 ONLY
+
+---
+
+## DEC-067 — Aprobación técnica y cierre formal de M1-0
+**FECHA:** 2026-08-23  
+**TEMA:** Cierre formal de M1-0 — GameSession, participantes, seats, setup y estado in-memory.  
+**DECISIÓN:**
+
+- DEC-066 quedó cumplida.
+- M1-0 queda **IMPLEMENTED AND APPROVED** en el commit final `bb0771513263660bb59f281029771753cb7e8c35`.
+- M10-R01…R06 quedan cerradas mediante ese commit.
+- No se requieren nuevas correcciones de código.
+- Owner gate M1-0: **25/25 PASS**.
+- Regresiones M10-R01…R06: **11/11 PASS**.
+- Pruebas complementarias M1-0: **3/3 PASS**.
+- M0 preservado: **55/55 PASS**.
+- Suite final reportada: **94/94 PASS, 0 skips y 0 todo**.
+- Oracle v0.1 preservado con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92`.
+- Addendum M1 v0.1 preservado con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`.
+- DEC-067 cierra exclusivamente M1-0.
+- DEC-067 **NO autoriza M1-1, M1-2 ni M1-3**.
+
+**JUSTIFICACIÓN:** La revisión técnica del estado final confirmó el cumplimiento íntegro del gate M1-0 y el cierre de M10-R01…R06 sin pendientes de código ni preguntas de implementación.  
+**IMPACTO:** M1-0 queda formalmente cerrado y aprobado. M1-1, M1-2 y M1-3 permanecen **NOT AUTHORIZED**; este cierre no inicia trabajo posterior.  
+**ESTADO:** APPROVED — M1-0 CLOSED
