@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
-**Fecha:** 2026-08-25
-**Fase actual:** M1 IMPLEMENTED AND APPROVED / CLOSED — M2 PLANNING GATE APPROVED AND CLOSED — M2-0 DOCUMENTED / BLOCKED PENDING REVIEW — M2 NOT AUTHORIZED
+**Fecha:** 2026-08-26
+**Fase actual:** M1 IMPLEMENTED AND APPROVED / CLOSED — M2 PLANNING GATE APPROVED AND CLOSED — M2-0 CORRECTION IMPLEMENTED / BLOCKED PENDING PRODUCT OWNER AND TECHNICAL REVIEW — M2 NOT AUTHORIZED
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -94,11 +94,16 @@
 | IQ-M2-008/009 | **OPEN / PENDING RESOLUTION — sin cambios** |
 | IQ-M2-010 | **PARTIALLY RESOLVED / BLOCKED BY REG-CAND-001…004** |
 | IQ-M2-011…013 | **OPEN — UUIDv7 generation / RLS / partitioning** |
+| M20-R01 — AP balance/journal | **CORRECTION IMPLEMENTED / PENDING TECHNICAL REVIEW** |
+| M20-R02 — durable idempotency lifecycle | **CORRECTION IMPLEMENTED / PENDING TECHNICAL REVIEW** |
+| M20-R03 — outbox attempt history | **CORRECTION IMPLEMENTED / PENDING TECHNICAL REVIEW** |
+| M20-R04 — human registry review matrix | **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** |
 | Registry candidate histórico | **PRESERVED / CANDIDATE ONLY — blob `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`** |
-| Physical Database Spec v0.1 | **84 TABLES DOCUMENTED / PENDING REVIEW — blob candidato `30a8bc9657fb958e21a09af22591f6e959edb3fe`** |
+| Physical Database Spec v0.1 | **87 TABLES / M20-R01…R03 CORRECTION IMPLEMENTED / PENDING TECHNICAL REVIEW — blob candidato `90a7236e2fde6c86e807764630a579bc494aee7a`** |
 | Registry Spec v0.1 | **100 definitions / 108 templates / 4 aliases / 59 effects — PENDING OWNER APPROVAL — blob candidato `6472b136a806f403747defe1d59ed44fb78f49fa`** |
 | Registry Snapshot v0.1 | **candidate_pending_review / NOT SEEDABLE — JCS SHA-256 `37e1e27e142a2e08d8a19418089602bc72d775b9f5944059acc27ee4de93c83e`; blob `a8c3ee9f3b78113e1f94891a9b0c634083107ec3`** |
-| M2-0 — Canonical Foundations Gate documental | **DOCUMENTATION AUTHORIZED / RESULT BLOCKED PENDING REVIEW — NOT APPROVED/CLOSED** |
+| Product Owner Review Matrix v0.1 | **100/100 definitions, 108/108 serials, 6/6 groups, 41/41 no-effect, 59/59 effects; DRAFT_ONLY / checklist vacío / PENDING REVIEW — blob `e148918b9414c49baa25fd84691ce8328edd4f14`** |
+| M2-0 — Canonical Foundations Gate documental | **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW — NOT APPROVED/CLOSED** |
 | M2-1 — PostgreSQL Persistence and Durable Recovery | **NOT AUTHORIZED** |
 | M2-2 — Productive Transport and Reconnect | **NOT AUTHORIZED** |
 | M2-3 — Complete Scheduler and Remaining Core Rules | **NOT AUTHORIZED** |
@@ -202,13 +207,13 @@ DEC-074 autorizó exclusivamente preparar el planning gate y DEC-075 aprobó su 
 
 El oracle conserva **224 IDs = 71 implementados M0/M1 + 153 owner M2**. El addendum M2 contiene **32/32 IDs canónicos**, cada uno con owner único, pero no autoriza tests ejecutables. Los casos nuevos únicos son **185 = 153 + 32**; tras M2G-R01 las regresiones dirigidas son **86**, para **271 ejecuciones dirigidas**. M2-5 queda en **23 casos nuevos + 11 regresiones = 34 ejecuciones dirigidas**. La suite mínima acumulada futura sigue siendo **400 = 215 + 185**.
 
-El artifact registry nuevo registra **108 serial templates por country set**, **100 definitions candidatas**, **cinco Starter por set**, **cinco países**, **cuatro aliases** y **59 effect definitions candidatas**. La materialización futura sería exactamente **540 `CardInstance`**, incluidas **25 Starter**. IDs/mapping, contenido impreso, effect bindings/parameters y hashes siguen pendientes bajo `REG-CAND-001…004`; el snapshot conserva status `candidate_pending_review` y `seedable=false`. El candidate histórico permanece intacto con blob `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`.
+El artifact registry nuevo registra **108 serial templates por country set**, **100 definitions candidatas**, **cinco Starter por set**, **cinco países**, **cuatro aliases** y **59 effect definitions candidatas**. La materialización futura sería exactamente **540 `CardInstance`**, incluidas **25 Starter**. La Product Owner Review Matrix expone exhaustivamente **100/100 definitions, 108/108 serial templates, 6/6 grupos repetidos, 41/41 definitions sin effect y 59/59 effects** con source trace y checklist REG-CAND-001…004 vacío. IDs/mapping, contenido impreso, effect bindings/parameters y hashes siguen pendientes; el snapshot conserva status `candidate_pending_review` y `seedable=false`. El candidate histórico permanece intacto con blob `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`.
 
 M2G-R01…R05 quedan **CLOSED** mediante DEC-076: `GE-M2-EFX-001` conserva owner único M2-3 con aceptación incremental y regresiones M2-4/M2-5; el loser de `GE-M2-TX-003` queda sin mutación ni artifacts/consumos; `GE-M2-RX-001` usa idempotencia + CAS sin afirmar exactly-once delivery; `GE-M2-DB-005` fija cardinalidades explícitas; y `GE-M2-TX-008` traza replay a PTD-M2-004/008.
 
-`IQ-M2-001…007` quedan **RESOLVED mediante DEC-075**. `IQ-M2-008 — Production AuthN provider` e `IQ-M2-009 — WebSocket runtime and operating envelope` permanecen **OPEN / PENDING RESOLUTION** sin cambios. `IQ-M2-010` queda **PARTIALLY RESOLVED / BLOCKED BY REG-CAND-001…004**. Se abren `IQ-M2-011` (UUIDv7 generation boundary), `IQ-M2-012` (RLS defense-in-depth) e `IQ-M2-013` (partitioning/archival thresholds). No apareció contradicción normativa real; `OPEN_QUESTIONS.md` permanece intacto.
+`IQ-M2-001…007` quedan **RESOLVED mediante DEC-075**. `IQ-M2-008 — Production AuthN provider` e `IQ-M2-009 — WebSocket runtime and operating envelope` permanecen **OPEN / PENDING RESOLUTION** sin cambios. `IQ-M2-010` queda **PARTIALLY RESOLVED / BLOCKED BY REG-CAND-001…004**: la matriz habilita revisión humana, no aprobación. `IQ-M2-011` (UUIDv7 generation boundary), `IQ-M2-012` (RLS defense-in-depth) e `IQ-M2-013` (partitioning/archival thresholds) permanecen **OPEN**. No apareció contradicción normativa real; `OPEN_QUESTIONS.md` permanece intacto.
 
-M2-0 fue ejecutado sólo como gate documental: Physical DB Spec de **84 tablas**, Registry Spec, Snapshot JSON y Gate M2-0 quedaron preparados. El resultado binario es **BLOCKED / PENDING RESOLUTION**, no APPROVED/CLOSED. M2-1…M2-7 son bloques futuros y permanecen **NOT AUTHORIZED**; M2 global y M3 también. PostgreSQL/migrations/outbox, durabilidad entre procesos/nodos, realtime/WebSocket productivo, registry seed, scheduler/reglas M2, Action/Reaction/Veto, Regime Abilities, Cleanup/End Turn, objectives/victory, AuthN productiva, UI e IA permanecen **NOT STARTED / NOT AUTHORIZED**.
+M2-0 fue ejecutado sólo como gate documental. La corrección acotada M20-R01…R04 separa AP balance+journal, fija el lifecycle durable de idempotencia, separa outbox message/state/attempt y crea la matriz humana exhaustiva del registry. Physical DB Spec queda en **87 tablas**. Las cuatro correcciones están **IMPLEMENTED / PENDING REVIEW**; M2-0 sigue **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**, no APPROVED/CLOSED. M2-1…M2-7 son bloques futuros y permanecen **NOT AUTHORIZED**; M2 global y M3 también. PostgreSQL/migrations/outbox ejecutable, durabilidad entre procesos/nodos, realtime/WebSocket productivo, registry seed, scheduler/reglas M2, Action/Reaction/Veto, Regime Abilities, Cleanup/End Turn, objectives/victory, AuthN productiva, UI e IA permanecen **NOT STARTED / NOT AUTHORIZED**.
 
 La suite **215/215 PASS en 27 archivos, 0 skips, 0 todo y 0 waivers** se conserva sólo como baseline aprobada; no fue reejecutada. Ningún código M2 ha iniciado.
 
@@ -216,8 +221,8 @@ La suite **215/215 PASS en 27 archivos, 0 skips, 0 todo y 0 waivers** se conserv
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**. El próximo paso permitido es revisión humana de los artifacts M2-0 y resolución expresa de `REG-CAND-001…004`/IQ-M2-010; M2-0 sigue pendiente y no cerrado. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
+M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**. El próximo paso permitido es la revisión técnica de Physical DB Spec/Gate y la revisión del Product Owner/técnica de Registry Spec/Snapshot/Review Matrix, seguida de resolución expresa de `REG-CAND-001…004`/IQ-M2-010. M2-0 sigue pendiente y no cerrado. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
 
 ## Continuidad documental
 
-Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. M2-0 preserva intactos el oracle v0.1 con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92`, el addendum M1 v0.1 con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`, el addendum M2 con blob SHA `6ae87a904a14a82e4fb174ff4d76eefd47052832` y el candidate registry histórico con blob SHA `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`. Los hashes de Physical DB/Registry/Snapshot son candidatos de revisión y no implican aprobación silenciosa. No se alteran código, tests, fixtures, dependencias, arquitectura ni package boundaries.
+Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. M2-0 preserva intactos el oracle v0.1 con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92`, el addendum M1 v0.1 con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`, el addendum M2 con blob SHA `6ae87a904a14a82e4fb174ff4d76eefd47052832` y el candidate registry histórico con blob SHA `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`. Los hashes de Physical DB/Registry/Snapshot/Review Matrix son candidatos de revisión y no implican aprobación silenciosa. No se alteran código, tests, fixtures, dependencias, arquitectura ni package boundaries.

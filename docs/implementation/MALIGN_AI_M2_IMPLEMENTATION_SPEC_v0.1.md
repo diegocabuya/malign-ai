@@ -1,7 +1,7 @@
 # MALIGN-AI — M2 IMPLEMENTATION SPECIFICATION v0.1
 
 **Fecha:** 2026-08-25
-**Estado:** PLANNING GATE APPROVED AND CLOSED / M2-0 DOCUMENTED — RESULT PENDING REVIEW
+**Estado:** PLANNING GATE APPROVED AND CLOSED / M2-0 CORRECTION IMPLEMENTED — BLOCKED PENDING PRODUCT OWNER AND TECHNICAL REVIEW
 **Autoridad:** DEC-074 + DEC-075 + DEC-076 — M2-0 documental únicamente
 **Implementación M2:** **NOT AUTHORIZED**
 
@@ -70,7 +70,7 @@ Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, an
 
 | Bloque | Alcance | Dependencias/gates | Casos nuevos únicos | Estado |
 |---|---|---|---:|---|
-| M2-0 | Canonical Foundations Gate documental | revisión de Physical DB Spec, addendum M2, registry candidate y hashes | 0 | DOCUMENTATION AUTHORIZED / RESULT BLOCKED PENDING REVIEW |
+| M2-0 | Canonical Foundations Gate documental | revisión de Physical DB Spec, addendum M2, registry candidate, Product Owner Review Matrix y hashes | 0 | CORRECTION IMPLEMENTED / BLOCKED PENDING PRODUCT OWNER AND TECHNICAL REVIEW |
 | M2-1 | PostgreSQL Persistence and Durable Recovery | M2-0 aprobado; registry aprobado para seed | 22 | NOT AUTHORIZED |
 | M2-2 | Productive Transport and Reconnect | M2-1; IQ-M2-008/009 | 8 | NOT AUTHORIZED |
 | M2-3 | Complete Scheduler and Remaining Core Rules | M2-1; contrato de registry suficiente | 39 | NOT AUTHORIZED |
@@ -93,10 +93,11 @@ Bloque exclusivamente documental autorizado mediante DEC-076:
 
 Artifacts producidos:
 
-- `MALIGN_AI_M2_PHYSICAL_DATABASE_SPEC_v0.1.md`: 84 tablas físicas reconciliadas, no DDL; blob candidato `30a8bc9657fb958e21a09af22591f6e959edb3fe`;
+- `MALIGN_AI_M2_PHYSICAL_DATABASE_SPEC_v0.1.md`: 87 tablas físicas reconciliadas, no DDL; AP balance+journal, idempotencia transaction-sealed y outbox message/state/attempt; blob candidato `90a7236e2fde6c86e807764630a579bc494aee7a`;
 - `MALIGN_AI_CARD_REGISTRY_SPEC_v0.1.md`: 100 definitions, 108 serial templates, 4 aliases y 59 effects candidatos; blob candidato `6472b136a806f403747defe1d59ed44fb78f49fa`;
 - `MALIGN_AI_CARD_REGISTRY_SNAPSHOT_v0.1.json`: status `candidate_pending_review`, no seedable; JCS SHA-256 `37e1e27e142a2e08d8a19418089602bc72d775b9f5944059acc27ee4de93c83e`; blob candidato `a8c3ee9f3b78113e1f94891a9b0c634083107ec3`;
-- `MALIGN_AI_M2_0_CANONICAL_FOUNDATIONS_GATE_v0.1.md`: resultado `BLOCKED / PENDING RESOLUTION`.
+- `MALIGN_AI_M2_CARD_REGISTRY_PRODUCT_OWNER_REVIEW_MATRIX_v0.1.md`: 100/108/6/41/59 completos, source trace y checklist vacío; blob candidato `e148918b9414c49baa25fd84691ce8328edd4f14`;
+- `MALIGN_AI_M2_0_CANONICAL_FOUNDATIONS_GATE_v0.1.md`: resultado `BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW`.
 
 ### Gate de salida
 
@@ -106,7 +107,7 @@ Artifacts producidos:
 - blobs documentales aprobados expresamente;
 - ninguna selección silenciosa de provider/ORM/runtime.
 
-El trabajo documental se completó, pero el gate no pasa: contenido, effect bindings y hashes del registry requieren revisión humana; `IQ-M2-010` queda **PARTIALLY RESOLVED / BLOCKED BY LISTED ITEMS**. M2-0 no queda APPROVED/CLOSED. No se implementaron código, migrations, seeds ni tests ejecutables.
+La corrección documental M20-R01…R04 está implementada: AP conserva journal autoritativo, idempotencia sólo deja resultados committed, outbox retiene attempts reconstruibles y el registry dispone de matriz humana exhaustiva. El gate no pasa: el modelo físico requiere revisión técnica y contenido/effect bindings/hashes del registry requieren revisión humana; `IQ-M2-010` queda **PARTIALLY RESOLVED / BLOCKED BY LISTED ITEMS** e `IQ-M2-011…013` siguen OPEN. M2-0 no queda APPROVED/CLOSED. No se implementaron código, migrations, seeds ni tests ejecutables.
 
 ## 7. M2-1 — PostgreSQL Persistence and Durable Recovery
 
@@ -247,4 +248,4 @@ M2 sólo podrá cerrarse tras nuevas autorizaciones si:
 
 ## 19. Gate de salida documental
 
-El planning gate queda **APPROVED AND CLOSED mediante DEC-076** y M2G-R01…R05 quedan **CLOSED**. M2-0 fue autorizado y documentado, pero su resultado es **BLOCKED / PENDING RESOLUTION**; no está APPROVED/CLOSED. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**. El siguiente paso permitido es revisión humana del Physical DB Spec y del registry/snapshot candidatos, incluida resolución de IQ-M2-010/011…013; no implementación ni preparación de implementación.
+El planning gate queda **APPROVED AND CLOSED mediante DEC-076** y M2G-R01…R05 quedan **CLOSED**. M20-R01…R04 están **CORRECTION IMPLEMENTED / PENDING REVIEW**; M2-0 permanece **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** y no está APPROVED/CLOSED. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**. El siguiente paso permitido es revisión técnica del Physical DB Spec/Gate y revisión del Product Owner/técnica del registry/snapshot/matriz, incluida resolución de IQ-M2-010/011…013; no implementación ni preparación de implementación.
