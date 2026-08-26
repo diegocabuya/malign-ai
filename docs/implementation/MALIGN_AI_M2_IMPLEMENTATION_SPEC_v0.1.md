@@ -1,375 +1,237 @@
 # MALIGN-AI — M2 IMPLEMENTATION SPECIFICATION v0.1
 
-**Fecha:** 2026-08-24
-**Estado:** DOCUMENTED / PENDING REVIEW
-**Autoridad:** DEC-074 — documentación únicamente
+**Fecha:** 2026-08-25
+**Estado:** AMENDED / PENDING FINAL REVIEW
+**Autoridad:** DEC-074 + DEC-075 — documentación únicamente
 **Implementación M2:** **NOT AUTHORIZED**
 
-> Este documento propone un plan test-first. No aprueba ninguna PTD, no resuelve ninguna `IMPLEMENTATION_QUESTION`, no selecciona proveedores y no autoriza código, tests ejecutables, migraciones, infraestructura ni ninguna subetapa M2.
+> Este documento cataloga un plan test-first. DEC-075 aprueba decisiones de planificación y el baseline de aceptación M2, pero no autoriza código, tests ejecutables, migrations, seeds, infraestructura, dependencias, proveedores ni ninguna subetapa M2.
 
-## 1. Objetivo verificable y checkpoint propuesto
+## 1. Objetivo y checkpoint aprobado
 
-M2 propone convertir el vertical slice M1, hoy in-memory/test-only, en un Game Engine persistente capaz de ejecutar las reglas determinísticas diferidas y recuperarse entre procesos o nodos sin perder atomicidad, ordering, privacidad ni replay.
+M2 deberá convertir el vertical slice M1, actualmente in-memory/test-only, en un Game Engine persistente que complete las reglas BASE_2025 diferidas y se recupere entre procesos o nodos sin perder atomicidad, ordering, privacidad ni replay.
 
-El checkpoint final propuesto, sujeto a `IQ-M2-001` y `PTD-M2-001`, es:
+El checkpoint aprobado mediante DEC-075 es:
 
 ```text
-checkpoint M1 aprobado
-  = campaña normal resuelta en RESOLUTION_STAGE, antes de Cleanup
-→ completar el scheduler del turno
-→ Reaction/Veto/Action Cards/Regime Abilities cuando correspondan
-→ Cleanup: campaign aging + viral
-→ End Turn
-→ evaluar y materializar objectives/victory cuando turn_number == turn_limit
-→ persistir state + ledgers + trace + event log + outbox atómicamente
-→ reiniciar proceso y recuperar desde PostgreSQL/snapshot/event log
-→ reconectar viewers mediante transporte productivo autorizado
-→ obtener el mismo hash, resultado y proyecciones autorizadas
+checkpoint M1 aprobado, antes de Cleanup
+→ ejecutar reglas restantes y scheduler completo
+→ Cleanup / Viral / End Turn
+→ evaluar objectives, victory y finalización
+→ persistir state + events + ledgers + trace + outbox atómicamente
+→ reiniciar proceso y recuperar por snapshot + log autoritativo
+→ reconectar viewers con proyección autorizada
+→ GAME_COMPLETED
 ```
 
-La recomendación es cerrar M2 con un golden BASE_2025 de `turn_limit=1` únicamente como fixture determinístico, no como default de producto. Si el Product Owner elige cerrar en el siguiente `INITIATIVE_STAGE` sin completar una partida, M2-5 deberá conservar por separado los gates de objectives/victory/end game. Ninguna alternativa queda aprobada aquí.
+El golden usa BASE_2025 con `turn_limit=1` sólo como fixture determinístico. No cambia el default del producto ni sustituye los gates individuales.
 
 ## 2. Fuentes y precedencia
 
-Se inspeccionaron README, PROJECT_STATE, DECISIONS, preguntas abiertas/de implementación, specs y gates M1, oracle v0.1, addendum M1, arquitectura, bootstrap, Adjudication Engine, Interface/Command Contract, Data Model, Data Dictionary/ER, Card & Component System, Scenario Data, Rule Effect Taxonomy, Information Security Matrix, inventario del código y los 27 archivos de pruebas existentes.
+1. `MALIGN_AI_DECISIONS_v0.3.md`, incluidas DEC-048…059, DEC-065, DEC-073 y DEC-075.
+2. Especificaciones normativas de Game Engine, Scenario, Contract, Data Model, Data Dictionary, Security y Architecture.
+3. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_SPEC_v0.1.md` (224 IDs; blob aprobado `8291b56e20b9fdf55b8c01c156b66cd641b52d92`).
+4. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` (38 IDs; blob aprobado `a5e140eb55b442230110e8ae77d5763401db3117`).
+5. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M2_ADDENDUM_v0.1.md` (32 IDs aprobados como baseline mediante DEC-075; implementación no autorizada).
+6. Card & Component System v0.1 sólo como evidencia `DRAFT / NO APROBADO`; nunca como seed silencioso.
 
-Rige la precedencia ya aprobada. Las decisiones DEC-001…059 y ARC-01…12 prevalecen sobre propuestas históricas. En particular ya están aprobados PostgreSQL como persistencia primaria, HTTP para commands/queries, WebSocket para realtime, una transacción PostgreSQL por command estable con Transactional Outbox, Ports & Adapters, estado normalizado + historia append-only, proyecciones server-side y AI fuera del Engine. M2 debe materializar esas decisiones; no puede reemplazarlas mediante una PTD.
+Ante contradicción se falla cerrado, se registra pregunta y no se inventa comportamiento.
 
-## 3. Baseline M0/M1 reutilizable
+## 3. Baseline y límites
 
-M0 y M1 están **IMPLEMENTED AND APPROVED**. La suite aprobada de entrada es **215/215 PASS en 27 archivos, 0 skips, 0 todo y 0 waivers**; este gate documental no la vuelve a ejecutar.
+- M0 y M1: **IMPLEMENTED AND APPROVED**.
+- Baseline aprobada de entrada: **215/215 PASS en 27 archivos, 0 skips, 0 todo, 0 waivers**; no se reejecuta en esta enmienda.
+- Oracle: `71 implementados + 153 owner M2 = 224`.
+- Addendum M2: 32 IDs canónicos de aceptación.
+- Casos nuevos únicos M2: `153 + 32 = 185`.
+- Suite mínima acumulada futura: `215 + 185 = 400`.
+- PostgreSQL, migrations, outbox, transporte productivo, AuthN productiva, reglas M2, UI final e IA no han iniciado.
 
-Se reutilizan sin duplicación:
+Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, analítica/AAR avanzada, proveedores no aprobados y M3. Ninguna librería, cloud, ORM, AuthN provider o WebSocket provider queda seleccionada.
 
-- monorepo TypeScript strict y package boundaries aprobados;
-- Rule Kernel puro: base/effective CV, tier/coste, ERT exacta, roll normalizado y 2:1;
-- `CommandEnvelope`, `ActorContext`, errores tipados, fingerprints, idempotencia y CAS in-memory;
-- aggregate M1, GameSession/membership verificada, seats y BASE_2025;
-- iniciativa, maintenance mínimo, planificación oculta y AP comprometido;
-- scheduler/continuations serializables de la campaña normal;
-- ledgers, event envelope, trace, snapshots, hashes RFC 8785/JCS + SHA-256 y replay in-memory;
-- proyecciones owner/rival/facilitator y política fail-closed;
-- realtime port/adapter in-memory test-only, cursor `game_version + last_sequence_number`, deduplicación, gaps y reconnect de pruebas;
-- `RandomProvider` y `Clock` inyectables.
+## 4. Decisiones técnicas vigentes
 
-Inventario real relevante:
-
-| Área | Estado M1 | Gap M2 |
+| PTD | Clasificación DEC-075 | Regla obligatoria |
 |---|---|---|
-| `packages/persistence` | interfaces genéricas + `InMemoryRepository` | Physical DB Spec, adapters PostgreSQL, Unit of Work, migrations y contract tests |
-| `packages/domain` | aggregate/setup/adjudicación M1 | estado completo de cards, Reaction/Veto, Cleanup, objectives y outcome |
-| `packages/game-engine` | scheduler de campaña normal + pending narrative/choice | scheduler completo, effect handlers, nested continuations y lifecycle completo |
-| `packages/projections` | proyecciones M1 autorizadas | nuevos secretos/TemporaryReveal/votes/objectives sin leakage |
-| `apps/server` | application boundary + adapter realtime de test | adapters HTTP/WebSocket y worker outbox productivos, sujetos a aprobación |
-| registry | BASE_2025 suficiente para M1 | registry completo, versionado y efectos especiales |
-| tests | 215 pruebas / 109 IDs canónicos ejecutados | 153 IDs oracle restantes + candidatos complementarios propuestos |
+| PTD-M2-001 | APPROVED | ocho bloques M2-0…M2-7 y golden final `turn_limit=1` |
+| PTD-M2-002 | APPROVED | UUIDv7; lookup/version tables; estado crítico normalizado; JSON tipado/versionado sólo autorizado |
+| PTD-M2-003 | APPROVED | row lock de `Game` + CAS `game_version` bajo `READ COMMITTED` |
+| PTD-M2-004 | INHERITED ARCHITECTURAL CONSTRAINT | state normalizado + historia append-only + snapshots estables |
+| PTD-M2-005 | APPROVED | at-least-once + ordering autoritativo + dedup; nunca exactly-once |
+| PTD-M2-006 | PARTLY INHERITED / REFINEMENT APPROVED | HTTP + WebSocket heredado; protocolo propio versionado detrás de port |
+| PTD-M2-007 | APPROVED AS DESIGN | registry versionado, effect IDs declarativos, handlers tipados; contenido pendiente |
+| PTD-M2-008 | APPROVED | continuations discriminadas, versionadas, persistidas y runtime-validated |
+| PTD-M2-009 | INHERITED AUTHENTICATION BOUNDARY | AuthN y `ActorContext` sólo application-side; proveedor pendiente |
+| PTD-M2-010 | APPROVED | sin timer/auto-pass; `expires_at=null`; intervención F1 auditada |
+| PTD-M2-011 | APPROVED | migration forward-only; deploy rollback + restore probado; sin down destructivo |
 
-## 4. Estado inicial exacto
+## 5. Descomposición M2-0…M2-7
 
-Todo flujo M2 parte del checkpoint aprobado por DEC-073:
+| Bloque | Alcance | Dependencias/gates | Casos nuevos únicos | Estado |
+|---|---|---|---:|---|
+| M2-0 | Canonical Foundations Gate documental | revisión de Physical DB Spec, addendum M2, registry candidate y hashes | 0 | NOT AUTHORIZED |
+| M2-1 | PostgreSQL Persistence and Durable Recovery | M2-0 aprobado; registry aprobado para seed | 22 | NOT AUTHORIZED |
+| M2-2 | Productive Transport and Reconnect | M2-1; IQ-M2-008/009 | 8 | NOT AUTHORIZED |
+| M2-3 | Complete Scheduler and Remaining Core Rules | M2-1; contrato de registry suficiente | 39 | NOT AUTHORIZED |
+| M2-4 | Action/Starter Cards and Regime Abilities | M2-3; IQ-M2-010 resuelta | 45 | NOT AUTHORIZED |
+| M2-5 | Reaction, Veto and Deterministic Narrative | M2-3/M2-4; transport recovery para gate productivo | 23 | NOT AUTHORIZED |
+| M2-6 | Cleanup, Viralization and End Turn | M2-3/M2-5 | 18 | NOT AUTHORIZED |
+| M2-7 | Objectives, Victory and End Game | M2-1/M2-2/M2-6 | 30 | NOT AUTHORIZED |
 
-- M0 y M1 cerrados;
-- cinco jugadores, cinco países y F1 autenticados por el boundary de aplicación de pruebas;
-- partida BASE_2025 con versiones fijadas;
-- una campaña normal resuelta en `RESOLUTION_STAGE`;
-- coste, d10, ERT, 2:1, influencia, legitimidad, VP, events, ledgers y trace comprometidos;
-- scheduler estable, antes de Cleanup;
-- no Reaction/Veto productivo, no PostgreSQL/outbox productivo y no WebSocket productivo;
-- cursor M1 coherente con `game_version` y `last_sequence_number`.
+Ningún bloque de implementación supera 50 casos nuevos únicos. La autorización de un bloque requerirá un prompt posterior separado.
 
-La migración desde fixtures M1 a persistencia M2 debe preservar el hash de gameplay y distinguirlo del digest íntegro de snapshot. No se recalcula RNG, narrativa ni decisiones humanas.
+## 6. M2-0 — Canonical Foundations Gate
 
-## 5. Alcance
+Bloque exclusivamente documental:
 
-### 5.1 Incluido en la propuesta M2
+- Physical Database Specification;
+- addendum normativo M2;
+- especificación candidata de canonicalización del registry completo;
+- reconciliación de entidades, IDs, versions, effects y fuentes;
+- revisión expresa de contenido y hashes.
 
-- Physical Database & Migration Specification antes del adapter PostgreSQL;
-- esquema PostgreSQL, migraciones, constraints, índices y transaction patterns;
-- Unit of Work productiva, idempotencia durable, optimistic concurrency y single-writer lógico por partida;
-- state/event/ledger/trace/outbox atómicos y publicación sólo post-commit;
-- snapshots, event log, replay, recovery y reconciliación persistentes;
-- registry completo y versionado de escenarios, cartas, aliases, slots, costes, requisitos y efectos;
-- scheduler completo y continuations persistidas;
-- Starter/Action Cards y comportamientos especiales;
-- Reaction Engine, Veto y reglas narrativas determinísticas/facilitadas;
-- Regime Abilities;
-- Cleanup, campaign aging, viralización y End Turn;
-- Victory Objectives, final scoring, victory y End Game;
-- realtime/WebSocket productivo sobre eventos/proyecciones ya comprometidos;
-- recovery/reconnect entre procesos o nodos;
-- entrada manual de dado y facilitator overrides ya contratados, con auditoría;
-- negative security tests para queries, feeds, sync, realtime, logs y recovery.
+### Gate de salida futuro
 
-### 5.2 Excluido
+- Physical DB Spec coherente con PTD-M2-002…005/008/010/011;
+- 32/32 IDs del addendum M2 revisados;
+- registry candidate reconciliado y `IQ-M2-010` resuelta;
+- blobs documentales aprobados expresamente;
+- ninguna selección silenciosa de provider/ORM/runtime.
 
-- React/Next o UI final, lobby, Player View y Facilitator Console;
-- browser E2E y UX de M3;
-- OpenAI, RAG, Narrative AI, prompts o adjudicación generativa;
-- acceso directo del cliente a PostgreSQL o tablas autoritativas;
-- lógica de reglas, SQL, SDK de DB, WebSocket o proveedor AuthN dentro del Game Engine;
-- microservicios, Event Sourcing puro o autoridad duplicada en el transporte;
-- cambios a reglas, oracle v0.1 o addendum M1 v0.1;
-- dos jugadores por país, escenarios custom editor y modo híbrido completo.
+M2-0 no implementa código, migrations, seeds ni tests ejecutables. DEC-075 no autoriza ejecutar siquiera este gate.
 
-### 5.3 Diferido o pendiente de decisión
+## 7. M2-1 — PostgreSQL Persistence and Durable Recovery
 
-- proveedor AuthN y si su integración productiva pertenece a M2 (`IQ-M2-004`);
-- framework/subprotocolo WebSocket, retry/backpressure y hosting (`IQ-M2-005`);
-- proveedor PostgreSQL gestionado, cloud y deployment topology;
-- retention/archivado/compaction de partidas (`IQ-M2-006`);
-- timers como variante futura. El baseline normativo mantiene `expires_at=null`, sin auto-pass, y sólo permite force-pass/force-lock auditado por F1;
-- Narrative AI/OpenAI/RAG, siempre posterior y fuera del Engine;
-- UI y M3.
+Incluye schema/migrations; registry seed sólo tras aprobación del registry; Unit of Work; transactions; durable idempotency; row lock + CAS; commit atómico de state/events/ledgers/trace/outbox; snapshots, replay y recovery; retention completa sin compaction/hard-delete.
 
-## 6. Descomposición propuesta
+### Invariantes y DoD futuro
 
-Las seis subetapas son propuestas; todas permanecen **NOT AUTHORIZED**.
+- una transaction por command;
+- lock de fila `Game` y CAS de `game_version` en `READ COMMITTED`;
+- rollback de todos los artifacts ante cualquier write fault;
+- outbox sólo visible/publicable post-commit;
+- retry durable conserva fingerprint/result y no duplica efectos;
+- replay/recovery no consume RNG ni IA;
+- pinned ruleset/scenario/registry/contract versions;
+- migrations forward-only, rollback de deploy y restore ensayado;
+- **22/22 nuevos únicos** y regresiones dirigidas verdes, más baseline completo 215/215.
 
-| Bloque | Resultado acotado | Dependencias | Owner gate propuesto |
-|---|---|---|---:|
-| M2-0 | Physical DB Spec, schema/migrations y registries versionados | M1 cerrado; IQ-M2-002/003 | 8 casos nuevos + 5 regresiones |
-| M2-1 | PostgreSQL Unit of Work, durable idempotency/CAS, event log, snapshots/replay y outbox | M2-0; IQ-M2-006/007 | 14 nuevos + 10 regresiones |
-| M2-2 | HTTP/WebSocket productivo, delivery, reconnect/recovery y privacidad | M2-1; IQ-M2-004/005 | 8 nuevos + 17 regresiones |
-| M2-3 | registry/effect interpreter, scheduler completo, Starter/Action Cards y Regime Abilities | M2-0 y M2-1 | 84 nuevos + 18 regresiones |
-| M2-4 | Reaction Engine, Veto, narrativa determinística y nested continuations | M2-3 y M2-1; M2-2 para gate productivo | 23 nuevos + 10 regresiones |
-| M2-5 | Cleanup, viral, End Turn, objectives, victory, End Game y golden final | M2-3/M2-4; M2-1/M2-2 | 48 nuevos + 6 regresiones |
+Reversión operativa: volver al adapter in-memory por el mismo port y restaurar backup ensayado; nunca borrar historia o ejecutar downgrade destructivo.
 
-Orden recomendado: `M2-0 → M2-1 → M2-2`; en paralelo lógico posterior a M2-1, `M2-3 → M2-4 → M2-5`. M2-5 integra todos los bloques. No se autoriza paralelismo de implementación mediante este documento.
+## 8. M2-2 — Productive Transport and Reconnect
 
-## 7. Definition of Done y reversión por bloque
+Incluye HTTP commands/queries; protocolo WebSocket propio y versionado; AuthN application-side; outbox publisher; delivery at-least-once; ordering, dedup y gaps; reconnect/recovery entre procesos o nodos.
 
-### M2-0 — Physical schema y registry
+No puede denominarse plenamente productivo hasta aprobar proveedor AuthN (`IQ-M2-008`), librería/runtime, hosting y operating envelope (`IQ-M2-009`). El Engine no importa HTTP, WebSocket, SDK AuthN ni infraestructura.
 
-Definition of Done propuesta:
+DoD futuro: handshake no confía en claims del cliente; cursor/projection ligados a viewer; initial sync sin ventana de pérdida; gap recovery desde feed autoritativo; privacy omissions distinguibles sin leakage; **8/8 nuevos únicos** y regresiones dirigidas, más baseline 215/215.
 
-- Physical Database & Migration Spec revisada y aprobada antes de SQL productivo;
-- tablas/PK/FK/UK/checks/índices trazan el Data Dictionary, sin JSON como única autoridad de datos críticos;
-- migrations forward/upgrade reproducibles y fallos fail-closed;
-- seed/version snapshot de BASE_2025 y registry completo exacto;
-- ninguna dependencia PostgreSQL entra a domain/rules/game-engine;
-- 13/13 ejecuciones asignadas y baseline anterior completo verde.
+## 9. M2-3 — Complete Scheduler and Remaining Core Rules
 
-Reversión: retirar exclusivamente migration/schema/seed del bloque antes de datos productivos; conservar puertos, Engine M1 y fixtures. No hacer downgrade destructivo automático de datos sin estrategia aprobada.
+Incluye setup/maintenance restantes; planning y negociación; campaign lifecycle restante; costs, bonuses, backlash y legitimacy; manual die; seguridad relacionada; scheduler completo y `GE-M2-SCH-001`.
 
-### M2-1 — Persistencia transaccional y recovery
+No incluye comportamiento de Action Cards ni Regime Abilities. El test gate asigna también `GE-M2-EFX-001` a M2-3 para conservar el reparto exacto `37 oracle + 2 addendum`: aquí sólo se prueba el contrato genérico de dispatch tipado/fail-closed, sin efectos de Action/Starter/Regime. M2-4 debe reejecutarlo como regresión de integración cuando conecte el catálogo.
 
-Definition of Done propuesta:
+DoD futuro: continuations persistibles, actoría SYSTEM correcta, orden por initiative/sequence, costes atómicos y reuse del Rule Kernel; **39/39 nuevos únicos** y regresiones dirigidas, más baseline 215/215.
 
-- una transacción por command estable incluye state, game version, idempotency, events, ledgers, trace y outbox;
-- fallo en cualquier write revierte el conjunto;
-- competing writers/CAS e idempotency entre procesos son determinísticos;
-- outbox se publica sólo post-commit y tolera retry sin readjudicar;
-- snapshot + event log rehidratan el mismo estado/hash sin RNG;
-- reconciliation detecta divergencias y falla cerrado;
-- 24/24 ejecuciones asignadas y baseline acumulado verde.
+## 10. M2-4 — Action/Starter Cards and Regime Abilities
 
-Reversión: volver al adapter in-memory mediante el mismo port; no revertir reglas ni borrar historia append-only. Las migrations propias requieren plan compatible del bloque M2-0.
+Incluye 30 IDs `GE-ACT-*`; 15 IDs `GE-REG-*`; lifecycle, costes, zonas, secretos y proyecciones relacionados; integración de registry effect dispatch.
 
-### M2-2 — Transporte productivo
+`GE-M2-EFX-001` conserva owner único M2-3 por el reparto obligatorio de DEC-075 y se reejecuta aquí como `[REGRESSION]`; esa repetición no lo convierte en caso nuevo M2-4.
 
-Definition of Done propuesta:
+DoD futuro: 30/30 Action y 15/15 Regime owner, effects sólo por IDs/handlers aprobados, atomicidad completa, no dispatch por nombre/prompt y no leakage; **45/45 nuevos únicos** y regresiones dirigidas, más baseline 215/215.
 
-- commands/queries conservan HTTP y realtime usa WebSocket conforme ARC/DEC aprobadas;
-- conexión se liga a identidad/membership verificada, nunca a campos del cliente;
-- delivery at-least-once, ordering por `sequence_number`, dedup y gap recovery convergen;
-- initial sync y reconnect no tienen ventana de pérdida entre procesos/nodos;
-- omisiones privadas no se confunden con pérdida de transporte;
-- fallo de socket/publicación no revierte un commit válido ni duplica adjudicación;
-- 25/25 ejecuciones asignadas y baseline acumulado verde.
+## 11. M2-5 — Reaction, Veto and Deterministic Narrative
 
-Reversión: apagar el adapter/gateway productivo y conservar HTTP/polling autorizado sobre state/event feed; DB, outbox y Engine permanecen.
+Incluye 10 `GE-REA-*`, cuatro `GE-NAR-*`, cinco `GE-VETO-*`, `GE-AUD-005` y `GE-M2-RX-001…003`; nested continuations, privacy y reconnect.
 
-### M2-3 — Scheduler completo, cards y abilities
+DoD futuro: ventanas/priority determinísticas; continuation discriminada persistida; no timer ni auto-pass; `expires_at=null`; F1 auditado; opciones/errores opacos; **23/23 nuevos únicos** y regresiones dirigidas, más baseline 215/215.
 
-Definition of Done propuesta:
+## 12. M2-6 — Cleanup, Viralization and End Turn
 
-- registry completo version-pinned y dispatch de efectos declarativos/handlers tipados;
-- scheduler recorre planes completos y suspende sólo mediante datos serializables;
-- todos los Starter/Action Cards, costes/bonuses/coalition/manual die y Regime Abilities cumplen oracle;
-- ownership/control/lifecycle/single-zone, AP y ledgers permanecen exactos;
-- secretos de manos, TemporaryReveal y future deck order no filtran;
-- 102/102 ejecuciones asignadas y baseline acumulado verde.
+Incluye state progression y campaign aging; Cleanup; 12 `GE-VIR-*`; `GE-M2-LC-001`; transición segura a End Turn o siguiente fase.
 
-Reversión: feature/version gate del ruleset impide crear partidas con registry M2; partidas M1 fijadas no migran reglas. Revertir handlers no altera datos históricos versionados.
+DoD futuro: aging con snapshot/simultaneidad aprobada; no cascada viral; ordering estable; continuation reiniciable sin duplicados; **18/18 nuevos únicos** y regresiones dirigidas, más baseline 215/215.
 
-### M2-4 — Reaction/Veto/Narrative
+## 13. M2-7 — Objectives, Victory and End Game
 
-Definition of Done propuesta:
+Incluye 18 Victory Objective IDs; cinco `GE-END-*`; `GE-E2E-001…005`; `GE-M2-END-001/002`; golden final BASE_2025 `turn_limit=1`; restart, replay y reconnect hasta `GAME_COMPLETED`.
 
-- priority, pass, child windows, negation y close siguen Rule Effect Taxonomy;
-- Reaction/Veto/narrative usan pending interactions y continuations persistibles, sin closures vivas;
-- Veto majority/tie/abuse y cards remove-after-use exactos;
-- eligibility no se filtra por errores, opciones, feeds o timing;
-- no auto-pass por reloj; disconnect requiere recovery o intervención F1 auditada;
-- 33/33 ejecuciones asignadas y baseline acumulado verde.
+DoD futuro: awards/outcome/final events/outbox atómicos e idempotentes; tiebreak exacto; replay conserva hash/winner/projections; **30/30 nuevos únicos** y regresiones dirigidas, más baseline 215/215; suite acumulada mínima **400/400**.
 
-Reversión: deshabilitar ruleset/registry M2 para partidas nuevas y preservar continuations/eventos históricos; nunca reinterpretar una partida activa con otra versión.
+## 14. Boundaries obligatorios
 
-### M2-5 — Lifecycle y victoria
+- Game Engine puro: sin PostgreSQL, HTTP, WebSocket, AuthN SDK, React/Next, Supabase ni OpenAI.
+- Application layer autentica, verifica membership y construye `ActorContext`.
+- Ports separan persistence, clock, RNG, outbox, projections y transport.
+- Un solo writer lógico por game; clients nunca deciden phase, cost, eligibility, ordering o permissions.
+- Estado crítico normalizado; JSON únicamente tipado, versionado y autorizado.
+- Events/ledgers/traces append-only íntegros durante M2; snapshots estables; no compaction/hard-delete.
+- Outbox at-least-once con ordering y consumer dedup; no promesa exactly-once.
+- Continuations son datos, no closures.
+- Secrets se filtran server-side con fail-closed policy compartida.
+- Registry/effects no se implementan antes de aprobar contenido y hash.
 
-Definition of Done propuesta:
+## 15. Trazabilidad resumida
 
-- campaign aging simultáneo, flags reset, viral snapshot/no-cascade y End Turn exactos;
-- 18 Victory Objective IDs, awards, final VP, turn limit y tiebreak cumplen oracle;
-- game completion y objective awards son atómicos e idempotentes;
-- golden full-turn/full-game sobrevive restart y reconnect sin RNG nuevo;
-- state/events/ledgers/trace/outbox/projections reconcilian al checkpoint elegido;
-- 54/54 ejecuciones asignadas y suite mínima acumulada propuesta 400/400 verde.
-
-Reversión: bloquear inicio de partidas con ruleset M2 si M2-5 falla; no retroceder partidas completadas ni borrar outcomes/awards append-only.
-
-## 8. Boundaries obligatorios
-
-```text
-HTTP/WebSocket/AuthN adapters
-  → application layer: identity, membership, Unit of Work, retries
-    → game-engine: state + command + choices + RNG/Clock ports
-      → rules: funciones puras y datos versionados
-    → persistence ports: PostgreSQL transaction/outbox/snapshot/event log
-    → projections/authz: redacción por viewer
-  → outbox publisher: sólo artifacts comprometidos
-```
-
-- `domain`, `rules` y `game-engine` no importan SQL clients, ORM, WebSocket, React/Next, AuthN SDK u OpenAI.
-- `packages/persistence` implementa ports y mappings; no decide reglas.
-- `apps/server` autentica y construye `ActorContext`; no calcula outcomes.
-- `projections` filtra antes de HTTP/WebSocket/logs/IA; no muta state.
-- outbox/realtime transportan `ProjectedEvent`/cursors, no raw authoritative state ni raw results a rivales.
-
-## 9. Persistencia y operación
-
-La futura Physical DB Spec debe cubrir como mínimo:
-
-- 61 tablas lógicas o una reconciliación explícita campo por campo;
-- IDs opacos, versionado, lifecycle de definitions, PK/FK/UK/checks e índices;
-- autoridad de recursos/AP/VP/influence/legitimacy/cards/deck/campaigns;
-- monotonicidad y unicidad `(game_id, sequence_number)`;
-- durable idempotency con fingerprint canónico;
-- lock/CAS por `game_id`, version increment único y sequences contiguas;
-- append-only para events, ledgers, rolls, traces, decisions y outcomes;
-- outbox en la misma transaction, claim/retry/ordering/dedup;
-- snapshots con schema/ruleset/scenario/registry/contract versions y hash;
-- migration compatibility para partidas activas version-pinned;
-- redacción de datos en observabilidad, backups/recovery y pruebas de fallos parciales;
-- policy de no hard-delete histórico.
-
-No se propone Redis, queue, ORM, managed PostgreSQL, hosting o proveedor concreto. Cualquier selección requiere aprobación separada.
-
-## 10. Reglas y scheduler
-
-El scheduler M2 debe completar la máquina:
-
-```text
-RESOLUTION_STAGE remaining slots
-→ Action/Starter/Regime handlers
-→ Reaction/Veto/Narrative/Choice/manual die continuations
-→ Cleanup campaign aging
-→ Cleanup viral snapshot
-→ End Turn victory check
-→ next INITIATIVE_STAGE o GAME_COMPLETED
-```
-
-Los efectos se resuelven mediante reglas/handlers versionados, no por nombres libres, prompts o SQL. Cada continuation conserva actor, opciones opacas, cursor, version, correlation/causation y datos suficientes para reanudar después de restart.
-
-## 11. Seguridad y privacidad
-
-Cada bloque debe probar owner, rival y F1, más boundary de aplicación/transport cuando aplique:
-
-- HAND, Secret VO/progress, deck order, planes y TemporaryReveal;
-- eligibility de reactions/choices sin side-channel;
-- event/trace/feed/outbox/projection redacted antes del envío;
-- conexión/reconnect ligados a membership vigente;
-- logs/metrics sin secretos;
-- errores indistinguibles cuando revelar existencia sea indebido;
-- F1 recibe auditoría autorizada, pero no future deck order en vista normal;
-- AI/OpenAI/RAG no existen en el path M2 y nunca reciben full state.
-
-## 12. Matriz de trazabilidad resumida
-
-La matriz detallada de IDs está en `MALIGN_AI_M2_TEST_GATE_v0.1.md`.
-
-| Requisito | Fuente principal | Código esperado si se autoriza | Gate |
-|---|---|---|---|
-| Physical DB + migrations | Architecture §29; Data Dictionary §§3,17–30 | `packages/persistence` + migrations/spec | M2-0; `GE-E2E-006`, `GE-M2-DB-*` |
-| Registry completo/versionado | Card Component; Data Model §§10–13; DEC-025/029 | domain reference data + repository/seed | M2-0/M2-3; `GE-ERT-022`, `GE-M2-DB-005/006`, `GE-M2-EFX-001` |
-| Transaction per command/outbox | DEC-054; Architecture §§12–13 | Unit of Work + outbox port/adapter | M2-1; `GE-AUD-002…004`, `GE-M2-TX-*` |
-| Durable idempotency/concurrency | Contract §§6–7,35 | idempotency repo + CAS/locking | M2-1; `GE-CORE-003/004/010 [REGRESSION]`, `GE-M2-TX-003…005` |
-| Persistent replay/recovery | Data Dictionary §28; Contract §42 | snapshot/event/trace adapters | M2-1; `GE-AUD-004`, `GE-M2-TX-008/009` |
-| Productive realtime/reconnect | DEC-053; Architecture §§7–9,19 | HTTP/WebSocket/outbox adapters | M2-2; `GE-M1-RT-001…010 [REGRESSION]`, `GE-M2-RT-*` |
-| Scheduler/cards/abilities | Adjudication §§12–16,28; oracle §§8.4–8.10 | Engine handlers + registry effects | M2-3; 82 oracle owners + `GE-M2-SCH-001/EFX-001` |
-| Reaction/Veto/narrative | Adjudication §§17–19; Contract §§17–20 | pending/continuation handlers | M2-4; 20 oracle owners + `GE-M2-RX-*` |
-| Cleanup/viral | Adjudication §§31–32 | lifecycle/viral handlers | M2-5; `GE-CAM-011/012`, `GE-CLN-*`, `GE-VIR-*` |
-| Objectives/victory/end | Scenario §§8–9; Adjudication §§33–34 | evaluator/outcome handlers | M2-5; 18 `GE-VO-*`, 5 `GE-END-*`, E2E |
-| Secrets/projections | Security Matrix; DEC-057 | authz/projections before transport | todos; targeted `GE-SEC-* [REGRESSION/owner]` |
-
-Cada requisito incluido traza a un ID real del oracle o a un candidato `PROPOSED / NON-CANONICAL / PENDING APPROVAL`.
-
-## 13. Riesgos y mitigaciones
-
-| Riesgo | Gate/mitigación | Bloque |
+| Obligación | Fuente principal | Owner/gate |
 |---|---|---|
-| schema físico cristaliza una interpretación no aprobada | Physical DB Spec + IQ/PTD aprobadas antes de SQL | M2-0 |
-| registry DRAFT usado como autoridad silenciosa | `IQ-M2-003`, snapshot/hash y approval gate | M2-0/M2-3 |
-| doble gasto o event sequence duplicado entre nodos | transaction, lock/CAS y fault injection | M2-1 |
-| commit válido no publicado o publish duplicado | transactional outbox + at-least-once/dedup | M2-1/M2-2 |
-| snapshot/event log divergen | replay/reconciliation fail-closed, no RNG | M2-1 |
-| AuthN/provider invade Engine | application port y `IQ-M2-004` | M2-2 |
-| WebSocket filtra secretos o interpreta gaps privados | projection policy común y rangos autorizados | M2-2 |
-| scheduler queda bloqueado por restart | continuation persistida, no closure | M2-3/M2-4 |
-| eligibility revela mano | opciones/errores/timing opacos | M2-4 |
-| auto-pass inventa regla | `expires_at=null`; F1 auditado | M2-4 |
-| viral/objective evaluator hardcoded | ScenarioDefinition/evaluator versionado | M2-5 |
-| migration cambia reglas de partida activa | pinned versions + compatibility tests | todos |
-| scope creep UI/IA/hosting | exclusiones y gates por bloque | todos |
+| Physical schema, IDs, versions, migrations | Architecture §29; Data Dictionary; PTD-M2-002/011 | M2-0 review → M2-1 |
+| Registry 108/100 y aliases | DEC-025/029; Card Component DRAFT; IQ-M2-010 | M2-0 review → M2-1 seed/M2-4 rules |
+| Transaction/outbox | DEC-054; PTD-M2-003/005 | M2-1; `GE-M2-TX-*` |
+| Durable replay/recovery | Data Dictionary §28; PTD-M2-004 | M2-1; `GE-AUD-004`, `GE-M2-TX-008/009` |
+| Productive transport | DEC-053; Contract; IQ-M2-008/009 | M2-2; `GE-M2-RT-*` |
+| Scheduler/core remainder | Adjudication; oracle | M2-3; 37 oracle + SCH/EFX |
+| Action/Starter/Regime | DEC-011…016/23/25…29/39…47; oracle | M2-4; 45 oracle |
+| Reaction/Veto/Narrative | DEC-014/017/018; Contract | M2-5; 20 oracle + RX |
+| Cleanup/Viral | DEC-019/042; Adjudication | M2-6; 17 oracle + LC |
+| Objectives/Victory/End | DEC-020…024; Scenario | M2-7; 28 oracle + END |
 
-## 14. PTD-M2 propuestas
+## 16. Riesgos y mitigaciones
 
-Todas permanecen **PROPOSED FOR APPROVAL**.
+| Riesgo | Mitigación | Bloque |
+|---|---|---|
+| schema cristaliza interpretación no aprobada | M2-0 + Physical DB Spec review | M2-1 |
+| DRAFT se convierte silenciosamente en seed | candidate con `UNRESOLVED`, snapshot/hash approval | M2-0/M2-1/M2-4 |
+| doble gasto o sequence duplicada | row lock + CAS + fault injection | M2-1 |
+| commit no publicado o publicación duplicada | transactional outbox + at-least-once/dedup | M2-1/M2-2 |
+| replay diverge/consume RNG | reconciliation fail-closed | M2-1/M2-7 |
+| provider invade Engine | application ports + IQ-M2-008/009 | M2-2 |
+| gaps privados causan leakage | projection policy + authorized ranges | M2-2/M2-5 |
+| scheduler no reanuda | continuation persistida y versionada | M2-3/M2-5/M2-6 |
+| effect dispatch inventa regla | ID declarado + handler tipado + registry aprobado | M2-3/M2-4 |
+| auto-pass inventado | `expires_at=null`; F1 auditado | M2-5 |
+| scope creep | autorización separada por bloque | todos |
 
-| ID | Alternativas | Recomendación propuesta | Impacto |
-|---|---|---|---|
-| PTD-M2-001 | checkpoint next turn / game complete / persistence-only | seis bloques y golden BASE_2025 `turn_limit=1` hasta `GAME_COMPLETED`, sujeto a IQ-M2-001 | fija DoD global y orden |
-| PTD-M2-002 | UUIDv7/UUIDv4/ULID; ENUM/lookup | IDs opacos ordenables + lookup/version tables para dominios evolutivos; decisión final en Physical DB Spec | schema/migrations |
-| PTD-M2-003 | serializable global / row lock / advisory lock / queue | transaction `READ COMMITTED` con lock lógico por game + CAS explícito; validar con fault tests antes de aprobar | throughput y concurrencia |
-| PTD-M2-004 | Event Sourcing / snapshots ad hoc / híbrido | conservar modelo aprobado: state normalizado + append-only + snapshots versionados/reconciliables | recovery/retención |
-| PTD-M2-005 | at-most-once / at-least-once / exactly-once afirmado | at-least-once, ordering por sequence, dedup consumidor e idempotencia; no prometer exactly-once | outbox/realtime |
-| PTD-M2-006 | protocolo propietario / provider SDK / port neutral | WebSocket detrás de port, envelope/version/cursor explícitos y HTTP como recovery source | transport portability |
-| PTD-M2-007 | nombres/hardcode / JSON arbitrario / registry+handlers | registry snapshot inmutable + effect IDs declarativos + handlers tipados; nunca código/prompt arbitrario | cards/rules/replay |
-| PTD-M2-008 | closures / blob opaco / union tipada persistida | continuations Reaction/Veto/Choice como unión discriminada versionada y validada runtime | restart/replay |
-| PTD-M2-009 | AuthN en Engine / SDK directo / application adapter | AuthN sólo application-side mediante port/provider adapter; inclusión productiva depende IQ-M2-004 | seguridad/dependencias |
-| PTD-M2-010 | auto-pass oculto / timer default / sin timer | baseline sin timers, `expires_at=null`, force-pass/lock F1 auditado; variantes sólo ScenarioRuleConfig versionada | disconnect/liveness |
-| PTD-M2-011 | down migrations automáticas / roll-forward / snapshot restore | forward-only para datos históricos con rollback de despliegue + restore ensayado; detalle sujeto a Physical DB Spec | operación segura |
+## 17. IMPLEMENTATION_QUESTIONS
 
-## 15. IMPLEMENTATION_QUESTIONS
+| ID | Estado DEC-075 | Impacto vigente |
+|---|---|---|
+| IQ-M2-001…002, 006…007 | RESOLVED | decisiones aplicables en futuros gates |
+| IQ-M2-003 | RESOLVED AS APPROACH | sustituida por approval de contenido/hash IQ-M2-010 |
+| IQ-M2-004 | RESOLVED AS BOUNDARY | provider pendiente en IQ-M2-008 |
+| IQ-M2-005 | RESOLVED AS CONTRACT DIRECTION | runtime/envelope pendiente en IQ-M2-009 |
+| IQ-M2-008 | OPEN | bloquea afirmar transporte productivo M2-2 |
+| IQ-M2-009 | OPEN | bloquea implementar transporte productivo M2-2 |
+| IQ-M2-010 | OPEN | bloquea seed y reglas dependientes del registry |
 
-| ID | Tema | Bloque | Estado |
-|---|---|---|---|
-| IQ-M2-001 | checkpoint final M2 | M2-5 | OPEN / PENDING RESOLUTION — bloquea M2-5 |
-| IQ-M2-002 | IDs/enums/DSL/schema físico | M2-0 | OPEN / PENDING RESOLUTION — bloquea M2-0 |
-| IQ-M2-003 | autoridad del catálogo completo de 108 cartas | M2-0/M2-3 | OPEN / PENDING RESOLUTION — bloquea registry |
-| IQ-M2-004 | alcance/proveedor de AuthN productiva | M2-2 | OPEN / PENDING RESOLUTION — bloquea handshake productivo |
-| IQ-M2-005 | protocolo/framework/hosting realtime | M2-2 | OPEN / PENDING RESOLUTION — bloquea adapter productivo |
-| IQ-M2-006 | retention/compaction/archive | M2-1 | OPEN / PENDING RESOLUTION — bloquea política operativa, no modelo base |
-| IQ-M2-007 | single-writer/locking/topology | M2-1 | OPEN / PENDING RESOLUTION — bloquea concurrencia productiva |
+No surgió una contradicción nueva entre reglas oficiales durante la reconciliación documental; `OPEN_QUESTIONS.md` permanece intacto.
 
-El detalle, evidencia, alternativas y recomendación está en `IMPLEMENTATION_QUESTIONS.md`. Ninguna IQ se resuelve en este documento. No se identificó una nueva ambigüedad de regla oficial; `OPEN_QUESTIONS.md` no requiere modificación.
+## 18. Definition of Done global futura
 
-## 16. Definition of Done global propuesta
+M2 sólo podrá cerrarse tras nuevas autorizaciones si:
 
-M2 sólo podría declararse implementado tras autorización y revisión posteriores si:
-
-- cada bloque autorizado cumple su DoD y rollback boundary;
-- 153 IDs oracle restantes y 32 candidatos complementarios aprobados pasan;
-- 66 ejecuciones `[REGRESSION]` asignadas pasan;
-- la suite previa 215/215 se preserva en cada bloque;
-- suite mínima acumulada propuesta alcanza 400/400, 0 skips, 0 todo y 0 waivers;
-- todos los conteos state/event/ledger/trace/outbox reconcilian;
+- los ocho gates se revisan en orden compatible;
+- 153 IDs oracle owner + 32 IDs addendum pasan al 100%;
+- regresiones dirigidas y baseline completo 215/215 pasan por bloque aplicable;
+- suite mínima acumulada alcanza 400/400, 0 skips, 0 todo, 0 waivers;
+- state/events/ledgers/trace/outbox reconcilian;
 - recovery/replay no consume RNG ni IA;
-- PostgreSQL/WebSocket/AuthN/React/Next/OpenAI permanecen fuera del Engine;
-- no hay leakage en ningún boundary;
-- las PTD necesarias están aprobadas y las IQ bloqueantes resueltas antes del bloque afectado;
-- PROJECT_STATE sólo cambia a implemented/approved tras revisión técnica humana.
+- privacy y actor boundaries permanecen fail-closed;
+- IQ bloqueantes del bloque están resueltas;
+- PROJECT_STATE sólo cambia a implemented/approved tras revisión humana.
 
-## 17. Gate de salida documental
+## 19. Gate de salida documental
 
-Este paquete queda **DOCUMENTED / PENDING REVIEW**. DEC-074 autoriza únicamente su preparación. M2, M2-0…M2-5 y M3 permanecen **NOT AUTHORIZED**. El siguiente paso permitido es revisión humana, reconciliación de conteos, resolución/aprobación expresa de IQ/PTD y una autorización posterior separada.
+El paquete queda **AMENDED / PENDING FINAL REVIEW** mediante DEC-075. M2, M2-0…M2-7 y M3 permanecen **NOT AUTHORIZED**. El siguiente paso permitido es revisión humana de esta enmienda, del addendum M2 y del candidate registry; no implementación ni preparación de implementación.

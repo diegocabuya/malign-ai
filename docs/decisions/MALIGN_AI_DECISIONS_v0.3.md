@@ -964,3 +964,42 @@ Quedan aprobadas como baseline de implementación:
 **IMPACTO:** El resultado será exclusivamente un paquete documental pendiente de revisión humana y aprobación posterior.
 
 **ESTADO:** APPROVED — DOCUMENTATION-ONLY AUTHORIZATION
+
+---
+
+## DEC-075 — Enmienda del planning gate M2
+
+**FECHA:** 2026-08-25
+**TEMA:** Resolución de IQ-M2-001…007, clasificación de PTD-M2-001…011, baseline complementario M2 y reestructuración del milestone.
+
+**DECISIÓN:**
+
+1. `IQ-M2-001 — RESOLVED`: el checkpoint final usa un golden BASE_2025 determinístico con `turn_limit=1` hasta `GAME_COMPLETED`. Es exclusivamente un fixture y no modifica el default del producto.
+2. `IQ-M2-002 — RESOLVED`: se adoptan UUIDv7, tablas lookup/versionadas para dominios evolutivos, normalización del estado crítico y JSON tipado/versionado sólo donde esté expresamente autorizado.
+3. `IQ-M2-003 — RESOLVED AS APPROACH`: se crea una especificación separada de canonicalización del registry completo. Su contenido y hash permanecen pendientes de revisión antes de cualquier seed o implementación.
+4. `IQ-M2-004 — RESOLVED AS BOUNDARY`: AuthN permanece exclusivamente en application layer mediante port. El proveedor productivo debe aprobarse antes del bloque de transporte.
+5. `IQ-M2-005 — RESOLVED AS CONTRACT DIRECTION`: se adopta un protocolo versionado propio detrás de un port WebSocket. Librería, hosting y proveedor permanecen pendientes.
+6. `IQ-M2-006 — RESOLVED`: durante M2 se conservan íntegramente events, ledgers y traces; se permiten snapshots estables; no habrá compaction ni hard-delete.
+7. `IQ-M2-007 — RESOLVED`: se adopta lock transaccional de la fila `Game` más CAS explícito de `game_version` bajo `READ COMMITTED`, sujeto a fault tests.
+
+Clasificación de las PTD:
+
+- `PTD-M2-001 — APPROVED`: nueva descomposición M2-0…M2-7 y checkpoint final aprobado.
+- `PTD-M2-002 — APPROVED`: estrategia física de IDs, dominios, normalización y JSON autorizado.
+- `PTD-M2-003 — APPROVED`: row lock + CAS bajo `READ COMMITTED`.
+- `PTD-M2-004 — INHERITED ARCHITECTURAL CONSTRAINT`: estado normalizado + historia append-only + snapshots ya pertenecen a la arquitectura aprobada; DEC-075 no reabre esta decisión.
+- `PTD-M2-005 — APPROVED`: delivery at-least-once, ordering autoritativo y deduplicación; no se afirma exactly-once.
+- `PTD-M2-006 — PARTLY INHERITED / REFINEMENT APPROVED`: HTTP + WebSocket es heredado; se aprueba el protocolo versionado detrás de port. Librería, proveedor y hosting siguen pendientes.
+- `PTD-M2-007 — APPROVED AS DESIGN`: registry versionado, effect IDs declarativos y handlers tipados. El contenido del registry sigue pendiente de aprobación.
+- `PTD-M2-008 — APPROVED`: continuations persistidas como unión discriminada, versionada y validada en runtime.
+- `PTD-M2-009 — INHERITED AUTHENTICATION BOUNDARY`: AuthN y construcción de `ActorContext` pertenecen a application layer. El proveedor no queda aprobado.
+- `PTD-M2-010 — APPROVED`: baseline sin timers ni auto-pass; `expires_at=null`; cualquier intervención F1 debe ser auditada.
+- `PTD-M2-011 — APPROVED`: migraciones forward-only para datos históricos, rollback de despliegue y restore ensayado; sin downgrade destructivo automático.
+
+DEC-075 autoriza exclusivamente documentación. No autoriza M2 ni ninguna subetapa.
+
+**JUSTIFICACIÓN:** La enmienda fija las decisiones técnicas ya aprobadas por el Product Owner, convierte los 32 candidatos complementarios en baseline normativo de aceptación, separa el gate canónico del registry de su futura implementación y redistribuye M2 en ocho bloques revisables sin adelantar código.
+
+**IMPACTO:** El planning gate queda en estado `AMENDED / PENDING FINAL REVIEW`; `IQ-M2-008…010` permanecen abiertas. M2, M2-0…M2-7 y M3 permanecen `NOT AUTHORIZED`.
+
+**ESTADO:** APPROVED — DOCUMENTATION-ONLY AMENDMENT
