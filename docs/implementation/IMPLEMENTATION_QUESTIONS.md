@@ -106,10 +106,11 @@
 - **Impact:** bloquea implementación productiva M2-2.
 - **Status:** OPEN / PENDING RESOLUTION.
 
-## IQ-M2-010 — Registry candidate content and hash approval — PARTIALLY RESOLVED / BLOCKED BY LISTED ITEMS
+## IQ-M2-010 — Registry content and hash approval — RESOLVED
 
-- **Evidence:** DEC-075 aprobó el enfoque y DEC-076 autorizó producir artifacts candidatos, pero ninguna de las dos decisiones convierte el Card Component DRAFT en autoridad. `MALIGN_AI_CARD_REGISTRY_SPEC_v0.1.md` y `MALIGN_AI_CARD_REGISTRY_SNAPSHOT_v0.1.json` reconcilian mecánicamente 100 definitions, 108 serial templates, 4 aliases y 59 effects con status `candidate_pending_review` y `seedable=false`.
-- **Propuesta reproducible preparada:** definitions `CARD_DEF_BASE_2025_D001…D100`; templates `CARD_SERIAL_BASE_2025_S001…S108`; effects `CARD_EFFECT_BASE_2025_E001…E059`; JCS SHA-256 candidato `37e1e27e142a2e08d8a19418089602bc72d775b9f5944059acc27ee4de93c83e`; JSON blob candidato `a8c3ee9f3b78113e1f94891a9b0c634083107ec3`; Registry Markdown blob candidato `6472b136a806f403747defe1d59ed44fb78f49fa`.
+- **Evidence:** DEC-075 aprobó el enfoque, DEC-076 autorizó producir artifacts y DEC-077 aprobó su contenido y hashes tras una finalización exclusivamente mecánica. El snapshot queda `approved` y `seedable=true`.
+- **Artifacts aprobados:** definitions `CARD_DEF_BASE_2025_D001…D100`; templates `CARD_SERIAL_BASE_2025_S001…S108`; effects `CARD_EFFECT_BASE_2025_E001…E059`; JCS final `735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a`; snapshot blob `8d5c150bed742391555bc6bafe022f45baee0163`; Registry Spec blob `d7d1325da916f4f867c4a142f8e345d66eaa780e`; Physical DB blob `13cd601b30db2db22be64c4fda5df94144dcf8d5`; Review Matrix blob `cefed690a7c2068f9fe868efaa3df4b2e504e508`.
+- **Semantic freeze:** JCS candidato anterior `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74`; proyección semántica antes/después 264610 bytes y SHA-256 `8a46133ca70883df2d173fddd9c725cd0611b2be8311a5fe42057464415d6a13`.
 
 ### REG-CAND-001 — Definition identity y mapping 108→100
 
@@ -117,7 +118,7 @@
 - **Fuentes:** DEC-025 (108=103+5); Card Component DRAFT §3; candidate histórico blob `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`; Registry Spec §§4–5.
 - **Alternativas:** (A) aprobar el mapping candidato tras comparación cara-a-cara; (B) separar cualquier grupo con diferencia material, aceptando más de 100 definitions; (C) solicitar evidencia física adicional antes de decidir.
 - **Recomendación:** A sólo si revisión humana confirma igualdad exacta de nombre, tipo, alignment, IV, coste y texto/effect; de lo contrario B. Nunca forzar 100.
-- **Bloqueado:** cierre M2-0; registry seed M2-1; manifest de effects M2-3; M2-4/M2-5.
+- **Resolution DEC-077:** REG-CAND-001 APPROVED. El mapping, IDs y seis grupos quedan congelados.
 
 ### REG-CAND-002 — Contenido impreso y ausencia de efecto
 
@@ -125,7 +126,7 @@
 - **Fuentes:** Card Component DRAFT §3 como evidencia; DEC-025/026/039/043…047 y oracle sólo donde fijan comportamiento; Registry Snapshot `field_authority`.
 - **Alternativas:** (A) aprobar campos por revisión del material físico; (B) corregir field-by-field con nueva evidencia; (C) mantener `null`/pending y no seedear.
 - **Recomendación:** revisión de 108/108 caras y registro de source reference por definición; usar C hasta decisión expresa.
-- **Bloqueado:** cierre M2-0; seed M2-1; slots/bonuses M2-3; Action/Starter/Regime M2-4; Reaction/Veto M2-5.
+- **Resolution DEC-077:** REG-CAND-002 APPROVED. Contenido impreso, aliases, clasificación, IV, costes, flags, cinco Starter y 41 ausencias quedan aprobados.
 
 ### REG-CAND-003 — Effect identity, trigger, timing y operaciones
 
@@ -133,17 +134,17 @@
 - **Fuentes:** texto exacto Card Component DRAFT §3; Rule Effect Taxonomy v0.2; Adjudication Engine; DEC-026…029, 039, 043…047; oracle Action/Reaction/Veto/ERT. La semántica aprobada no aprueba automáticamente el binding al nuevo ID.
 - **Alternativas:** (A) aprobar cada binding/operation sequence y parameters; (B) corregir mappings con una registry version nueva; (C) mantener effects pending y fuera del manifest ejecutable.
 - **Recomendación:** revisión effect-by-effect contra oracle/decisions; unknown/unsupported debe fallar cerrado. Usar C hasta aprobación.
-- **Bloqueado:** cierre M2-0; `GE-M2-EFX-001` completo en M2-3; M2-4; M2-5.
+- **Resolution DEC-077:** REG-CAND-003 APPROVED. Effect IDs, triggers, timings, 103 operaciones, orden, parámetros, E021 y bindings 26/28 quedan aprobados.
 
 ### REG-CAND-004 — Snapshot y hashes
 
-- **Dato/afectados:** snapshot completo `MALIGN_AI_CARD_REGISTRY_SNAPSHOT_v0.1.json`, Registry Spec y sus digests. Hashes actuales: JCS SHA-256 `37e1e27e142a2e08d8a19418089602bc72d775b9f5944059acc27ee4de93c83e`, JSON blob `a8c3ee9f3b78113e1f94891a9b0c634083107ec3`, Markdown blob `6472b136a806f403747defe1d59ed44fb78f49fa`.
+- **Dato/afectados:** snapshot completo, Registry Spec, Physical Database Spec, Review Matrix y sus digests finales registrados arriba.
 - **Fuentes:** DEC-075/076; RFC 8785/JCS contract; M2 Addendum DB/hash cases.
 - **Alternativas:** (A) aprobar hashes sólo después de aprobar contenido sin cambios; (B) cambiar contenido, regenerar JCS/blobs y repetir review.
 - **Recomendación:** B si cambia cualquier byte semántico; A únicamente mediante decisión posterior expresa.
-- **Bloqueado:** cierre M2-0 y registry seed M2-1.
+- **Resolution DEC-077:** REG-CAND-004 APPROVED con hashes finales. M2-0 queda cerrado; M2-1/M2-A continúa NOT AUTHORIZED.
 
-- **Status:** **PARTIALLY RESOLVED / BLOCKED BY LISTED ITEMS**. La estructura y los artifacts reproducibles existen; contenido, bindings y hashes no están aprobados.
+- **Status:** **RESOLVED mediante DEC-077**. REG-CAND-001…004 están aprobadas y M2-0 cerrado; esta resolución no autoriza código, migrations ni seed.
 
 ## IQ-M2-011 — UUIDv7 generation boundary — OPEN
 

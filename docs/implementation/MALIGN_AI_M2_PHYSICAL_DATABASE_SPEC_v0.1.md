@@ -1,11 +1,11 @@
 # MALIGN-AI — M2 PHYSICAL DATABASE SPECIFICATION v0.1
 
 **Fecha:** 2026-08-26
-**Estado:** **M2-0 CORRECTIONS M20-R01…R10 IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW — NO EXECUTABLE SCHEMA AUTHORIZED**
+**Estado:** **APPROVED mediante DEC-077 — 87 TABLES / M2-0 CLOSED — NO EXECUTABLE SCHEMA AUTHORIZED**
 **Autoridad de preparación:** DEC-076
 **Implementación, DDL, migrations y seed:** **NOT AUTHORIZED**
 
-> Esta es una especificación física candidata, no SQL, migration, seed, configuración de proveedor ni selección de ORM. Una revisión humana posterior debe aprobarla antes de M2-1.
+> Esta especificación física queda aprobada documentalmente mediante DEC-077. No es SQL, migration, seed, configuración de proveedor ni selección de ORM; toda implementación futura continúa requiriendo autorización expresa de M2-1/M2-A.
 
 ## 1. Resultado de la reconciliación
 
@@ -63,7 +63,7 @@ Cada fila documenta columnas propias además de `M`, `A` o `V`; nulabilidad se m
 | 2 | `registry_seed_runs` → extensión | `A`; `registry_version_id uuid`; `snapshot_jcs_sha256 bytea`; `snapshot_git_blob_sha1 bytea`; `row_count integer`; `status text`; `migration_version text` | FK registry version/migration; UK registry_version_id; CK row_count>=0; IDX status | `APP/OPS`; seed futuro sólo con registry aprobado; rollback por deploy+restore |
 | 3 | `ruleset_versions` → extensión/version pin | `V`; `compatibility_parent_id uuid?`; `activated_at timestamptz?` | FK self; UK(logical_id,version); IDX status | `REF`; pin inmutable por Game; no JSON |
 | 4 | `engine_contract_versions` → extensión/version pin | `V`; `compatibility_parent_id uuid?`; `activated_at timestamptz?` | FK self; UK(logical_id,version); IDX status | `REF`; compatibilidad explícita, nunca coerción silenciosa |
-| 5 | `card_registry_versions` → extensión/version pin | `V`; `jcs_sha256 bytea`; `snapshot_blob_sha1 bytea`; `approved_decision_id text?`; `activated_at timestamptz?` | UK version/JCS hash; CK ACTIVE exige decision+hash; IDX status | `REF`; el candidate v0.1 no satisface ACTIVE/seedable |
+| 5 | `card_registry_versions` → extensión/version pin | `V`; `jcs_sha256 bytea`; `snapshot_blob_sha1 bytea`; `approved_decision_id text?`; `activated_at timestamptz?` | UK version/JCS hash; CK ACTIVE exige decision+hash; IDX status | `REF`; DEC-077 aprueba el snapshot y `seedable=true`; la fila/seed futuros requieren autorización M2-1 separada |
 | 6 | `ruleset_domain_values` → lookup versionado | `id uuid PK`; `domain_name text`; `value text`; `ruleset_version_id uuid`; `display_order integer`; `status text='ACTIVE'`; `source_reference text` | UK(domain,value,ruleset); FK ruleset; CK display_order>=0; IDX ruleset/domain/status | `REF`; UUIDv7 física y clave lógica compuesta; reemplaza enums evolutivos; valores históricos no se borran |
 | 7 | `json_schema_versions` → extensión | `id uuid PK`; `schema_id text`; `schema_version text`; `schema_json jsonb`; `jcs_sha256 bytea`; `compatibility_mode text`; `status text='DRAFT'`; `source_reference text` | UK(schema_id,version); CK JSON object y hash no vacío; IDX status | `REF`; UUIDv7 física, schema ID/version lógicos; se autocanoniza; no código/prompt |
 | 8 | `country_definitions` → CountryDefinition | `V`; `canonical_name text`; `regime_type text`; `mascot text`; `color_key text`; `visual_asset_key text?`; `starting_resource_default integer`; `turn_income_default integer`; `regime_ability_definition_id uuid` | UK(canonical_name,version), UK(color_key,version); FK ability diferible; CK recursos/ingreso>=0; IDX status/version | `REF`; `id uuid` físico separado de `logical_id` (`ARDEN`…`DINESIA`) |
@@ -383,4 +383,4 @@ Acceptance adicional obligatoria:
 
 ## 13. Gate
 
-Las correcciones documentales **M20-R01…R10 están IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**. El catálogo permanece en **87 tablas**: R05/R06 sólo completan lifecycle, columnas e invariantes de las tablas ya reconciliadas y R10 documenta la atomicidad E021 sin añadir estructura. Este documento queda **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**: no contiene DDL ejecutable y no aprueba las 87 tablas, UUID generator, RLS, particionado, proveedor, ORM, cloud, AuthN, WebSocket ni migrations. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
+DEC-077 aprueba el contenido semántico exacto de esta especificación y cierra **M20-R01…R10**. El catálogo permanece en **87 tablas**: R05/R06 sólo completan lifecycle, columnas e invariantes de las tablas ya reconciliadas y R10 documenta la atomicidad E021 sin añadir estructura. M2-0 queda **APPROVED AND CLOSED**. Esta aprobación documental no contiene ni autoriza DDL ejecutable, UUID generator, RLS, particionado, proveedor, ORM, cloud, AuthN, WebSocket, migrations o seed. M2-1/M2-A, M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.

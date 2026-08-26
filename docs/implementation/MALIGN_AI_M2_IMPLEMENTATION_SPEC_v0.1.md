@@ -1,11 +1,11 @@
 # MALIGN-AI — M2 IMPLEMENTATION SPECIFICATION v0.1
 
 **Fecha:** 2026-08-25
-**Estado:** PLANNING GATE APPROVED AND CLOSED / M2-0 CORRECTION IMPLEMENTED — BLOCKED PENDING PRODUCT OWNER AND TECHNICAL REVIEW
-**Autoridad:** DEC-074 + DEC-075 + DEC-076 — M2-0 documental únicamente
+**Estado:** PLANNING GATE APPROVED AND CLOSED / M2-0 APPROVED AND CLOSED mediante DEC-077
+**Autoridad:** DEC-074 + DEC-075 + DEC-076 + DEC-077 — cierre M2-0 documental únicamente
 **Implementación M2:** **NOT AUTHORIZED**
 
-> Este documento cataloga un plan test-first. DEC-076 cierra el planning gate y autoriza exclusivamente producir el gate documental M2-0. No autoriza código, tests ejecutables, migrations, seeds, infraestructura, dependencias, proveedores ni M2-1…M2-7.
+> Este documento cataloga un plan test-first. DEC-077 cierra documentalmente M2-0 sin autorizar código, tests ejecutables, migrations, seeds, infraestructura, dependencias, proveedores, M2-1/M2-A ni M2-2…M2-7.
 
 ## 1. Objetivo y checkpoint aprobado
 
@@ -60,7 +60,7 @@ Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, an
 | PTD-M2-004 | INHERITED ARCHITECTURAL CONSTRAINT | state normalizado + historia append-only + snapshots estables |
 | PTD-M2-005 | APPROVED | at-least-once + ordering autoritativo + dedup; nunca exactly-once |
 | PTD-M2-006 | PARTLY INHERITED / REFINEMENT APPROVED | HTTP + WebSocket heredado; protocolo propio versionado detrás de port |
-| PTD-M2-007 | APPROVED AS DESIGN | registry versionado, effect IDs declarativos, handlers tipados; contenido pendiente |
+| PTD-M2-007 | APPROVED AS DESIGN | registry versionado, effect IDs declarativos, handlers tipados; contenido aprobado mediante DEC-077 |
 | PTD-M2-008 | APPROVED | continuations discriminadas, versionadas, persistidas y runtime-validated |
 | PTD-M2-009 | INHERITED AUTHENTICATION BOUNDARY | AuthN y `ActorContext` sólo application-side; proveedor pendiente |
 | PTD-M2-010 | APPROVED | sin timer/auto-pass; `expires_at=null`; intervención F1 auditada |
@@ -70,7 +70,7 @@ Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, an
 
 | Bloque | Alcance | Dependencias/gates | Casos nuevos únicos | Estado |
 |---|---|---|---:|---|
-| M2-0 | Canonical Foundations Gate documental | revisión de Physical DB Spec, addendum M2, registry candidate, Product Owner Review Matrix y hashes | 0 | CORRECTION IMPLEMENTED / BLOCKED PENDING PRODUCT OWNER AND TECHNICAL REVIEW |
+| M2-0 | Canonical Foundations Gate documental | Physical DB Spec, addendum M2, registry, Product Owner Review Matrix y hashes | 0 | APPROVED AND CLOSED mediante DEC-077 |
 | M2-1 | PostgreSQL Persistence and Durable Recovery | M2-0 aprobado; registry aprobado para seed | 22 | NOT AUTHORIZED |
 | M2-2 | Productive Transport and Reconnect | M2-1; IQ-M2-008/009 | 8 | NOT AUTHORIZED |
 | M2-3 | Complete Scheduler and Remaining Core Rules | M2-1; contrato de registry suficiente | 39 | NOT AUTHORIZED |
@@ -93,11 +93,11 @@ Bloque exclusivamente documental autorizado mediante DEC-076:
 
 Artifacts producidos:
 
-- `MALIGN_AI_M2_PHYSICAL_DATABASE_SPEC_v0.1.md`: 87 tablas físicas reconciliadas, no DDL; AP balance+journal, idempotencia transaction-sealed con recheck concurrente, orden event/ordinal, atomicidad E021 y outbox message/state/attempt; blob candidato `9c58c92f356ccc57c124e15b775c6cda02529378`;
-- `MALIGN_AI_CARD_REGISTRY_SPEC_v0.1.md`: 100 definitions, 108 serial templates, 4 aliases, 59 effects y 103 operaciones parametrizadas; blob candidato `50ecfe841288e42769fbefdeb9210342c06c7797`;
-- `MALIGN_AI_CARD_REGISTRY_SNAPSHOT_v0.1.json`: status `candidate_pending_review`, no seedable; 108 audit rows; JCS SHA-256 `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74`; blob candidato `2b1d2cd7efe90c52088becb4fe92ec36fffe378d`;
-- `MALIGN_AI_M2_CARD_REGISTRY_PRODUCT_OWNER_REVIEW_MATRIX_v0.1.md`: 100/108/6/41/59/103 completos, auditoría primaria `Cartas frente.pdf` 108/108 con 102 MATCH, 6 DIFFERENCE y 0 AMBIGUOUS, source trace y checklist canónico vacío; blob candidato `028ec6016958aa3f3e6d15ba9dc54c511463f04d`;
-- `MALIGN_AI_M2_0_CANONICAL_FOUNDATIONS_GATE_v0.1.md`: resultado `BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW`.
+- `MALIGN_AI_M2_PHYSICAL_DATABASE_SPEC_v0.1.md`: 87 tablas físicas aprobadas, no DDL; blob final `13cd601b30db2db22be64c4fda5df94144dcf8d5`;
+- `MALIGN_AI_CARD_REGISTRY_SPEC_v0.1.md`: 100 definitions, 108 serial templates, 4 aliases, 59 effects y 103 operaciones aprobadas; blob final `d7d1325da916f4f867c4a142f8e345d66eaa780e`;
+- `MALIGN_AI_CARD_REGISTRY_SNAPSHOT_v0.1.json`: status `approved`, `seedable=true`; 108 audit rows; JCS SHA-256 final `735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a`; blob final `8d5c150bed742391555bc6bafe022f45baee0163`;
+- `MALIGN_AI_M2_CARD_REGISTRY_PRODUCT_OWNER_REVIEW_MATRIX_v0.1.md`: 100/108/6/41/59/103 aprobados, auditoría 102/6/0; blob final `cefed690a7c2068f9fe868efaa3df4b2e504e508`;
+- `MALIGN_AI_M2_0_CANONICAL_FOUNDATIONS_GATE_v0.1.md`: resultado `APPROVED AND CLOSED mediante DEC-077`.
 
 ### Gate de salida
 
@@ -107,7 +107,7 @@ Artifacts producidos:
 - blobs documentales aprobados expresamente;
 - ninguna selección silenciosa de provider/ORM/runtime.
 
-La corrección documental M20-R01…R10 está implementada: AP conserva journal autoritativo; idempotencia revalida bajo el lock; journals/traces usan orden causal event/ordinal; outbox retiene attempts reconstruibles; y el registry dispone de parámetros completos y auditoría visual 108/108. M20-R10 mantiene 103 operaciones, corrige E021 con contribuciones voluntarias, evidencia comprometida, deduplicación y atomicidad exactas, y aprueba los bindings internos de los seriales 26/28 sin alterar sus literales; la auditoría queda en 102 MATCH, 6 DIFFERENCE y 0 AMBIGUOUS. El gate no pasa: el modelo físico requiere revisión técnica y REG-CAND-001…004 requieren decisión humana; REG-CAND-003 sigue pendiente en todo lo no resuelto expresamente por M20-R10, `IQ-M2-010` queda **PARTIALLY RESOLVED / BLOCKED BY REG-CAND-001…004** e `IQ-M2-011…013` siguen OPEN. M2-0 no queda APPROVED/CLOSED. No se implementaron código, migrations, seeds ni tests ejecutables.
+DEC-077 aprueba REG-CAND-001…004, el Physical DB Spec de 87 tablas, Registry Spec y Snapshot; cierra M20-R01…R10, resuelve `IQ-M2-010` y deja M2-0 **APPROVED AND CLOSED**. El snapshot conserva exactamente su proyección semántica de 264610 bytes / SHA-256 `8a46133ca70883df2d173fddd9c725cd0611b2be8311a5fe42057464415d6a13`; sólo cambian metadatos de gobernanza. `IQ-M2-008/009` e `IQ-M2-011…013` siguen OPEN. No se implementaron código, migrations, seeds ni tests ejecutables.
 
 ## 7. M2-1 — PostgreSQL Persistence and Durable Recovery
 
@@ -189,7 +189,7 @@ DoD futuro: awards/outcome/final events/outbox atómicos e idempotentes; tiebrea
 | Obligación | Fuente principal | Owner/gate |
 |---|---|---|
 | Physical schema, IDs, versions, migrations | Architecture §29; Data Dictionary; PTD-M2-002/011 | M2-0 review → M2-1 |
-| Registry: 108 serial templates por country set × 5 países = 540 `CardInstance`; 100 definition groups candidatos; 5 Starter templates por set = 25 Starter materializadas; aliases | DEC-025/029; Card Component DRAFT; IQ-M2-010 | contenido/hash pendientes; M2-0 review → M2-1 seed/M2-4/M2-5 rules |
+| Registry: 108 serial templates por country set × 5 países = 540 `CardInstance`; 100 definition groups aprobados; 5 Starter templates por set = 25 Starter materializadas; aliases | DEC-025/029/077; IQ-M2-010 resuelta | contenido/hash aprobados; implementación futura requiere autorización separada |
 | Transaction/outbox | DEC-054; PTD-M2-003/005 | M2-1; `GE-M2-TX-*` |
 | Durable replay/recovery | Data Dictionary §28; replay contracts; PTD-M2-004/008 | M2-1; `GE-AUD-004`, `GE-M2-TX-008/009` |
 | Productive transport | DEC-053; Contract; IQ-M2-008/009 | M2-2; `GE-M2-RT-*` |
@@ -203,8 +203,8 @@ DoD futuro: awards/outcome/final events/outbox atómicos e idempotentes; tiebrea
 
 | Riesgo | Mitigación | Bloque |
 |---|---|---|
-| schema cristaliza interpretación no aprobada | M2-0 + Physical DB Spec review | M2-1 |
-| DRAFT se convierte silenciosamente en seed | candidate con field authority pendiente, `seedable=false` y aprobación expresa de snapshot/hash | M2-0/M2-1/M2-4 |
+| schema cristaliza interpretación no aprobada | M2-0 cerrado mediante DEC-077; cambios futuros requieren nuevo gate | M2-1 |
+| seed sin autorización de implementación | snapshot aprobado `seedable=true`, pero seed/migration continúan NOT AUTHORIZED | M2-1/M2-4 |
 | doble gasto o sequence duplicada | row lock + CAS + fault injection | M2-1 |
 | commit no publicado o publicación duplicada | transactional outbox + at-least-once/dedup | M2-1/M2-2 |
 | replay diverge/consume RNG | reconciliation fail-closed | M2-1/M2-7 |
@@ -225,7 +225,7 @@ DoD futuro: awards/outcome/final events/outbox atómicos e idempotentes; tiebrea
 | IQ-M2-005 | RESOLVED AS CONTRACT DIRECTION | runtime/envelope pendiente en IQ-M2-009 |
 | IQ-M2-008 | OPEN | bloquea afirmar transporte productivo M2-2 |
 | IQ-M2-009 | OPEN | bloquea implementar transporte productivo M2-2 |
-| IQ-M2-010 | PARTIALLY RESOLVED / BLOCKED BY LISTED ITEMS | REG-CAND-001…004 bloquean cierre, seed y reglas registry-dependent |
+| IQ-M2-010 | RESOLVED mediante DEC-077 | REG-CAND-001…004 aprobadas; no autoriza implementación |
 | IQ-M2-011 | OPEN | mecanismo UUIDv7 bloquea defaults/DDL exactos de M2-1 |
 | IQ-M2-012 | OPEN | RLS/application-role decision bloquea security claim productivo |
 | IQ-M2-013 | OPEN | partition/archive thresholds bloquean operating envelope, no el modelo |
@@ -248,4 +248,4 @@ M2 sólo podrá cerrarse tras nuevas autorizaciones si:
 
 ## 19. Gate de salida documental
 
-El planning gate queda **APPROVED AND CLOSED mediante DEC-076** y M2G-R01…R05 quedan **CLOSED**. M20-R01…R10 están **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**; M2-0 permanece **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** y no está APPROVED/CLOSED. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**. El siguiente paso permitido es revisión técnica del Physical DB Spec/Gate y decisión del Product Owner sobre REG-CAND-001…004; no implementación ni preparación de implementación.
+El planning gate queda **APPROVED AND CLOSED mediante DEC-076** y M2-0 queda **APPROVED AND CLOSED mediante DEC-077**. M20-R01…R10 están **CLOSED**, REG-CAND-001…004 **APPROVED** e IQ-M2-010 **RESOLVED**. M2-1/M2-A, M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**. No queda autorizada implementación ni preparación de implementación.

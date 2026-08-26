@@ -1034,3 +1034,43 @@ DEC-075 autoriza exclusivamente documentación. No autoriza M2 ni ninguna subeta
 - IQ-M2-008 e IQ-M2-009 permanecen abiertas.
 
 **ESTADO:** `APPROVED — M2 PLANNING CLOSED / M2-0 DOCUMENTATION ONLY`
+
+---
+
+## DEC-077 — Aprobación del registry y cierre documental de M2-0
+
+**FECHA:** 2026-08-26
+**TEMA:** Aprobación final de Canonical Foundations, Card Registry y hashes de M2-0.
+
+**DECISIÓN:**
+
+- La finalización se ejecutó exclusivamente como promoción mecánica de metadatos de gobernanza sobre el contenido aprobado en `d7cd1b087bf1aa99a4d336c3d8b1d9345414c970`.
+- La proyección semántica RFC 8785/JCS antes y después permanece exactamente en **264610 bytes** y SHA-256 `8a46133ca70883df2d173fddd9c725cd0611b2be8311a5fe42057464415d6a13`.
+- `REG-CAND-001`: **APPROVED** — 100 definition IDs, 108 serial templates, mapping 108→100 y seis grupos repetidos.
+- `REG-CAND-002`: **APPROVED** — nombres impresos, aliases lookup-only, tipos/subtipos, alignment, IV, costes, flags, cinco Starter y 41 definitions sin texto de efecto.
+- `REG-CAND-003`: **APPROVED** — 59 effect IDs, triggers, timings, 103 operaciones, orden, parámetros machine-readable, E021 y bindings de los seriales 26/28.
+- `REG-CAND-004`: **APPROVED** con los hashes finales:
+  - JCS candidato anterior: `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74`;
+  - JCS aprobado final: `735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a` — 313904 bytes en dos canonicalizaciones independientes;
+  - Registry Snapshot Git blob: `8d5c150bed742391555bc6bafe022f45baee0163`;
+  - Registry Spec Git blob: `d7d1325da916f4f867c4a142f8e345d66eaa780e`;
+  - Physical Database Spec Git blob: `13cd601b30db2db22be64c4fda5df94144dcf8d5`;
+  - Product Owner Review Matrix Git blob: `cefed690a7c2068f9fe868efaa3df4b2e504e508`.
+- M20-R01…R10 quedan **CLOSED**.
+- Physical Database Spec de 87 tablas queda **APPROVED**; no contiene ni autoriza DDL ejecutable.
+- Registry Spec queda **APPROVED**.
+- Registry Snapshot queda **APPROVED / SEEDABLE** con `status=approved` y `compatibility.seedable=true`.
+- Product Owner Review Matrix queda **APPROVED**.
+- `IQ-M2-010` queda **RESOLVED mediante DEC-077**.
+- M2-0 queda **APPROVED AND CLOSED**.
+- M2-1/M2-A permanece **NOT AUTHORIZED**.
+- M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
+- `IQ-M2-008`, `IQ-M2-009` e `IQ-M2-011…013` permanecen **OPEN**.
+- DEC-077 no autoriza código, tests ejecutables, migrations, seeds, dependencias, infraestructura, proveedores, DDL o SQL ejecutable.
+- La suite **215/215 PASS, 0 skips, 0 todo y 0 waivers** se conserva como baseline previamente aprobada; no fue reejecutada en este cierre documental.
+
+**JUSTIFICACIÓN:** El Product Owner aprobó expresamente REG-CAND-001…003 y M20-R01…R10, y condicionó REG-CAND-004/DEC-077 a una finalización exclusivamente mecánica. Las canonicalizaciones y la comparación programática confirmaron que el contenido semántico congelado no cambió.
+
+**IMPACTO:** M2-0 queda formalmente cerrado y el registry queda documentalmente seedable. Toda implementación posterior continúa requiriendo autorización separada.
+
+**ESTADO:** `APPROVED — M2-0 CLOSED / REGISTRY APPROVED AND SEEDABLE`
