@@ -93,10 +93,10 @@ Bloque exclusivamente documental autorizado mediante DEC-076:
 
 Artifacts producidos:
 
-- `MALIGN_AI_M2_PHYSICAL_DATABASE_SPEC_v0.1.md`: 87 tablas físicas reconciliadas, no DDL; AP balance+journal, idempotencia transaction-sealed con recheck concurrente, orden event/ordinal y outbox message/state/attempt; blob candidato `873049f4dba4297a87f3e8dfdccaf028cc2c4a1f`;
-- `MALIGN_AI_CARD_REGISTRY_SPEC_v0.1.md`: 100 definitions, 108 serial templates, 4 aliases, 59 effects y 103 operaciones parametrizadas; blob candidato `c3129937a45f55c94a7546c350b93ac331f5b7b6`;
-- `MALIGN_AI_CARD_REGISTRY_SNAPSHOT_v0.1.json`: status `candidate_pending_review`, no seedable; 108 audit rows; JCS SHA-256 `6f777a5bafe7611389d80baa47fa3f0a785014d10b659e3446846bf735e1c897`; blob candidato `d8d8afe220d76043d836c5ba15f89acde0f3a939`;
-- `MALIGN_AI_M2_CARD_REGISTRY_PRODUCT_OWNER_REVIEW_MATRIX_v0.1.md`: 100/108/6/41/59/103 completos, auditoría primaria `Cartas frente.pdf` 108/108, source trace y checklist canónico vacío; blob candidato `1dbfee8a72016787dd8b829bc1ffb1cf8dc0d826`;
+- `MALIGN_AI_M2_PHYSICAL_DATABASE_SPEC_v0.1.md`: 87 tablas físicas reconciliadas, no DDL; AP balance+journal, idempotencia transaction-sealed con recheck concurrente, orden event/ordinal, atomicidad E021 y outbox message/state/attempt; blob candidato `9c58c92f356ccc57c124e15b775c6cda02529378`;
+- `MALIGN_AI_CARD_REGISTRY_SPEC_v0.1.md`: 100 definitions, 108 serial templates, 4 aliases, 59 effects y 103 operaciones parametrizadas; blob candidato `50ecfe841288e42769fbefdeb9210342c06c7797`;
+- `MALIGN_AI_CARD_REGISTRY_SNAPSHOT_v0.1.json`: status `candidate_pending_review`, no seedable; 108 audit rows; JCS SHA-256 `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74`; blob candidato `2b1d2cd7efe90c52088becb4fe92ec36fffe378d`;
+- `MALIGN_AI_M2_CARD_REGISTRY_PRODUCT_OWNER_REVIEW_MATRIX_v0.1.md`: 100/108/6/41/59/103 completos, auditoría primaria `Cartas frente.pdf` 108/108 con 102 MATCH, 6 DIFFERENCE y 0 AMBIGUOUS, source trace y checklist canónico vacío; blob candidato `028ec6016958aa3f3e6d15ba9dc54c511463f04d`;
 - `MALIGN_AI_M2_0_CANONICAL_FOUNDATIONS_GATE_v0.1.md`: resultado `BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW`.
 
 ### Gate de salida
@@ -107,7 +107,7 @@ Artifacts producidos:
 - blobs documentales aprobados expresamente;
 - ninguna selección silenciosa de provider/ORM/runtime.
 
-La corrección documental M20-R01…R09 está implementada: AP conserva journal autoritativo; idempotencia revalida bajo el lock; journals/traces usan orden causal event/ordinal; outbox retiene attempts reconstruibles; y el registry dispone de parámetros completos y auditoría visual 108/108. El gate no pasa: el modelo físico requiere revisión técnica y REG-CAND-001…004 requieren decisión humana; `IQ-M2-010` queda **PARTIALLY RESOLVED / BLOCKED BY REG-CAND-001…004** e `IQ-M2-011…013` siguen OPEN. M2-0 no queda APPROVED/CLOSED. No se implementaron código, migrations, seeds ni tests ejecutables.
+La corrección documental M20-R01…R10 está implementada: AP conserva journal autoritativo; idempotencia revalida bajo el lock; journals/traces usan orden causal event/ordinal; outbox retiene attempts reconstruibles; y el registry dispone de parámetros completos y auditoría visual 108/108. M20-R10 mantiene 103 operaciones, corrige E021 con contribuciones voluntarias, evidencia comprometida, deduplicación y atomicidad exactas, y aprueba los bindings internos de los seriales 26/28 sin alterar sus literales; la auditoría queda en 102 MATCH, 6 DIFFERENCE y 0 AMBIGUOUS. El gate no pasa: el modelo físico requiere revisión técnica y REG-CAND-001…004 requieren decisión humana; REG-CAND-003 sigue pendiente en todo lo no resuelto expresamente por M20-R10, `IQ-M2-010` queda **PARTIALLY RESOLVED / BLOCKED BY REG-CAND-001…004** e `IQ-M2-011…013` siguen OPEN. M2-0 no queda APPROVED/CLOSED. No se implementaron código, migrations, seeds ni tests ejecutables.
 
 ## 7. M2-1 — PostgreSQL Persistence and Durable Recovery
 
@@ -248,4 +248,4 @@ M2 sólo podrá cerrarse tras nuevas autorizaciones si:
 
 ## 19. Gate de salida documental
 
-El planning gate queda **APPROVED AND CLOSED mediante DEC-076** y M2G-R01…R05 quedan **CLOSED**. M20-R01…R09 están **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**; M2-0 permanece **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** y no está APPROVED/CLOSED. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**. El siguiente paso permitido es revisión técnica del Physical DB Spec/Gate y decisión del Product Owner sobre REG-CAND-001…004; no implementación ni preparación de implementación.
+El planning gate queda **APPROVED AND CLOSED mediante DEC-076** y M2G-R01…R05 quedan **CLOSED**. M20-R01…R10 están **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**; M2-0 permanece **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** y no está APPROVED/CLOSED. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**. El siguiente paso permitido es revisión técnica del Physical DB Spec/Gate y decisión del Product Owner sobre REG-CAND-001…004; no implementación ni preparación de implementación.

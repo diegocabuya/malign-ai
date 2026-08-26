@@ -54,7 +54,7 @@ La redistribución recalcula las regresiones por riesgo y reemplaza el total ant
 
 No tiene owner, candidato ni regresión ejecutable. Su gate es documental: Physical DB Spec, addendum M2, candidate registry, snapshot, reconciliación de fuentes y aprobación expresa de contenido/hashes. **0 casos nuevos / 0 regresiones / DOCUMENTATION AUTHORIZED**.
 
-Resultado actual: **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**. El Physical DB Spec conserva 87 tablas (blob candidato `873049f4dba4297a87f3e8dfdccaf028cc2c4a1f`) y fija AP balance+journal, idempotencia transaction-sealed con recheck concurrente, orden event/ordinal y outbox message/state/attempt. Registry/snapshot reconcilian 100 definitions, 108 templates, 4 aliases, 59 effects, 103 operaciones y 108 audit rows (Registry blob `c3129937a45f55c94a7546c350b93ac331f5b7b6`; JCS SHA-256 `6f777a5bafe7611389d80baa47fa3f0a785014d10b659e3446846bf735e1c897`; JSON blob `d8d8afe220d76043d836c5ba15f89acde0f3a939`). La Review Matrix expone 100/108/6/41/59/103, auditoría primaria 108/108 y checklist canónico vacío (blob `1dbfee8a72016787dd8b829bc1ffb1cf8dc0d826`), pero `REG-CAND-001…004` y la aprobación humana de contenido/hashes siguen pendientes. M20-R01…R09 están implementadas documentalmente y pendientes de revisión; M2-0 no está APPROVED/CLOSED y no habilita M2-1.
+Resultado actual: **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**. El Physical DB Spec conserva 87 tablas (blob candidato `9c58c92f356ccc57c124e15b775c6cda02529378`) y fija AP balance+journal, idempotencia transaction-sealed con recheck concurrente, orden event/ordinal, atomicidad E021 y outbox message/state/attempt. Registry/snapshot reconcilian 100 definitions, 108 templates, 4 aliases, 59 effects, 103 operaciones y 108 audit rows (Registry blob `50ecfe841288e42769fbefdeb9210342c06c7797`; JCS SHA-256 `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74`; JSON blob `2b1d2cd7efe90c52088becb4fe92ec36fffe378d`). La Review Matrix expone 100/108/6/41/59/103, auditoría primaria 108/108 con 102 MATCH, 6 DIFFERENCE y 0 AMBIGUOUS y checklist canónico vacío (blob `028ec6016958aa3f3e6d15ba9dc54c511463f04d`), pero `REG-CAND-001…004` y la aprobación humana de contenido/hashes siguen pendientes. M20-R01…R10 están implementadas documentalmente y pendientes de revisión; M2-0 no está APPROVED/CLOSED y no habilita M2-1.
 
 ## 5. M2-1 — PostgreSQL Persistence and Durable Recovery
 
@@ -338,7 +338,9 @@ Cada fallo afirma ausencia de publish, mutación parcial, RNG adicional y leakag
 - idempotency manifest exige fast lookup + Game lock + recheck obligatorio y cubre same-key concurrente con fingerprint igual/diferente antes de CAS;
 - journals/traces manifiestan `(game_id,game_event_sequence,artifact_ordinal)` único/positivo, replay total y rollback/CAS loser sin gaps permanentes;
 - registry contiene 103/103 operaciones con parameters machine-readable y unknown parameters fail closed;
-- auditoría primaria cubre `Cartas frente.pdf` 108/108 con SHA-256 `3301fd9e92e5d8a8df7a3efc1407434afe0395263a5d6c0e16e0e486faa35113`, 59 literales/41 ausencias por definition y diferencias explícitas;
+- E021 manifiesta contributor payer/elegibility/exclusion, voluntariedad, una contribución de 1 por participante, commit evidence, rechazo sin mutación, deduplicación y máximo; dos operaciones, 103 totales;
+- los invariantes futuros de E021 prueban no contribución del source-card player, +1 `EFFECTIVE_CV` por contribuidor único, atomicidad ante rechazo/saldo insuficiente y retry idempotente sin doble débito/bonus;
+- auditoría primaria cubre `Cartas frente.pdf` 108/108 con SHA-256 `3301fd9e92e5d8a8df7a3efc1407434afe0395263a5d6c0e16e0e486faa35113`, 59 literales/41 ausencias por definition, 102 MATCH, 6 DIFFERENCE y 0 AMBIGUOUS; seriales 26/28 preservan sus literales y registran los bindings internos aprobados por M20-R10;
 - REG-07…10 conservan el significado canónico de REG-CAND-001…004 y ninguna casilla está preseleccionada;
 - IQ-M2-010 parcialmente resuelta y IQ-M2-011…013 registradas sin elección silenciosa;
 - baseline histórica 215/215 no reejecutada en M2-0;
@@ -352,4 +354,4 @@ FAIL ante ID/owner inválido, conteo irreconciliable, test suavizado, fixture qu
 
 ## 16. Estado
 
-El planning gate está **APPROVED AND CLOSED mediante DEC-076** y M2G-R01…R05 están **CLOSED**. M20-R01…R09 están **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**. M2-0 permanece **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** y no está APPROVED/CLOSED. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**. Este documento no crea tests ejecutables ni autoriza implementación.
+El planning gate está **APPROVED AND CLOSED mediante DEC-076** y M2G-R01…R05 están **CLOSED**. M20-R01…R10 están **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**. M2-0 permanece **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** y no está APPROVED/CLOSED. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**. Este documento no crea tests ejecutables ni autoriza implementación.

@@ -15,10 +15,10 @@
 | M2G-R01…R05 | CLOSED mediante DEC-076 |
 | Addendum M2 v0.1 | 32 IDs canónicos; blob `6ae87a904a14a82e4fb174ff4d76eefd47052832` |
 | Candidate histórico registry | preservado, no canónico; blob `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0` |
-| Physical DB Spec v0.1 corregida | 87 tablas; M20-R01…R06 implementadas documentalmente; recheck concurrente y orden event/ordinal explícitos; blob candidato `873049f4dba4297a87f3e8dfdccaf028cc2c4a1f` |
-| Registry Spec v0.1 | 100 definitions/108 templates/59 effects/103 operaciones/108 audit rows; blob candidato `c3129937a45f55c94a7546c350b93ac331f5b7b6` |
-| Registry Snapshot v0.1 | JCS SHA-256 `6f777a5bafe7611389d80baa47fa3f0a785014d10b659e3446846bf735e1c897`; blob candidato `d8d8afe220d76043d836c5ba15f89acde0f3a939` |
-| Product Owner Review Matrix v0.1 | 100/108/6/41/59/103 completos, auditoría primaria 108/108 y checklist canónico vacío; blob candidato `1dbfee8a72016787dd8b829bc1ffb1cf8dc0d826` |
+| Physical DB Spec v0.1 corregida | 87 tablas; M20-R01…R10 implementadas documentalmente; recheck concurrente, orden event/ordinal y atomicidad E021 explícitos; blob candidato `9c58c92f356ccc57c124e15b775c6cda02529378` |
+| Registry Spec v0.1 | 100 definitions/108 templates/59 effects/103 operaciones/108 audit rows; blob candidato `50ecfe841288e42769fbefdeb9210342c06c7797` |
+| Registry Snapshot v0.1 | JCS SHA-256 `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74`; blob candidato `2b1d2cd7efe90c52088becb4fe92ec36fffe378d` |
+| Product Owner Review Matrix v0.1 | 100/108/6/41/59/103 completos, auditoría primaria 108/108 y checklist canónico vacío; blob candidato `028ec6016958aa3f3e6d15ba9dc54c511463f04d` |
 | Primary source M20-R09 | **PREFLIGHT PASS / 108 OF 108 AUDITED**: `Cartas frente.pdf`, SHA-256 verificado `3301fd9e92e5d8a8df7a3efc1407434afe0395263a5d6c0e16e0e486faa35113`; página N = serial N; fuente externa, ausente del repo y del diff. El DOCX fue sólo apoyo, no autoridad. |
 | Baseline ejecutable histórica | 215/215 PASS, 0 skips/todo/waivers; no reejecutada en M2-0 |
 
@@ -61,7 +61,7 @@ Resultado Physical DB: **M20-R01…R06 CORRECTION IMPLEMENTED / PENDING PRODUCT 
 | REG-11 | ningún ID M1 `BASE_CARD_001…108` elevado a 100 definitions | namespace candidato separado | PASS |
 | REG-12 | seed/fixture/handler no creado | scope diff | PASS |
 
-Resultado Registry: **M20-R07…R09 CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW — NOT SEEDABLE**.
+Resultado Registry: **M20-R07…R10 CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW — NOT SEEDABLE**.
 
 ### 3.1 Corrección M20-R01…R04
 
@@ -72,7 +72,7 @@ Resultado Registry: **M20-R07…R09 CORRECTION IMPLEMENTED / PENDING PRODUCT OWN
 | M20-R03 — outbox attempt history | mensaje inmutable, delivery state mutable e historial de attempts append-only; etapas de crash/retry y reconstrucción post-commit explícitas. | **CORRECTION IMPLEMENTED / PENDING TECHNICAL REVIEW** |
 | M20-R04 — human registry review | nueva matriz exhaustiva 100/108/6/41/59, source trace y checklist REG-CAND-001…004 vacío. | **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** |
 
-### 3.2 Segunda corrección M20-R05…R09
+### 3.2 Segunda corrección M20-R05…R10
 
 El preflight de `Cartas frente.pdf` verificó exactamente SHA-256 `3301fd9e92e5d8a8df7a3efc1407434afe0395263a5d6c0e16e0e486faa35113`, 108 páginas y mapping página N = serial N. El PDF permaneció externo y no fue copiado a Git. Con ese gate satisfecho se ejecutó la corrección documental completa:
 
@@ -82,7 +82,8 @@ El preflight de `Cartas frente.pdf` verificó exactamente SHA-256 `3301fd9e92e5d
 | M20-R06 — deterministic journal ordering | `game_event_sequence + artifact_ordinal`, UK/CK/IDX, replay total y rollback/CAS sin gaps en resource/AP/VP/influence/legitimacy/traces | **CORRECTION IMPLEMENTED / PENDING TECHNICAL REVIEW** |
 | M20-R07 — canonical REG-CAND meanings | §§5–10, gate y checklist usan exactamente IDs/mapping; campos+41 ausencias; 59 effects+103 ops; hashes finales posteriores | **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** |
 | M20-R08 — complete typed parameters | 103/103 operaciones con parámetros machine-readable y provenance; 103 complete pending approval, 0 unknown/N/A/unresolved; unknown falla cerrado | **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** |
-| M20-R09 — exhaustive primary-source audit | 108/108 páginas; 102 MATCH, 5 DIFFERENCE, 1 AMBIGUOUS; cinco starters, cuatro aliases, seis grupos, 59 effects/41 ausencias por definition | **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** |
+| M20-R09 — exhaustive primary-source audit | 108/108 páginas; cinco starters, cuatro aliases, seis grupos, 59 effects/41 ausencias por definition | **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** |
+| M20-R10 — E021 + bindings 26/28 | E021 mantiene dos operaciones y 103 totales, con contributor payer/elegibility/exclusion/commit/dedup/atomicidad explícitos; serial 26 `DP` → `PD`; serial 28 `cubos de resistencia`/`DP` → blue `RESILIENCY`/`PD`; literal primario intacto; auditoría 102 MATCH, 6 DIFFERENCE, 0 AMBIGUOUS | **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** |
 
 La corrección no selecciona casillas, no aprueba hashes, no vuelve seedable/ACTIVE al registry y no crea DEC-077.
 
@@ -95,7 +96,7 @@ La corrección no selecciona casillas, no aprueba hashes, no vuelve seedable/ACT
 | SNP-03 | keys canonicalizables, arrays con orden declarado, sólo JSON válido | PASS |
 | SNP-04 | serial/template/definition/effect/alias uniqueness y refs completas | PASS |
 | SNP-05 | Markdown↔snapshot igualdad de conteos/mapping/hashes | PASS mecánico |
-| SNP-06 | JCS determinístico en dos canonicalizaciones independientes | PASS; `6f777a5bafe7611389d80baa47fa3f0a785014d10b659e3446846bf735e1c897` |
+| SNP-06 | JCS determinístico en dos canonicalizaciones independientes | PASS; `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74` |
 | SNP-07 | source digests y hashes normativos preservados | PASS mecánico |
 | SNP-08 | JCS SHA y blobs aprobados expresamente | **FAIL — PENDING PRODUCT OWNER APPROVAL** |
 
@@ -105,7 +106,7 @@ La corrección no selecciona casillas, no aprueba hashes, no vuelve seedable/ACT
 
 - `REG-CAND-001`: aprobar/corregir 100 IDs y mapping 108→100, incluidos 95–96, 97–98, 99–101, 102–103, 104–106 y 107–108;
 - `REG-CAND-002`: aprobar/corregir names, types/subtypes, alignment, IV, costs, flags y las 41 ausencias de efecto;
-- `REG-CAND-003`: aprobar/corregir 59 effect IDs, triggers, timings, 103 operations, order y machine-readable parameters;
+- `REG-CAND-003`: aprobar/corregir 59 effect IDs, triggers, timings, 103 operations, order y machine-readable parameters; sigue pendiente aunque M20-R10 ya corrigió E021 y eliminó la ambigüedad de los bindings 26/28;
 - `REG-CAND-004`: aprobar JCS SHA-256 y Git blob hashes finales sólo después de resolver REG-CAND-001…003.
 
 Bloquean el cierre M2-0, el registry seed de M2-1, el manifest completo M2-3 y los effects de M2-4/M2-5. `IQ-M2-011…013` permanecen **OPEN**. IQ-M2-008 y IQ-M2-009 también permanecen OPEN y bloquean el claim productivo M2-2.
@@ -116,7 +117,7 @@ Bloquean el cierre M2-0, el registry seed de M2-1, el manifest completo M2-3 y l
 M2-0 RESULT = BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW
 ```
 
-Razón binaria: M20-R01…R09 están **CORRECTION IMPLEMENTED / PENDING REVIEW**, pero PDB-13, REG-07…10 y SNP-08 siguen FAIL/PENDING hasta aprobación humana. La corrección técnica-documental no sustituye esa decisión; registry/snapshot/matriz permanecen candidatos no aprobados y `seedable=false`. Por tanto:
+Razón binaria: M20-R01…R10 están **CORRECTION IMPLEMENTED / PENDING REVIEW**, pero PDB-13, REG-07…10 y SNP-08 siguen FAIL/PENDING hasta aprobación humana. M20-R10 resolvió exclusivamente E021 y los bindings 26/28; no equivale a aprobar REG-CAND-001…004. La corrección técnica-documental no sustituye esa decisión; registry/snapshot/matriz permanecen candidatos no aprobados y `seedable=false`. Por tanto:
 
 - M2-0 **no** queda APPROVED ni CLOSED;
 - M2-1…M2-7 permanecen **NOT AUTHORIZED**;

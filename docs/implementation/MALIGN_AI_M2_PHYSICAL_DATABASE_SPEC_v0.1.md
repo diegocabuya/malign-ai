@@ -1,7 +1,7 @@
 # MALIGN-AI — M2 PHYSICAL DATABASE SPECIFICATION v0.1
 
 **Fecha:** 2026-08-26
-**Estado:** **M2-0 CORRECTION M20-R01…R06 IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW — NO EXECUTABLE SCHEMA AUTHORIZED**
+**Estado:** **M2-0 CORRECTIONS M20-R01…R10 IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW — NO EXECUTABLE SCHEMA AUTHORIZED**
 **Autoridad de preparación:** DEC-076
 **Implementación, DDL, migrations y seed:** **NOT AUTHORIZED**
 
@@ -236,6 +236,8 @@ El segundo lookup es obligatorio aunque el fast path haya fallado: cierra la car
 
 Operaciones especialmente atómicas: setup/materialización; draw/shuffle/hand limit; plan lock/AP; transfer; campaign replacement; suspend/resume; reaction/Veto; campaign payment+ERT+2:1+VP/legitimacy; viral; victory settlement; facilitator correction; snapshot checkpoint.
 
+Para `CARD_EFFECT_BASE_2025_E021`, M20-R10 no añade tablas ni DDL: las futuras filas `resource_transactions` comprometidas y el `adjudication_trace` de la misma transacción son la evidencia durable `COMMITTED_RESOURCE_SPEND_ROW(S)`. La transacción debe imponer una sola contribución voluntaria de exactamente 1 recurso por cada participante activo distinto de `SOURCE_CARD_PLAYER`, rechazar duplicados o saldo insuficiente sin mutación, deduplicar el bonus por `PARTICIPANT_ID`, sumar exactamente +1 a `EFFECTIVE_CV` por contribuidor único y hacer que retries idempotentes no dupliquen débito ni bonus. El bonus final debe equivaler al conteo de contribuidores únicos comprometidos, con máximo `ACTIVE_PLAYER_COUNT_MINUS_ONE`; no se impone orden adicional.
+
 ### 6.1 Matriz de operaciones atómicas
 
 | Operación | Filas mínimas en una sola transacción | Lock/check de entrada | Evidencia al commit |
@@ -381,4 +383,4 @@ Acceptance adicional obligatoria:
 
 ## 13. Gate
 
-Las correcciones documentales **M20-R01…R06 están IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**. El catálogo permanece en **87 tablas**: R05/R06 sólo completan lifecycle, columnas e invariantes de las tablas ya reconciliadas. Este documento queda **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**: no contiene DDL ejecutable y no aprueba las 87 tablas, UUID generator, RLS, particionado, proveedor, ORM, cloud, AuthN, WebSocket ni migrations. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
+Las correcciones documentales **M20-R01…R10 están IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**. El catálogo permanece en **87 tablas**: R05/R06 sólo completan lifecycle, columnas e invariantes de las tablas ya reconciliadas y R10 documenta la atomicidad E021 sin añadir estructura. Este documento queda **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**: no contiene DDL ejecutable y no aprueba las 87 tablas, UUID generator, RLS, particionado, proveedor, ORM, cloud, AuthN, WebSocket ni migrations. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.

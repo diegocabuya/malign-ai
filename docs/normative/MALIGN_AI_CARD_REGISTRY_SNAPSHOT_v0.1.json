@@ -3909,6 +3909,15 @@
     },
     {
       "authority_status": "candidate_pending_product_owner_approval",
+      "approved_semantic_bindings": [
+        {
+          "approval": "PRODUCT_OWNER_M20_R10",
+          "internal_concept": "PD",
+          "internal_name": "Population Demographic",
+          "primary_literal": "DP",
+          "source_literal_preserved": true
+        }
+      ],
       "effect_id": "CARD_EFFECT_BASE_2025_E014",
       "effect_version": "0.1-candidate",
       "operations": [
@@ -3986,6 +3995,22 @@
     },
     {
       "authority_status": "candidate_pending_product_owner_approval",
+      "approved_semantic_bindings": [
+        {
+          "approval": "PRODUCT_OWNER_M20_R10",
+          "internal_concept": "PD",
+          "internal_name": "Population Demographic",
+          "primary_literal": "DP",
+          "source_literal_preserved": true
+        },
+        {
+          "approval": "PRODUCT_OWNER_M20_R10",
+          "internal_concept": "RESILIENCY",
+          "internal_name": "blue RESILIENCY cubes",
+          "primary_literal": "cubos de resistencia",
+          "source_literal_preserved": true
+        }
+      ],
       "effect_id": "CARD_EFFECT_BASE_2025_E015",
       "effect_version": "0.1-candidate",
       "operations": [
@@ -4364,9 +4389,16 @@
               "MALIGN_AI_RULE_EFFECT_TAXONOMY_v0.2.md"
             ],
             "source_text_is_authoritative_only_after_approval": true,
-            "payer": "ACTOR",
+            "payer": "EACH_COMMITTED_CONTRIBUTOR",
+            "eligible_contributors": "EACH_OTHER_ACTIVE_PLAYER",
+            "excluded_participant": "SOURCE_CARD_PLAYER",
+            "contribution_mode": "VOLUNTARY",
+            "amount_per_contributor": 1,
+            "max_contributions_per_participant": 1,
             "resource_type": "RESOURCE",
-            "insufficiency_result": "TYPED_REJECTION_NO_MUTATION"
+            "commit_evidence": "COMMITTED_RESOURCE_SPEND_ROW",
+            "insufficient_balance_result": "CONTRIBUTION_REJECTED_NO_MUTATION",
+            "duplicate_contribution_result": "CONTRIBUTION_REJECTED_NO_MUTATION"
           }
         },
         {
@@ -4383,9 +4415,20 @@
             "source_text_is_authoritative_only_after_approval": true,
             "amount_per_successful_contributor": 1,
             "applies_to": "EFFECTIVE_CV",
-            "contributor_evidence": "COMMITTED_RESOURCE_SPEND_ROWS"
+            "contributor_evidence": "COMMITTED_RESOURCE_SPEND_ROWS",
+            "deduplicate_by": "PARTICIPANT_ID",
+            "maximum_successful_contributors": "ACTIVE_PLAYER_COUNT_MINUS_ONE"
           }
         }
+      ],
+      "transactional_invariants": [
+        "ONE_COMMITTED_CONTRIBUTION_OF_EXACTLY_ONE_RESOURCE_PER_ELIGIBLE_PARTICIPANT",
+        "SOURCE_CARD_PLAYER_CANNOT_CONTRIBUTE",
+        "EACH_COMMITTED_CONTRIBUTION_ADDS_EXACTLY_ONE_EFFECTIVE_CV",
+        "REJECTED_DUPLICATE_OR_INSUFFICIENT_CONTRIBUTION_CONSUMES_NO_RESOURCE_AND_ADDS_NO_CV",
+        "IDEMPOTENT_RETRY_DOES_NOT_DUPLICATE_DEBIT_OR_BONUS",
+        "FINAL_BONUS_EQUALS_UNIQUE_PARTICIPANT_COUNT_WITH_COMMITTED_CONTRIBUTION",
+        "CONTRIBUTION_ORDER_UNSPECIFIED_NO_ADDITIONAL_RULE"
       ],
       "source_definition_id": "CARD_DEF_BASE_2025_D042",
       "source_refs": [
@@ -8244,8 +8287,15 @@
       "printed_effect_observation": "LITERAL_TRANSCRIBED",
       "comparison_result": "DIFFERENCE",
       "differences": [
-        "Primary literal uses 'DP'; internal domain vocabulary uses Population Demographic/PD. Literal retained; semantic mapping remains candidate pending approval."
-      ]
+        "Primary literal 'DP' is preserved exactly; Product Owner M20-R10 approves its internal normalization to PD — Population Demographic."
+      ],
+      "semantic_binding": {
+        "approval": "PRODUCT_OWNER_M20_R10",
+        "internal_concept": "PD",
+        "internal_name": "Population Demographic",
+        "primary_literal": "DP",
+        "source_literal_preserved": true
+      }
     },
     {
       "serial_within_country_set": 27,
@@ -8295,10 +8345,18 @@
       "printed_remove_after_use": false,
       "printed_effect_text": "GASTA 3 Recursos para agregar 3 cubos de resistencia a cualquier 1 DP.",
       "printed_effect_observation": "LITERAL_TRANSCRIBED",
-      "comparison_result": "AMBIGUOUS",
+      "comparison_result": "DIFFERENCE",
       "differences": [
-        "Primary literal says 'resistencia' and 'DP'; candidate operation maps the blue defensive cubes to RESILIENCY/PD. Literal retained; interpretation remains pending approval."
-      ]
+        "Primary literals 'cubos de resistencia' and 'DP' are preserved exactly; Product Owner M20-R10 approves their internal bindings to blue RESILIENCY cubes and PD — Population Demographic."
+      ],
+      "semantic_binding": {
+        "approval": "PRODUCT_OWNER_M20_R10",
+        "internal_bindings": {
+          "DP": "PD_POPULATION_DEMOGRAPHIC",
+          "cubos de resistencia": "BLUE_RESILIENCY_CUBES"
+        },
+        "source_literals_preserved": true
+      }
     },
     {
       "serial_within_country_set": 29,
@@ -10389,8 +10447,8 @@
   "primary_source_audit_count": 108,
   "primary_source_audit_summary": {
     "match": 102,
-    "difference": 5,
-    "ambiguous": 1,
+    "difference": 6,
+    "ambiguous": 0,
     "effect_definitions_literal": 59,
     "no_effect_definitions": 41,
     "effect_text_pages": 66,

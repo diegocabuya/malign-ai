@@ -1,7 +1,7 @@
 # MALIGN-AI — CARD REGISTRY SPECIFICATION v0.1
 
 **Fecha:** 2026-08-26
-**Estado:** **M20-R07…R09 CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW — NOT SEEDABLE**
+**Estado:** **M20-R07…R10 CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW — NOT SEEDABLE**
 **Autoridad de preparación:** DEC-076
 **Snapshot compañero:** `MALIGN_AI_CARD_REGISTRY_SNAPSHOT_v0.1.json`
 
@@ -20,9 +20,9 @@
 | Effect definitions candidatas | 59 | IDs/trigger/timing/operations pendientes de aprobación |
 | Definitions sin texto de efecto observado | 41 | ausencia DRAFT pendiente de aprobación, no `NONE` aprobado |
 | Operaciones tipadas | 103 | 103 con parámetros machine-readable completos pendientes de aprobación; 0 unknown/N/A |
-| Auditoría primaria | 108/108 páginas | 102 MATCH, 5 DIFFERENCE, 1 AMBIGUOUS; no implica aprobación |
+| Auditoría primaria | 108/108 páginas | 102 MATCH, 6 DIFFERENCE, 0 AMBIGUOUS; no implica aprobación |
 
-El snapshot tiene status exacto `candidate_pending_review`, `seedable=false`, 100 definitions ordenadas, 108 templates ordenados, 59 effects, 103 operaciones y 108 filas de auditoría primaria. Su JCS SHA-256 candidato es `6f777a5bafe7611389d80baa47fa3f0a785014d10b659e3446846bf735e1c897`; su Git blob SHA candidato es `d8d8afe220d76043d836c5ba15f89acde0f3a939`. Ninguno queda aprobado por DEC-076.
+El snapshot tiene status exacto `candidate_pending_review`, `seedable=false`, 100 definitions ordenadas, 108 templates ordenados, 59 effects, 103 operaciones y 108 filas de auditoría primaria. Su JCS SHA-256 candidato es `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74`; su Git blob SHA candidato es `2b1d2cd7efe90c52088becb4fe92ec36fffe378d`. Ninguno queda aprobado por DEC-076.
 
 ## 2. Fuentes, autoridad y precedencia
 
@@ -147,6 +147,14 @@ Las 59 definitions se descomponen en 23 pair bonuses, 16 Action, 6 Reaction, 5 S
 
 La conversión de texto a operaciones es candidata. Aun cuando el oracle aprueba una semántica, el binding entre esa semántica, el nuevo definition ID y el nuevo effect ID requiere aprobación expresa.
 
+### 9.1 Corrección acotada M20-R10
+
+`CARD_EFFECT_BASE_2025_E021` conserva exactamente dos operaciones y el total global permanece en 103. Su `RESOURCE_SPEND` modela contribuciones voluntarias de cada otro jugador activo: el pagador es `EACH_COMMITTED_CONTRIBUTOR`, se excluye `SOURCE_CARD_PLAYER`, cada participante puede comprometer exactamente una contribución de 1 `RESOURCE`, y el commit queda probado por `COMMITTED_RESOURCE_SPEND_ROW`. Saldo insuficiente o duplicado rechazan sin mutación. `CV_ADD` suma 1 a `EFFECTIVE_CV` por contribuidor comprometido, deduplicado por `PARTICIPANT_ID`, con máximo `ACTIVE_PLAYER_COUNT_MINUS_ONE`.
+
+La unidad transaccional conserva seis garantías: sólo una contribución comprometida de exactamente 1 recurso por participante elegible; el controlador de la carta no contribuye; cada contribución comprometida añade exactamente +1 CV; rechazos no consumen recurso ni añaden CV; retries idempotentes no duplican débito ni bonus; y el bonus final equivale al conteo de participantes únicos con contribución comprometida. El orden de contribuciones queda deliberadamente no especificado y no crea una regla adicional.
+
+Los literales primarios de los seriales 26 y 28 permanecen intactos. Product Owner M20-R10 aprueba únicamente estos bindings internos: en serial 26, `DP` → `PD` — Population Demographic; en serial 28, `cubos de resistencia` → cubos azules `RESILIENCY` y `DP` → `PD`. Por ello la auditoría pasa a 102 MATCH, 6 DIFFERENCE y 0 AMBIGUOUS. Estas resoluciones parciales no aprueban el resto de REG-CAND-003.
+
 ## 10. Versionado y compatibilidad
 
 ```text
@@ -179,8 +187,8 @@ Hashes calculados sobre el artifact actual:
 
 | Artifact | Algoritmo | Hash candidato |
 |---|---|---|
-| Snapshot canonicalizado | SHA-256 sobre bytes JCS | `6f777a5bafe7611389d80baa47fa3f0a785014d10b659e3446846bf735e1c897` |
-| Snapshot pretty JSON | Git blob SHA-1 | `d8d8afe220d76043d836c5ba15f89acde0f3a939` |
+| Snapshot canonicalizado | SHA-256 sobre bytes JCS | `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74` |
+| Snapshot pretty JSON | Git blob SHA-1 | `2b1d2cd7efe90c52088becb4fe92ec36fffe378d` |
 | Este Markdown | Git blob SHA-1 | se calcula después de cerrar el artifact y se registra en gate/state |
 
 Estos hashes son evidencia de revisión, **no aprobación**.
@@ -203,11 +211,11 @@ Estos hashes son evidencia de revisión, **no aprobación**.
 
 1. `REG-CAND-001`: aprobar o corregir los 100 IDs y mapping 108→100, incluidos exactamente 95–96, 97–98, 99–101, 102–103, 104–106 y 107–108;
 2. `REG-CAND-002`: aprobar nombres, types/subtypes, alignment, IV, costs, flags y las 41 definitions sin texto de efecto;
-3. `REG-CAND-003`: aprobar o corregir 59 effect IDs, triggers, timings, 103 operaciones, orden y parámetros;
+3. `REG-CAND-003`: aprobar o corregir 59 effect IDs, triggers, timings, 103 operaciones, orden y parámetros; permanece pendiente aunque M20-R10 ya corrigió E021 y resolvió los bindings de los seriales 26/28 sin ambigüedad;
 4. `REG-CAND-004`: aprobar el JCS SHA-256 y los Git blob hashes finales sólo después de resolver REG-CAND-001…003.
 
 `REG-CAND-004` no significa “hacer seedable/ACTIVE”: la transición futura a ACTIVE requerirá una decisión canónica separada posterior a los cuatro gates. Mientras alguno permanezca pendiente, IQ-M2-010 está sólo parcialmente resuelta y M2-0 no puede cerrar. M2-1 seed y M2-3/M2-4/M2-5 registry-dependent permanecen bloqueados y no autorizados.
 
 ## 14. Estado del gate
 
-M20-R07…R09 quedan **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**. El inventario y la auditoría primaria están completos como **candidato reproducible**; la autoridad de IDs, contenido, bindings y hashes no está cerrada. Resultado: **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW — NOT SEEDABLE**. No se creó seed, fixture, handler ni código ejecutable; M2-1…M2-7 permanecen **NOT AUTHORIZED**.
+M20-R07…R10 quedan **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**. M20-R10 materializa exclusivamente la semántica E021 y los bindings aprobados de los seriales 26/28; no aprueba REG-CAND-001…004. El inventario y la auditoría primaria están completos como **candidato reproducible**; la autoridad restante de IDs, contenido, bindings y hashes no está cerrada. Resultado: **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW — NOT SEEDABLE**. No se creó seed, fixture, handler ni código ejecutable; M2-1…M2-7 permanecen **NOT AUTHORIZED**.
