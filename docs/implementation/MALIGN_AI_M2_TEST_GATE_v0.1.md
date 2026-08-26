@@ -1,13 +1,13 @@
 # MALIGN-AI — M2 TEST GATE v0.1
 
 **Fecha:** 2026-08-25
-**Estado:** AMENDED / PENDING FINAL REVIEW
-**Autoridad:** DEC-074 + DEC-075 — documentación únicamente
+**Estado:** PLANNING GATE APPROVED AND CLOSED / M2-0 RESULT BLOCKED PENDING REVIEW
+**Autoridad:** DEC-074 + DEC-075 + DEC-076 — M2-0 documental únicamente
 **Oracle:** `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_SPEC_v0.1.md`
 **Addenda:** M1 v0.1 preservado; M2 v0.1 aprobado como test acceptance baseline
 **Implementación M2:** **NOT AUTHORIZED**
 
-> Este gate cataloga y asigna cobertura; no crea tests ejecutables. Los 32 IDs `GE-M2-*` son canónicos como baseline futuro mediante DEC-075, pero su implementación no está autorizada.
+> Este gate cataloga y asigna cobertura; no crea tests ejecutables. DEC-076 cierra el planning gate y autoriza únicamente las comprobaciones documentales M2-0. Los 32 IDs `GE-M2-*` permanecen baseline canónico futuro; su implementación no está autorizada.
 
 ## 1. Reglas del gate
 
@@ -52,7 +52,9 @@ La redistribución recalcula las regresiones por riesgo y reemplaza el total ant
 
 ## 4. M2-0 — Canonical Foundations Gate
 
-No tiene owner, candidato ni regresión ejecutable. Su gate es documental: Physical DB Spec, addendum M2, candidate registry, reconciliación de fuentes y aprobación expresa de contenido/hashes. **0 casos nuevos / 0 regresiones / NOT AUTHORIZED**.
+No tiene owner, candidato ni regresión ejecutable. Su gate es documental: Physical DB Spec, addendum M2, candidate registry, snapshot, reconciliación de fuentes y aprobación expresa de contenido/hashes. **0 casos nuevos / 0 regresiones / DOCUMENTATION AUTHORIZED**.
+
+Resultado actual: **BLOCKED / PENDING RESOLUTION**. El Physical DB Spec documenta 84 tablas (blob candidato `30a8bc9657fb958e21a09af22591f6e959edb3fe`) y el registry/snapshot reconcilia 100 definitions, 108 serial templates, 4 aliases y 59 effects (Registry blob `6472b136a806f403747defe1d59ed44fb78f49fa`; JCS SHA-256 `37e1e27e142a2e08d8a19418089602bc72d775b9f5944059acc27ee4de93c83e`; JSON blob `a8c3ee9f3b78113e1f94891a9b0c634083107ec3`), pero `REG-CAND-001…004` y la aprobación humana de hashes siguen pendientes. M2-0 no está APPROVED/CLOSED y no habilita M2-1.
 
 ## 5. M2-1 — PostgreSQL Persistence and Durable Recovery
 
@@ -330,6 +332,11 @@ Cada fallo afirma ausencia de publish, mutación parcial, RNG adicional y leakag
 - repeticiones interbloque justificadas por boundary/riesgo;
 - baseline 215 separado de nuevos/regresiones;
 - oracle y addendum M1 byte-for-byte intactos;
+- addendum M2 preservado con blob `6ae87a904a14a82e4fb174ff4d76eefd47052832`;
+- candidate histórico preservado con blob `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`;
+- snapshot JSON válido, JCS determinístico y cardinalidades/IDs/refs reconciliados;
+- IQ-M2-010 parcialmente resuelta y IQ-M2-011…013 registradas sin elección silenciosa;
+- baseline histórica 215/215 no reejecutada en M2-0;
 - ningún test, fixture o código creado por este gate.
 
 ## 15. Criterios PASS/FAIL futuros
@@ -340,4 +347,4 @@ FAIL ante ID/owner inválido, conteo irreconciliable, test suavizado, fixture qu
 
 ## 16. Estado
 
-**AMENDED / PENDING FINAL REVIEW** mediante DEC-075. M2, M2-0…M2-7 y M3 permanecen **NOT AUTHORIZED**. Este documento no crea tests ejecutables ni autoriza implementación.
+El planning gate está **APPROVED AND CLOSED mediante DEC-076** y M2G-R01…R05 están **CLOSED**. M2-0 fue autorizado sólo documentalmente y su resultado es **BLOCKED / PENDING RESOLUTION**; no está APPROVED/CLOSED. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**. Este documento no crea tests ejecutables ni autoriza implementación.

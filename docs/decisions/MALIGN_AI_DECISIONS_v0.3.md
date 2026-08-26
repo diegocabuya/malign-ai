@@ -1003,3 +1003,34 @@ DEC-075 autoriza exclusivamente documentación. No autoriza M2 ni ninguna subeta
 **IMPACTO:** El planning gate queda en estado `AMENDED / PENDING FINAL REVIEW`; `IQ-M2-008…010` permanecen abiertas. M2, M2-0…M2-7 y M3 permanecen `NOT AUTHORIZED`.
 
 **ESTADO:** APPROVED — DOCUMENTATION-ONLY AMENDMENT
+
+---
+
+## DEC-076 — Aprobación del planning gate M2 y autorización exclusivamente documental de M2-0
+
+**FECHA:** 2026-08-25
+**TEMA:** Cierre del planning gate M2 y preparación de sus fundamentos canónicos.
+
+**DECISIÓN:**
+
+- El planning gate M2 corregido queda aprobado contra `2bfc49d17722538ee2f2688d5dd3735b1468fe5c`.
+- M2G-R01…R05 quedan `CLOSED`.
+- Se aprueba la estructura M2-0…M2-7.
+- Se fija el addendum M2 de 32 IDs como baseline canónico e inmutable con blob SHA `6ae87a904a14a82e4fb174ff4d76eefd47052832`.
+- Se confirman:
+  - oracle: 224 IDs;
+  - implementados: 71;
+  - owners M2: 153;
+  - addendum M2: 32;
+  - casos nuevos únicos: 185;
+  - regresiones dirigidas: 86;
+  - ejecuciones dirigidas: 271;
+  - suite mínima futura: 400.
+- El registry candidate con blob SHA `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0` se conserva exclusivamente como candidato.
+- Se autoriza únicamente M2-0 documental.
+- DEC-076 no aprueba anticipadamente el Physical Database Spec ni un registry derivado.
+- El contenido y hash resultantes de M2-0 requieren revisión técnica y una decisión posterior.
+- M2-1…M2-7, M2 global y M3 permanecen `NOT AUTHORIZED`.
+- IQ-M2-008 e IQ-M2-009 permanecen abiertas.
+
+**ESTADO:** `APPROVED — M2 PLANNING CLOSED / M2-0 DOCUMENTATION ONLY`

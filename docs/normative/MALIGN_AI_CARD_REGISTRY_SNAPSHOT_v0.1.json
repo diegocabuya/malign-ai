@@ -1,0 +1,5957 @@
+{
+  "aliases": [
+    {
+      "alias_display": "Alianzas Público-Privadas",
+      "alias_normalized": "alianzas público-privadas",
+      "authority": "DEC-029_APPROVED",
+      "definition_id": "CARD_DEF_BASE_2025_D004",
+      "locale": "es"
+    },
+    {
+      "alias_display": "HACK BACK",
+      "alias_normalized": "hack back",
+      "authority": "DEC-029_APPROVED",
+      "definition_id": "CARD_DEF_BASE_2025_D043",
+      "locale": "es"
+    },
+    {
+      "alias_display": "Teoría de la Conspiración",
+      "alias_normalized": "teoría de la conspiración",
+      "authority": "DEC-029_APPROVED",
+      "definition_id": "CARD_DEF_BASE_2025_D083",
+      "locale": "es"
+    },
+    {
+      "alias_display": "Verificación de Datos",
+      "alias_normalized": "verificación de datos",
+      "authority": "DEC-029_APPROVED",
+      "definition_id": "CARD_DEF_BASE_2025_D084",
+      "locale": "es"
+    }
+  ],
+  "compatibility": {
+    "content_authority": "pending_product_owner_approval",
+    "effect_dispatch": "typed_operations_only_after_registry_approval",
+    "minimum_engine_contract_version": "0.1",
+    "seedable": false
+  },
+  "country_ids": [
+    "ARDEN",
+    "FLUMA",
+    "URSARIA",
+    "PRESQUE",
+    "DINESIA"
+  ],
+  "definition_count": 100,
+  "definitions": [
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D001",
+      "display_name": "Acuerdos Comerciales",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E001"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        1
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 1",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D002",
+      "display_name": "Agravios Históricos",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E002"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        2
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 2",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D003",
+      "display_name": "Asesores Militares",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 3,
+        "method": 3
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        3
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 3",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D004",
+      "display_name": "Asociaciones Público-Privadas",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 5,
+        "method": 5
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        4
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 4",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D005",
+      "display_name": "Ataque de Denegación de Servicio",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 2,
+        "method": 2
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        5
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 5",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D006",
+      "display_name": "Atribución",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 3,
+        "method": 3
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        6
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 6",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D007",
+      "display_name": "Cabildos",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        7
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 7",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D008",
+      "display_name": "Campaña de Alfabetización Mediática",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E003"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "method": 5
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        8
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 8",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D009",
+      "display_name": "#Campaña",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E004"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 1
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        9
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 9",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D010",
+      "display_name": "Campaña de Hostigamiento",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E005"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        10
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 10",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D011",
+      "display_name": "Acción Encubierta",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 5,
+        "method": 5
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        11
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 11",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D012",
+      "display_name": "Agente Doble",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E006"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": 1,
+      "serials": [
+        12
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 12",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D013",
+      "display_name": "Apps de Chat",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E007"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        13
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 13",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D014",
+      "display_name": "Aprendizaje basado en juegos",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        14
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 14",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D015",
+      "display_name": "Astroturfing",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E008"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 3,
+        "method": 3
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        15
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 15",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D016",
+      "display_name": "Cámara de Eco",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 3,
+        "method": 3
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        16
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 16",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D017",
+      "display_name": "Censura Doméstica",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E009"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 5,
+        "method": 5
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        17
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 17",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 0,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D018",
+      "display_name": "Ciberseguridad",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E010"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": true,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        18
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 18",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": "REACTION"
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D019",
+      "display_name": "Cohesión Social",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "intent": 3
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        19
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 19",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D020",
+      "display_name": "Comentaristas Políticos",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E011"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        20
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 20",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 0,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D021",
+      "display_name": "Contrainteligencia",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E012"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": true,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        21
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 21",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": "REACTION"
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D022",
+      "display_name": "Control Editorial",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        22
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 22",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D023",
+      "display_name": "Descartar",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E013"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        23
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 23",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D024",
+      "display_name": "Desinformación",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        24
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 24",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D025",
+      "display_name": "Ejército de Bots",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 2
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        25
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 25",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D026",
+      "display_name": "Filtraciones",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E014"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        26
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 26",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D027",
+      "display_name": "Financiamiento Externo",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        27
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 27",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D028",
+      "display_name": "Gestión de Crisis",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E015"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": 3,
+      "serials": [
+        28
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 28",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D029",
+      "display_name": "Influencers",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 2,
+        "method": 2
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        29
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 29",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D030",
+      "display_name": "Intercambio de Inteligencia",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 5,
+        "method": 5
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        30
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 30",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D031",
+      "display_name": "Ladrón Encubierto",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E016"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        31
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 31",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D032",
+      "display_name": "Medidas Activas",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E017"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": 1,
+      "serials": [
+        32
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 32",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D033",
+      "display_name": "Microtargeting",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E018"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 6
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        33
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 33",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D034",
+      "display_name": "Noticias Falsas",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 5,
+        "method": 5
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        34
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 34",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D035",
+      "display_name": "Patrocinio educativo",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 3,
+        "method": 3
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        35
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 35",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D036",
+      "display_name": "Prensa Independiente",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        36
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 36",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D037",
+      "display_name": "Sanciones Económicas",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E019"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        37
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 37",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D038",
+      "display_name": "Seguridad Electoral",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E020"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 3,
+        "method": 3
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        38
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 38",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D039",
+      "display_name": "Think Tanks",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        39
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 39",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D040",
+      "display_name": "Chantaje",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        40
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 40",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D041",
+      "display_name": "Ciberataque",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 5,
+        "method": 5
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        41
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 41",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D042",
+      "display_name": "Construcción de coalición",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E021"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 2,
+        "method": 2
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        42
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 42",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 0,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D043",
+      "display_name": "Contraataque Informático",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E022"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": true,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        43
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 43",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": "REACTION"
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D044",
+      "display_name": "Curso de Alfabetización Mediática",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 3,
+        "method": 3
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        44
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 44",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D045",
+      "display_name": "Deepfake",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 6,
+        "method": 6
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        45
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 45",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D046",
+      "display_name": "Desinformación Electoral",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E023"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        46
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 46",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D047",
+      "display_name": "Desplataformización",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 6,
+        "method": 6
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        47
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 47",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D048",
+      "display_name": "Detección de Bots y Spam",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 2,
+        "method": 2
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        48
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 48",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D049",
+      "display_name": "Diásporas",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E024"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        49
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 49",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D050",
+      "display_name": "Diplomacia Pública",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "method": 5
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        50
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 50",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D051",
+      "display_name": "Doble Acción",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E025"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": 1,
+      "serials": [
+        51
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 51",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D052",
+      "display_name": "Doxing",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 3,
+        "method": 3
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        52
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 52",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D053",
+      "display_name": "Efectos Nacionales",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 6,
+        "method": 6
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        53
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 53",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D054",
+      "display_name": "Ejercicios Militares",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E026"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 6,
+        "method": 6
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": 1,
+      "serials": [
+        54
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 54",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D055",
+      "display_name": "Emitir Códigos y Estándares",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E027"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 2,
+        "method": 2
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        55
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 55",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D056",
+      "display_name": "Espionaje",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E028"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        56
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 56",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D057",
+      "display_name": "Foros en Línea",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E029"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        57
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 57",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D058",
+      "display_name": "Fortalecer Instituciones",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E030"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        58
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 58",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 0,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "STARTER",
+      "definition_id": "CARD_DEF_BASE_2025_D059",
+      "display_name": "Giro de Política",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E031"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": true,
+      "remove_after_use": true,
+      "resource_cost": null,
+      "serials": [
+        59
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 59",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": "FREE_PLAY"
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D060",
+      "display_name": "Guerra Jurídica",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E032"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 5,
+        "method": 5
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        60
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 60",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D061",
+      "display_name": "Identidades Falsas",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E033"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 3
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        61
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 61",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D062",
+      "display_name": "Infraestructura de Información",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        62
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 62",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 0,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "STARTER",
+      "definition_id": "CARD_DEF_BASE_2025_D063",
+      "display_name": "Intención Libre",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E034"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "intent": 1
+      },
+      "is_reaction": false,
+      "is_starter": true,
+      "remove_after_use": true,
+      "resource_cost": null,
+      "serials": [
+        63
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 63",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": "CAMPAIGN_INTENT"
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D064",
+      "display_name": "Interagencia",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E035"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": 1,
+      "serials": [
+        64
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 64",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 0,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D065",
+      "display_name": "Leyes Anticorrupción",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E036"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": true,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        65
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 65",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": "REACTION"
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D066",
+      "display_name": "Lista Blanca",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E037"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 2
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        66
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 66",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D067",
+      "display_name": "Manipulación Electoral",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 5,
+        "method": 5
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        67
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 67",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D068",
+      "display_name": "Memes Maliciosos",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E038"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 2,
+        "method": 2
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        68
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 68",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D069",
+      "display_name": "Movilización Militar",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E039"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 6,
+        "method": 6
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": 3,
+      "serials": [
+        69
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 69",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D070",
+      "display_name": "Movilización Popular",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        70
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 70",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D071",
+      "display_name": "Participación de la Sociedad Civil",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "method": 5
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        71
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 71",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D072",
+      "display_name": "Política Coordinada",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 6,
+        "method": 6
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        72
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 72",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 0,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D073",
+      "display_name": "Derecho preferente de compra",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E040"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": true,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        73
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 73",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": "REACTION"
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D074",
+      "display_name": "Presión Económica",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E041"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 6,
+        "method": 6
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        74
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 74",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 0,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "STARTER",
+      "definition_id": "CARD_DEF_BASE_2025_D075",
+      "display_name": "Presupuesto Aumentado",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E042"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": true,
+      "remove_after_use": true,
+      "resource_cost": null,
+      "serials": [
+        75
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 75",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": "FREE_PLAY"
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D076",
+      "display_name": "Protestas Organizadas",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        76
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 76",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D077",
+      "display_name": "Radicalización en Línea",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E043"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        77
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 77",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D078",
+      "display_name": "Regulación de Plataformas",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E044"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 5,
+        "method": 5
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        78
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 78",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D079",
+      "display_name": "Restricciones de Viaje",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 2,
+        "method": 2
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        79
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 79",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D080",
+      "display_name": "Robar",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E045"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        80
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 80",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D081",
+      "display_name": "Robo Cibernético",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E046"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        81
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 81",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D082",
+      "display_name": "Tarro de Miel",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E047"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        82
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 82",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D083",
+      "display_name": "Teoría Conspirativa",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        83
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 83",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D084",
+      "display_name": "Verificación de Hechos",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 2,
+        "method": 2
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        84
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 84",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 0,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "STARTER",
+      "definition_id": "CARD_DEF_BASE_2025_D085",
+      "display_name": "Veto",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E048"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": true,
+      "is_starter": true,
+      "remove_after_use": true,
+      "resource_cost": null,
+      "serials": [
+        85
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 85",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": "VETO_REACTION"
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D086",
+      "display_name": "Videos de Propaganda",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E049"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 3,
+        "method": 3
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        86
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 86",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D087",
+      "display_name": "¡Impulso!",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E050"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        87
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 87",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 1,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D088",
+      "display_name": "Corrupción",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E051"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": 1,
+      "serials": [
+        88
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 88",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D089",
+      "display_name": "Organizaciones Internacionales",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        89
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 89",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D090",
+      "display_name": "Operación de Desinformación",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E052"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 6,
+        "method": 6
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        90
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 90",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D091",
+      "display_name": "Rastreo de Datos",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 2,
+        "method": 2
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        91
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 91",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D092",
+      "display_name": "Influencia Política",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+        "amplifier": 4,
+        "method": 4
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        92
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 92",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": 0,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "STARTER",
+      "definition_id": "CARD_DEF_BASE_2025_D093",
+      "display_name": "Política Prioritaria",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E053"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": false,
+      "is_starter": true,
+      "remove_after_use": true,
+      "resource_cost": null,
+      "serials": [
+        93
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 93",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": "FREE_PLAY"
+    },
+    {
+      "action_point_cost": 0,
+      "alignment": "NONE",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "ACTION",
+      "definition_id": "CARD_DEF_BASE_2025_D094",
+      "display_name": "Protocolos de Seguridad",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E054"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "single_observed_serial"
+      },
+      "influence_values": {
+      },
+      "is_reaction": true,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        94
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 94",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": "REACTION"
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D095",
+      "display_name": "Inteligencia Artificial",
+      "effect_ids": [
+
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "draft_absence_pending_approval",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "semantic_comparison_candidate_pending_approval"
+      },
+      "influence_values": {
+        "amplifier": 3
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        95,
+        96
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 95",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D096",
+      "display_name": "Divisiones Sociales",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E055"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "semantic_comparison_candidate_pending_approval"
+      },
+      "influence_values": {
+        "intent": 2
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        97,
+        98
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 97",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D097",
+      "display_name": "Influencia Maligna",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E056"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "semantic_comparison_candidate_pending_approval"
+      },
+      "influence_values": {
+        "intent": 1
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        99,
+        100,
+        101
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 99",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "MALIGN",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D098",
+      "display_name": "Temas Divisivos",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E057"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "semantic_comparison_candidate_pending_approval"
+      },
+      "influence_values": {
+        "intent": 3
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        102,
+        103
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 102",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "RESILIENCY",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D099",
+      "display_name": "Resiliencia",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E058"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "semantic_comparison_candidate_pending_approval"
+      },
+      "influence_values": {
+        "intent": 1
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        104,
+        105,
+        106
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 104",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    },
+    {
+      "action_point_cost": null,
+      "alignment": "DUAL",
+      "authority_status": "candidate_pending_product_owner_approval",
+      "card_type": "CAMPAIGN_COMPONENT",
+      "definition_id": "CARD_DEF_BASE_2025_D100",
+      "display_name": "Políticas de identidad",
+      "effect_ids": [
+        "CARD_EFFECT_BASE_2025_E059"
+      ],
+      "field_authority": {
+        "definition_id": "candidate_allocation_first_observed_serial_order",
+        "effect_mapping": "candidate_mapping",
+        "printed_fields": "draft_evidence_pending_approval",
+        "serial_grouping": "semantic_comparison_candidate_pending_approval"
+      },
+      "influence_values": {
+        "intent": 3
+      },
+      "is_reaction": false,
+      "is_starter": false,
+      "remove_after_use": false,
+      "resource_cost": null,
+      "serials": [
+        107,
+        108
+      ],
+      "source_refs": [
+        "CCS-DRAFT §3 serial 107",
+        "historical candidate blob fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0"
+      ],
+      "subtype": null
+    }
+  ],
+  "effect_definition_count": 59,
+  "effect_definitions": [
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E001",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "RESOURCE_GAIN",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D001",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 1",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Selecciona otro jugador; ambos reciben 2 Recursos.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 1
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E002",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D098",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D002",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 2",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Temas Divisivos\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 2
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E003",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D044",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D008",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 8",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Curso de Alfabetización Mediática\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 8
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E004",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D029",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D009",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 9",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Influencers\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 9
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E005",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D052",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D010",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 10",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Doxing\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 10
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E006",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "RESOURCE_SPEND",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_REVEAL",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CHOICE_REQUEST",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_DISCARD",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D012",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 12",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Gasta 1 Recurso; selecciona un jugador, revisa su mano completa y descarta 5 cartas.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 12
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E007",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D024",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D013",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 13",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Desinformación\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 13
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E008",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D002",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D015",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 15",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Agravios Históricos\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 15
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E009",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D022",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D017",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 17",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Control Editorial\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 17
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E010",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "EFFECT_NEGATE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D018",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 18",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Cuando un rival te ataque con \"Hack Back\", anula el efecto.",
+      "timing_window": "ON_CARD_PLAYED",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 18
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E011",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D016",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D020",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 20",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Cámara de Eco\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 20
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E012",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "EFFECT_NEGATE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D021",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 21",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Cuando un rival te ataque con \"Agente Doble\", anula el efecto.",
+      "timing_window": "ON_CARD_PLAYED",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 21
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E013",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CARD_DISCARD",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_SEARCH",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D023",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 23",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Descarta 2 cartas de tu mano y agrega 1 carta de la pila de descarte a tu mano.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 23
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E014",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CUBE_GENERATE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CUBE_RESOLVE_2_TO_1",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CUBE_PLACE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D026",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 26",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Agrega 3 cubos malignos a cualquier PD.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 26
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E015",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "RESOURCE_SPEND",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CUBE_GENERATE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CUBE_RESOLVE_2_TO_1",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CUBE_PLACE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D028",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 28",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Gasta 3 Recursos para agregar 3 cubos de resiliencia a cualquier 1 PD.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 28
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E016",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CHOICE_REQUEST",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_STEAL",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_RETURN_TO_OWNER",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D031",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 31",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Elige 1 carta de la mano de un jugador y agrégala a tu mano; al descartarla, vuelve al dueño.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 31
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E017",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "RESOURCE_SPEND",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CAMPAIGN_DISCARD",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D032",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 32",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Gasta 1 Recurso; descarta una campaña de un jugador.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 32
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E018",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D098",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D033",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 33",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Temas Divisivos\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 33
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E019",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "RESOURCE_TRANSFER",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D037",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 37",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Confisca 2 Recursos de 1 jugador y agrégalos a tus propios recursos.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 37
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E020",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D053",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D038",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 38",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Efectos Nacionales\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 38
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E021",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "RESOURCE_SPEND",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CV_ADD",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D042",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 42",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Por cada otro jugador que descarte 1 Recurso, agrega 1 al CV.",
+      "timing_window": "COALITION_CONTRIBUTION_WINDOW",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 42
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E022",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "EFFECT_NEGATE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D043",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 43",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Cuando un oponente te ataque con \"Ciberataque\", anula su efecto.",
+      "timing_window": "CAMPAIGN_REVEALED",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 43
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E023",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D067",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D046",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 46",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Manipulación Electoral\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 46
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E024",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D076",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D049",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 49",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Protestas Organizadas\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 49
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E025",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "RESOURCE_SPEND",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CAMPAIGN_EXTRA_ACTIVATION",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D051",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 51",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Gasta 1 Recurso; activa cualquier campaña, incluso si fue activada anteriormente.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 51
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E026",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "RESOURCE_SPEND",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D054",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 54",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Gasta 1 Recurso para usar esta carta en una campaña.",
+      "timing_window": "CAMPAIGN_COST_PAYMENT",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 54
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E027",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D072",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D055",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 55",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Política Coordinada\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 55
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E028",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "RANDOM_CARD_SELECT",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_REVEAL",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D056",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 56",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Selecciona aleatoriamente 3 cartas de la mano de cualquier jugador; revísalas y devuélvelas.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 56
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E029",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D077",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D057",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 57",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Radicalización en Línea\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 57
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E030",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D019",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D058",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 58",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Cohesión Social\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 58
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E031",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CARD_DISCARD",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_RETURN_TO_OWNER",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "DECK_SHUFFLE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_DRAW",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "HAND_LIMIT_ENFORCE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_REMOVE_FROM_GAME",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D059",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 59",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Descarta toda tu mano; baraja tu descarte y Mazo de Operaciones; roba 10 nuevas cartas; retira tras usar.",
+      "timing_window": "ACTION_STAGE_PLAN",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 59
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E032",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D089",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D060",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 60",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Organizaciones Internacionales\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 60
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E033",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CARD_RETURN_TO_OWNER",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D061",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 61",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Cuando se descarta con una campaña, regresa a tu mano.",
+      "timing_window": "ON_DISCARD",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 61
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E034",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "TARGET_DT_SET",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_REMOVE_FROM_GAME",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D063",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 63",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Coloca 1 DT en esta carta como objetivo de la campaña; retira tras usar.",
+      "timing_window": "ACTION_STAGE_PLAN",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 63
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E035",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "RESOURCE_SPEND",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_SEARCH",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_SWAP",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "DECK_SHUFFLE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D064",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 64",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Gasta 1 Recurso; busca en tu Mazo de Operaciones e intercambia 1 carta del mazo con 1 de tu mano; baraja el mazo.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 64
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E036",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "ROLL_D10",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CHECK_THRESHOLD",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "EFFECT_NEGATE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D065",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 65",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Cuando \"Corrupción\" se juegue contra ti, lanza 1d10; con 4 o menos, anula la carta.",
+      "timing_window": "ON_CARD_PLAYED",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 65
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E037",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D084",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D066",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 66",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Verificación de Datos\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 66
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E038",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D025",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D068",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 68",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Ejército de Bots\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 68
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E039",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "RESOURCE_SPEND",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D069",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 69",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Gasta 3 Recursos para usar esta carta en una campaña.",
+      "timing_window": "CAMPAIGN_COST_PAYMENT",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 69
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E040",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "ROLL_D10",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CHECK_THRESHOLD",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CAMPAIGN_DISCARD",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D073",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 73",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Cuando un jugador coloca una campaña, lanza 1d10; con 4 o menos, descarta su campaña antes de que transcurra.",
+      "timing_window": "CAMPAIGN_REVEALED",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 73
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E041",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D004",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D074",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 74",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Alianzas Público-Privadas\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 74
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E042",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "RESOURCE_GAIN",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_REMOVE_FROM_GAME",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D075",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 75",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Gana 4 Recursos de inmediato; retira tras usar.",
+      "timing_window": "ACTION_STAGE_PLAN",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 75
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E043",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D083",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D077",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 77",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Teoría de la Conspiración\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 77
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E044",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D004",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D078",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 78",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Alianzas Público-Privadas\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 78
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E045",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CARD_DRAW",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "HAND_LIMIT_ENFORCE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D080",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 80",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Roba 3 cartas de tu Mazo de Operaciones; descarta cartas hasta quedar bajo el límite de mano.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 80
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E046",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "ROLL_D10",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CHECK_THRESHOLD",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "RESOURCE_TRANSFER",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D081",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 81",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Los demás jugadores lanzan 1d10; cada uno que saque 4 o menos da 1 Recurso a este jugador.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 81
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E047",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "ROLL_D10",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CHECK_THRESHOLD",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CHOICE_REQUEST",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_DISCARD",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D082",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 82",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Elige un jugador y hazlo lanzar 1d10; con 6 o menos, debe descartar una carta de Acción.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 82
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E048",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "VOTE_START",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "VOTE_CAST",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "VOTE_RESOLVE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CAMPAIGN_DISCARD",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_REMOVE_FROM_GAME",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D085",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 85",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Reacción: cuando un jugador coloca una campaña, inicia voto; si la mayoría acuerda, descarta la campaña; retira tras usar.",
+      "timing_window": "PRE_ROLL_REACTION_WINDOW",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 85
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E049",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D045",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D086",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 86",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Deepfake\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 86
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E050",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "ROLL_MODIFY",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D087",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 87",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Al tirar los dados para una campaña, juega esta carta; suma 1 a tu tirada.",
+      "timing_window": "ON_CAMPAIGN_ROLL",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 87
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E051",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "RESOURCE_SPEND",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "VP_SUBTRACT_FLOOR_ZERO",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D088",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 88",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Gasta 1 Recurso y reduce los PV de un jugador en 2.",
+      "timing_window": "RESOLUTION_ACTION_START",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 88
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E052",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CV_PAIR_BONUS",
+          "parameters": {
+            "amount": 2,
+            "binding_status": "pending_product_owner_approval",
+            "required_definition_id": "CARD_DEF_BASE_2025_D025",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D090",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 90",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Con \"Ejército de Bots\": +2 CV.",
+      "timing_window": "CAMPAIGN_COMPOSITION",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 90
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E053",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "CARD_SEARCH",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "DECK_SHUFFLE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "HAND_LIMIT_ENFORCE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_REMOVE_FROM_GAME",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D093",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 93",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Busca en tu Mazo de Operaciones y agrega 2 cartas a tu mano; baraja el mazo; retira tras usar.",
+      "timing_window": "ACTION_STAGE_PLAN",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 93
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E054",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "EFFECT_NEGATE",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        },
+        {
+          "operation": "CARD_DISCARD",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D094",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 94",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Si esta carta está en tu mano cuando robas \"Filtraciones\", anula \"Filtraciones\" y envía ambas a tu descarte.",
+      "timing_window": "ON_CARD_DRAWN",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 94
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E055",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "TARGET_DT_SET",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D096",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 97",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Coloca cualquier DT como objetivo de la campaña.",
+      "timing_window": "ACTION_STAGE_PLAN",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 97
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E056",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "TARGET_DT_SET",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D097",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 99",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Coloca cualquier DT como objetivo de la campaña.",
+      "timing_window": "ACTION_STAGE_PLAN",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 99
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E057",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "TARGET_DT_SET",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D098",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 102",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Coloca cualquier DT como objetivo de la campaña.",
+      "timing_window": "ACTION_STAGE_PLAN",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 102
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E058",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "TARGET_DT_SET",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D099",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 104",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Coloca DT en esta tarjeta como objetivo de la campaña.",
+      "timing_window": "ACTION_STAGE_PLAN",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 104
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    },
+    {
+      "authority_status": "candidate_pending_product_owner_approval",
+      "effect_id": "CARD_EFFECT_BASE_2025_E059",
+      "effect_version": "0.1-candidate",
+      "operations": [
+        {
+          "operation": "TARGET_DT_SET",
+          "parameters": {
+            "binding_status": "pending_product_owner_approval",
+            "source_text_is_authoritative_only_after_approval": true
+          }
+        }
+      ],
+      "source_definition_id": "CARD_DEF_BASE_2025_D100",
+      "source_refs": [
+        "CCS-DRAFT §3 serial 107",
+        "approved oracle/decisions behavior matrix; identity mapping pending"
+      ],
+      "source_text": "Coloca cualquier DT como objetivo de la campaña.",
+      "timing_window": "ACTION_STAGE_PLAN",
+      "trigger": {
+        "kind": "SOURCE_TEXT_TRIGGER_CANDIDATE",
+        "source_serial": 107
+      },
+      "typed_operation_mapping_status": "candidate_pending_product_owner_approval"
+    }
+  ],
+  "materialization": {
+    "card_instances_per_base_game": 540,
+    "operations_pool_templates_per_country": 103,
+    "rule": "materialize each serial template once for each country_id; retain logical definition_id and physical serial-template provenance",
+    "starter_instances_per_base_game": 25,
+    "starter_templates_per_country": 5,
+    "templates_per_country": 108
+  },
+  "normalization": {
+    "arrays": {
+      "aliases": "alias_normalized ascending",
+      "country_ids": "BASE_2025 canonical materialization order",
+      "definitions": "definition_id ascending",
+      "effect_definitions": "effect_id ascending",
+      "serial_templates": "serial ascending",
+      "sources": "path ascending",
+      "unresolved_items": "item_id ascending"
+    },
+    "canonicalization": "RFC 8785 JCS; object keys UTF-16 lexical; UTF-8; no insignificant whitespace",
+    "invalid_values_forbidden": [
+      "NaN",
+      "Infinity",
+      "-Infinity",
+      "undefined",
+      "implicit numeric coercion"
+    ]
+  },
+  "registry_schema_version": "MALIGN_AI_CARD_REGISTRY_SNAPSHOT/0.1",
+  "registry_version": "BASE_2025/0.1-candidate",
+  "serial_template_count": 108,
+  "serial_templates": [
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D001",
+      "serial_within_country_set": 1,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S001"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D002",
+      "serial_within_country_set": 2,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S002"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D003",
+      "serial_within_country_set": 3,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S003"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D004",
+      "serial_within_country_set": 4,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S004"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D005",
+      "serial_within_country_set": 5,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S005"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D006",
+      "serial_within_country_set": 6,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S006"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D007",
+      "serial_within_country_set": 7,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S007"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D008",
+      "serial_within_country_set": 8,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S008"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D009",
+      "serial_within_country_set": 9,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S009"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D010",
+      "serial_within_country_set": 10,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S010"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D011",
+      "serial_within_country_set": 11,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S011"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D012",
+      "serial_within_country_set": 12,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S012"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D013",
+      "serial_within_country_set": 13,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S013"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D014",
+      "serial_within_country_set": 14,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S014"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D015",
+      "serial_within_country_set": 15,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S015"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D016",
+      "serial_within_country_set": 16,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S016"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D017",
+      "serial_within_country_set": 17,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S017"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D018",
+      "serial_within_country_set": 18,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S018"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D019",
+      "serial_within_country_set": 19,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S019"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D020",
+      "serial_within_country_set": 20,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S020"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D021",
+      "serial_within_country_set": 21,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S021"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D022",
+      "serial_within_country_set": 22,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S022"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D023",
+      "serial_within_country_set": 23,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S023"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D024",
+      "serial_within_country_set": 24,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S024"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D025",
+      "serial_within_country_set": 25,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S025"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D026",
+      "serial_within_country_set": 26,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S026"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D027",
+      "serial_within_country_set": 27,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S027"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D028",
+      "serial_within_country_set": 28,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S028"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D029",
+      "serial_within_country_set": 29,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S029"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D030",
+      "serial_within_country_set": 30,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S030"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D031",
+      "serial_within_country_set": 31,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S031"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D032",
+      "serial_within_country_set": 32,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S032"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D033",
+      "serial_within_country_set": 33,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S033"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D034",
+      "serial_within_country_set": 34,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S034"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D035",
+      "serial_within_country_set": 35,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S035"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D036",
+      "serial_within_country_set": 36,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S036"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D037",
+      "serial_within_country_set": 37,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S037"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D038",
+      "serial_within_country_set": 38,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S038"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D039",
+      "serial_within_country_set": 39,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S039"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D040",
+      "serial_within_country_set": 40,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S040"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D041",
+      "serial_within_country_set": 41,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S041"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D042",
+      "serial_within_country_set": 42,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S042"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D043",
+      "serial_within_country_set": 43,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S043"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D044",
+      "serial_within_country_set": 44,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S044"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D045",
+      "serial_within_country_set": 45,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S045"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D046",
+      "serial_within_country_set": 46,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S046"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D047",
+      "serial_within_country_set": 47,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S047"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D048",
+      "serial_within_country_set": 48,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S048"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D049",
+      "serial_within_country_set": 49,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S049"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D050",
+      "serial_within_country_set": 50,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S050"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D051",
+      "serial_within_country_set": 51,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S051"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D052",
+      "serial_within_country_set": 52,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S052"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D053",
+      "serial_within_country_set": 53,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S053"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D054",
+      "serial_within_country_set": 54,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S054"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D055",
+      "serial_within_country_set": 55,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S055"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D056",
+      "serial_within_country_set": 56,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S056"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D057",
+      "serial_within_country_set": 57,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S057"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D058",
+      "serial_within_country_set": 58,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S058"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D059",
+      "serial_within_country_set": 59,
+      "starter": true,
+      "template_id": "CARD_SERIAL_BASE_2025_S059"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D060",
+      "serial_within_country_set": 60,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S060"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D061",
+      "serial_within_country_set": 61,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S061"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D062",
+      "serial_within_country_set": 62,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S062"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D063",
+      "serial_within_country_set": 63,
+      "starter": true,
+      "template_id": "CARD_SERIAL_BASE_2025_S063"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D064",
+      "serial_within_country_set": 64,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S064"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D065",
+      "serial_within_country_set": 65,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S065"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D066",
+      "serial_within_country_set": 66,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S066"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D067",
+      "serial_within_country_set": 67,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S067"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D068",
+      "serial_within_country_set": 68,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S068"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D069",
+      "serial_within_country_set": 69,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S069"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D070",
+      "serial_within_country_set": 70,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S070"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D071",
+      "serial_within_country_set": 71,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S071"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D072",
+      "serial_within_country_set": 72,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S072"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D073",
+      "serial_within_country_set": 73,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S073"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D074",
+      "serial_within_country_set": 74,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S074"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D075",
+      "serial_within_country_set": 75,
+      "starter": true,
+      "template_id": "CARD_SERIAL_BASE_2025_S075"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D076",
+      "serial_within_country_set": 76,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S076"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D077",
+      "serial_within_country_set": 77,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S077"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D078",
+      "serial_within_country_set": 78,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S078"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D079",
+      "serial_within_country_set": 79,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S079"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D080",
+      "serial_within_country_set": 80,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S080"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D081",
+      "serial_within_country_set": 81,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S081"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D082",
+      "serial_within_country_set": 82,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S082"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D083",
+      "serial_within_country_set": 83,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S083"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D084",
+      "serial_within_country_set": 84,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S084"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D085",
+      "serial_within_country_set": 85,
+      "starter": true,
+      "template_id": "CARD_SERIAL_BASE_2025_S085"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D086",
+      "serial_within_country_set": 86,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S086"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D087",
+      "serial_within_country_set": 87,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S087"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D088",
+      "serial_within_country_set": 88,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S088"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D089",
+      "serial_within_country_set": 89,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S089"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D090",
+      "serial_within_country_set": 90,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S090"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D091",
+      "serial_within_country_set": 91,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S091"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D092",
+      "serial_within_country_set": 92,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S092"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D093",
+      "serial_within_country_set": 93,
+      "starter": true,
+      "template_id": "CARD_SERIAL_BASE_2025_S093"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D094",
+      "serial_within_country_set": 94,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S094"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D095",
+      "serial_within_country_set": 95,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S095"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D095",
+      "serial_within_country_set": 96,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S096"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D096",
+      "serial_within_country_set": 97,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S097"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D096",
+      "serial_within_country_set": 98,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S098"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D097",
+      "serial_within_country_set": 99,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S099"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D097",
+      "serial_within_country_set": 100,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S100"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D097",
+      "serial_within_country_set": 101,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S101"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D098",
+      "serial_within_country_set": 102,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S102"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D098",
+      "serial_within_country_set": 103,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S103"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D099",
+      "serial_within_country_set": 104,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S104"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D099",
+      "serial_within_country_set": 105,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S105"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D099",
+      "serial_within_country_set": 106,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S106"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D100",
+      "serial_within_country_set": 107,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S107"
+    },
+    {
+      "definition_id": "CARD_DEF_BASE_2025_D100",
+      "serial_within_country_set": 108,
+      "starter": false,
+      "template_id": "CARD_SERIAL_BASE_2025_S108"
+    }
+  ],
+  "sources": [
+    {
+      "classification": "APPROVED_DECISIONS_BASE",
+      "digest": "727abe37c3a3c9d98b5f2389811dfdeb1f503dd3",
+      "digest_algorithm": "git_blob_sha1",
+      "path": "docs/decisions/MALIGN_AI_DECISIONS_v0.3.md",
+      "scope": "DEC-025..075 before non-content DEC-076 append"
+    },
+    {
+      "classification": "HISTORICAL_CANDIDATE",
+      "digest": "fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0",
+      "digest_algorithm": "git_blob_sha1",
+      "path": "docs/implementation/MALIGN_AI_M2_CARD_REGISTRY_CANONICALIZATION_SPEC_v0.1.md",
+      "scope": "comparison only not authority"
+    },
+    {
+      "classification": "APPROVED_NORMATIVE",
+      "digest": "6b3ae75432e0b0488c4c74abdba8b654cae15519",
+      "digest_algorithm": "git_blob_sha1",
+      "path": "docs/normative/MALIGN_AI_ADJUDICATION_ENGINE_SPEC_v0.1.md",
+      "scope": "lifecycle and operation semantics"
+    },
+    {
+      "classification": "DRAFT_EVIDENCE",
+      "digest": "d446ce7aff0660043c0c35a7371a274510a4d17f",
+      "digest_algorithm": "git_blob_sha1",
+      "path": "docs/normative/MALIGN_AI_CARD_COMPONENT_SYSTEM_SPEC_v0.1.md",
+      "scope": "printed catalogue evidence only"
+    },
+    {
+      "classification": "APPROVED_NORMATIVE",
+      "digest": "16d519b7f9d321f5a21e61dd201f58509a8b29bd",
+      "digest_algorithm": "git_blob_sha1",
+      "path": "docs/normative/MALIGN_AI_GAME_ENGINE_INTERFACE_COMMAND_CONTRACT_SPEC_v0.1.md",
+      "scope": "versioning privacy continuation effect dispatch"
+    },
+    {
+      "classification": "APPROVED_TEST_BASELINE",
+      "digest": "6ae87a904a14a82e4fb174ff4d76eefd47052832",
+      "digest_algorithm": "git_blob_sha1",
+      "path": "docs/normative/MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M2_ADDENDUM_v0.1.md",
+      "scope": "registry seed effect gates no card content"
+    },
+    {
+      "classification": "APPROVED_ORACLE",
+      "digest": "8291b56e20b9fdf55b8c01c156b66cd641b52d92",
+      "digest_algorithm": "git_blob_sha1",
+      "path": "docs/normative/MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_SPEC_v0.1.md",
+      "scope": "behavior acceptance"
+    },
+    {
+      "classification": "APPROVED_TAXONOMY",
+      "digest": "cc595f184f9a5ff8efd09614a2a391cf170af372",
+      "digest_algorithm": "git_blob_sha1",
+      "path": "docs/normative/MALIGN_AI_RULE_EFFECT_TAXONOMY_v0.2.md",
+      "scope": "typed operation vocabulary"
+    }
+  ],
+  "status": "candidate_pending_review",
+  "unresolved_items": [
+    {
+      "blocked_blocks": [
+        "M2-0 closure",
+        "M2-1 registry seed",
+        "M2-3 complete effect manifest",
+        "M2-4",
+        "M2-5"
+      ],
+      "datum": "Approve or revise the 100 candidate definition IDs and 108-to-100 grouping including six duplicate-name groups.",
+      "item_id": "REG-CAND-001",
+      "status": "pending_product_owner_approval"
+    },
+    {
+      "blocked_blocks": [
+        "M2-0 closure",
+        "M2-1 registry seed",
+        "M2-3",
+        "M2-4",
+        "M2-5"
+      ],
+      "datum": "Approve printed names, types/subtypes, alignments, IV, costs and no-effect rows sourced from DRAFT.",
+      "item_id": "REG-CAND-002",
+      "status": "pending_product_owner_approval"
+    },
+    {
+      "blocked_blocks": [
+        "M2-0 closure",
+        "M2-3",
+        "M2-4",
+        "M2-5"
+      ],
+      "datum": "Approve or revise 59 candidate effect IDs, triggers/timings and typed operation sequences.",
+      "item_id": "REG-CAND-003",
+      "status": "pending_product_owner_approval"
+    },
+    {
+      "blocked_blocks": [
+        "M2-0 closure",
+        "M2-1 registry seed"
+      ],
+      "datum": "Approve final JCS SHA-256 and Git blob hashes after content review.",
+      "item_id": "REG-CAND-004",
+      "status": "pending_product_owner_approval"
+    }
+  ]
+}

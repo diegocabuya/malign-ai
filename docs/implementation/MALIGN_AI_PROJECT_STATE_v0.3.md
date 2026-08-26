@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-25
-**Fase actual:** M1 IMPLEMENTED AND APPROVED / CLOSED — M2 PLANNING GATE AMENDED / PENDING FINAL REVIEW — M2 NOT AUTHORIZED
+**Fase actual:** M1 IMPLEMENTED AND APPROVED / CLOSED — M2 PLANNING GATE APPROVED AND CLOSED — M2-0 DOCUMENTED / BLOCKED PENDING REVIEW — M2 NOT AUTHORIZED
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -80,8 +80,9 @@
 | M1 global | **IMPLEMENTED AND APPROVED / CLOSED** |
 | DEC-074 | **APPROVED — DOCUMENTATION-ONLY AUTHORIZATION** |
 | DEC-075 | **APPROVED — DOCUMENTATION-ONLY AMENDMENT** |
-| M2 planning gate | **AMENDED / PENDING FINAL REVIEW** |
-| M2G-R01…R05 | **DOCUMENTALLY CORRECTED / PENDING FINAL REVIEW** |
+| DEC-076 | **APPROVED — M2 PLANNING CLOSED / M2-0 DOCUMENTATION ONLY** |
+| M2 planning gate | **APPROVED AND CLOSED mediante DEC-076** |
+| M2G-R01…R05 | **CLOSED** |
 | M2 oracle inventory | **224 IDs = 71 implementados + 153 owner M2** |
 | Addendum M2 v0.1 | **32 IDs canónicos de test acceptance mediante DEC-075 — IMPLEMENTATION NOT AUTHORIZED** |
 | Casos nuevos únicos M2 | **185 = 153 oracle + 32 addendum** |
@@ -90,9 +91,14 @@
 | Suite aprobada de entrada | **215/215 PASS en 27 archivos, 0 skips, 0 todo, 0 waivers — baseline histórica, no reejecutada por este gate documental** |
 | PTD-M2-001…011 | **CLASSIFIED mediante DEC-075** |
 | IQ-M2-001…007 | **RESOLVED mediante DEC-075** |
-| IQ-M2-008…010 | **OPEN / PENDING RESOLUTION** |
-| Registry candidate M2 | **CANDIDATE CANONICAL / PENDING CONTENT AND HASH REVIEW — NOT APPROVED FOR SEED OR IMPLEMENTATION** |
-| M2-0 — Canonical Foundations Gate documental | **NOT AUTHORIZED** |
+| IQ-M2-008/009 | **OPEN / PENDING RESOLUTION — sin cambios** |
+| IQ-M2-010 | **PARTIALLY RESOLVED / BLOCKED BY REG-CAND-001…004** |
+| IQ-M2-011…013 | **OPEN — UUIDv7 generation / RLS / partitioning** |
+| Registry candidate histórico | **PRESERVED / CANDIDATE ONLY — blob `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`** |
+| Physical Database Spec v0.1 | **84 TABLES DOCUMENTED / PENDING REVIEW — blob candidato `30a8bc9657fb958e21a09af22591f6e959edb3fe`** |
+| Registry Spec v0.1 | **100 definitions / 108 templates / 4 aliases / 59 effects — PENDING OWNER APPROVAL — blob candidato `6472b136a806f403747defe1d59ed44fb78f49fa`** |
+| Registry Snapshot v0.1 | **candidate_pending_review / NOT SEEDABLE — JCS SHA-256 `37e1e27e142a2e08d8a19418089602bc72d775b9f5944059acc27ee4de93c83e`; blob `a8c3ee9f3b78113e1f94891a9b0c634083107ec3`** |
+| M2-0 — Canonical Foundations Gate documental | **DOCUMENTATION AUTHORIZED / RESULT BLOCKED PENDING REVIEW — NOT APPROVED/CLOSED** |
 | M2-1 — PostgreSQL Persistence and Durable Recovery | **NOT AUTHORIZED** |
 | M2-2 — Productive Transport and Reconnect | **NOT AUTHORIZED** |
 | M2-3 — Complete Scheduler and Remaining Core Rules | **NOT AUTHORIZED** |
@@ -192,17 +198,17 @@ La corrección posterior al gate `CHANGES REQUIRED` endurece phase enforcement, 
 
 ## Gate documental de planificación M2
 
-DEC-074 autorizó exclusivamente preparar el planning gate. DEC-075 aprueba la presente enmienda documental: resuelve `IQ-M2-001…007`, clasifica `PTD-M2-001…011`, convierte los 32 `GE-M2-*` en baseline canónico de test acceptance y reestructura el milestone en M2-0…M2-7. El gate queda **AMENDED / PENDING FINAL REVIEW**.
+DEC-074 autorizó exclusivamente preparar el planning gate y DEC-075 aprobó su enmienda. DEC-076 aprueba y cierra el planning gate corregido contra `2bfc49d17722538ee2f2688d5dd3735b1468fe5c`, cierra M2G-R01…R05, fija la estructura M2-0…M2-7 y autoriza exclusivamente el trabajo documental M2-0. El planning gate queda **APPROVED AND CLOSED**; esta aprobación no autoriza implementación M2.
 
 El oracle conserva **224 IDs = 71 implementados M0/M1 + 153 owner M2**. El addendum M2 contiene **32/32 IDs canónicos**, cada uno con owner único, pero no autoriza tests ejecutables. Los casos nuevos únicos son **185 = 153 + 32**; tras M2G-R01 las regresiones dirigidas son **86**, para **271 ejecuciones dirigidas**. M2-5 queda en **23 casos nuevos + 11 regresiones = 34 ejecuciones dirigidas**. La suite mínima acumulada futura sigue siendo **400 = 215 + 185**.
 
-El candidate registry registra **108 serial templates por country set**, **100 definition groups candidatos**, **cinco Starter serial templates por country set** y **cinco países**. La materialización futura sería exactamente **540 `CardInstance`**, incluidas **25 Starter**, pero continúa bloqueada: `definition_id`, `effect_id`, contenido/timing no aprobados y snapshot/hash permanecen `UNRESOLVED` bajo `IQ-M2-010`; el candidate queda pendiente de revisión de contenido y hash y no es seedable.
+El artifact registry nuevo registra **108 serial templates por country set**, **100 definitions candidatas**, **cinco Starter por set**, **cinco países**, **cuatro aliases** y **59 effect definitions candidatas**. La materialización futura sería exactamente **540 `CardInstance`**, incluidas **25 Starter**. IDs/mapping, contenido impreso, effect bindings/parameters y hashes siguen pendientes bajo `REG-CAND-001…004`; el snapshot conserva status `candidate_pending_review` y `seedable=false`. El candidate histórico permanece intacto con blob `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`.
 
-M2G-R01…R05 quedan corregidas documentalmente: `GE-M2-EFX-001` conserva owner único M2-3 con aceptación incremental y regresiones M2-4/M2-5; el loser de `GE-M2-TX-003` queda sin mutación ni artifacts/consumos; `GE-M2-RX-001` usa idempotencia + CAS sin afirmar exactly-once delivery; `GE-M2-DB-005` fija cardinalidades explícitas; y `GE-M2-TX-008` traza replay a PTD-M2-004/008. El planning gate sigue **NOT YET APPROVED / PENDING FINAL REVIEW**.
+M2G-R01…R05 quedan **CLOSED** mediante DEC-076: `GE-M2-EFX-001` conserva owner único M2-3 con aceptación incremental y regresiones M2-4/M2-5; el loser de `GE-M2-TX-003` queda sin mutación ni artifacts/consumos; `GE-M2-RX-001` usa idempotencia + CAS sin afirmar exactly-once delivery; `GE-M2-DB-005` fija cardinalidades explícitas; y `GE-M2-TX-008` traza replay a PTD-M2-004/008.
 
-`IQ-M2-001…007` quedan **RESOLVED mediante DEC-075**. `IQ-M2-008 — Production AuthN provider`, `IQ-M2-009 — WebSocket runtime and operating envelope` e `IQ-M2-010 — Registry candidate content and hash approval` quedan **OPEN / PENDING RESOLUTION**. No se detectó contradicción nueva entre reglas oficiales; `OPEN_QUESTIONS.md` permanece intacto.
+`IQ-M2-001…007` quedan **RESOLVED mediante DEC-075**. `IQ-M2-008 — Production AuthN provider` e `IQ-M2-009 — WebSocket runtime and operating envelope` permanecen **OPEN / PENDING RESOLUTION** sin cambios. `IQ-M2-010` queda **PARTIALLY RESOLVED / BLOCKED BY REG-CAND-001…004**. Se abren `IQ-M2-011` (UUIDv7 generation boundary), `IQ-M2-012` (RLS defense-in-depth) e `IQ-M2-013` (partitioning/archival thresholds). No apareció contradicción normativa real; `OPEN_QUESTIONS.md` permanece intacto.
 
-M2-0 es un gate exclusivamente documental y no implementa código, migrations, seeds o tests. M2-1…M2-7 son bloques de implementación futuros. M2 global, M2-0…M2-7 y M3 permanecen **NOT AUTHORIZED**. PostgreSQL/migrations/outbox, durabilidad entre procesos/nodos, realtime/WebSocket productivo, registry seed, scheduler/reglas M2, Action/Reaction/Veto, Regime Abilities, Cleanup/End Turn, objectives/victory, AuthN productiva, UI e IA permanecen **NOT STARTED / NOT AUTHORIZED**.
+M2-0 fue ejecutado sólo como gate documental: Physical DB Spec de **84 tablas**, Registry Spec, Snapshot JSON y Gate M2-0 quedaron preparados. El resultado binario es **BLOCKED / PENDING RESOLUTION**, no APPROVED/CLOSED. M2-1…M2-7 son bloques futuros y permanecen **NOT AUTHORIZED**; M2 global y M3 también. PostgreSQL/migrations/outbox, durabilidad entre procesos/nodos, realtime/WebSocket productivo, registry seed, scheduler/reglas M2, Action/Reaction/Veto, Regime Abilities, Cleanup/End Turn, objectives/victory, AuthN productiva, UI e IA permanecen **NOT STARTED / NOT AUTHORIZED**.
 
 La suite **215/215 PASS en 27 archivos, 0 skips, 0 todo y 0 waivers** se conserva sólo como baseline aprobada; no fue reejecutada. Ningún código M2 ha iniciado.
 
@@ -210,8 +216,8 @@ La suite **215/215 PASS en 27 archivos, 0 skips, 0 todo y 0 waivers** se conserv
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El paquete documental M2 queda **AMENDED / PENDING FINAL REVIEW** mediante DEC-075. El próximo paso permitido es exclusivamente revisión humana del planning gate, del addendum M2 y del candidate registry, incluida resolución de IQ-M2-008…010 y aprobación expresa de contenido/hash cuando corresponda. M2, M2-0…M2-7 y M3 permanecen **NOT AUTHORIZED**.
+M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**. El próximo paso permitido es revisión humana de los artifacts M2-0 y resolución expresa de `REG-CAND-001…004`/IQ-M2-010; M2-0 sigue pendiente y no cerrado. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
 
 ## Continuidad documental
 
-Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. La enmienda preserva intactos el oracle v0.1 con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92` y el addendum M1 v0.1 con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`. Los blob SHA del addendum M2 y del candidate registry se calculan para revisión y no implican aprobación silenciosa. No se alteran código, tests, fixtures, dependencias, arquitectura ni package boundaries.
+Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. M2-0 preserva intactos el oracle v0.1 con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92`, el addendum M1 v0.1 con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`, el addendum M2 con blob SHA `6ae87a904a14a82e4fb174ff4d76eefd47052832` y el candidate registry histórico con blob SHA `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`. Los hashes de Physical DB/Registry/Snapshot son candidatos de revisión y no implican aprobación silenciosa. No se alteran código, tests, fixtures, dependencias, arquitectura ni package boundaries.

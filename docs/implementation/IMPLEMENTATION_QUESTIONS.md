@@ -106,9 +106,65 @@
 - **Impact:** bloquea implementación productiva M2-2.
 - **Status:** OPEN / PENDING RESOLUTION.
 
-## IQ-M2-010 — Registry candidate content and hash approval — OPEN
+## IQ-M2-010 — Registry candidate content and hash approval — PARTIALLY RESOLVED / BLOCKED BY LISTED ITEMS
 
-- **Evidence:** DEC-075 sólo aprueba el enfoque; el candidato deriva 108 seriales/100 nombres del documento DRAFT y conserva campos sin autoridad como `UNRESOLVED`.
-- **Question:** revisar las 108 instancias/100 definiciones, resolver todos los campos `UNRESOLVED` y aprobar expresamente snapshot y blob hash.
-- **Impact:** bloquea registry seed y reglas de M2-3/M2-4 dependientes del catálogo.
+- **Evidence:** DEC-075 aprobó el enfoque y DEC-076 autorizó producir artifacts candidatos, pero ninguna de las dos decisiones convierte el Card Component DRAFT en autoridad. `MALIGN_AI_CARD_REGISTRY_SPEC_v0.1.md` y `MALIGN_AI_CARD_REGISTRY_SNAPSHOT_v0.1.json` reconcilian mecánicamente 100 definitions, 108 serial templates, 4 aliases y 59 effects con status `candidate_pending_review` y `seedable=false`.
+- **Propuesta reproducible preparada:** definitions `CARD_DEF_BASE_2025_D001…D100`; templates `CARD_SERIAL_BASE_2025_S001…S108`; effects `CARD_EFFECT_BASE_2025_E001…E059`; JCS SHA-256 candidato `37e1e27e142a2e08d8a19418089602bc72d775b9f5944059acc27ee4de93c83e`; JSON blob candidato `a8c3ee9f3b78113e1f94891a9b0c634083107ec3`; Registry Markdown blob candidato `6472b136a806f403747defe1d59ed44fb78f49fa`.
+
+### REG-CAND-001 — Definition identity y mapping 108→100
+
+- **Dato/afectados:** todos los templates `S001…S108` y definitions candidatas `D001…D100`. Revisión especial de `S095–096→D095`, `S097–098→D096`, `S099–101→D097`, `S102–103→D098`, `S104–106→D099`, `S107–108→D100`.
+- **Fuentes:** DEC-025 (108=103+5); Card Component DRAFT §3; candidate histórico blob `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`; Registry Spec §§4–5.
+- **Alternativas:** (A) aprobar el mapping candidato tras comparación cara-a-cara; (B) separar cualquier grupo con diferencia material, aceptando más de 100 definitions; (C) solicitar evidencia física adicional antes de decidir.
+- **Recomendación:** A sólo si revisión humana confirma igualdad exacta de nombre, tipo, alignment, IV, coste y texto/effect; de lo contrario B. Nunca forzar 100.
+- **Bloqueado:** cierre M2-0; registry seed M2-1; manifest de effects M2-3; M2-4/M2-5.
+
+### REG-CAND-002 — Contenido impreso y ausencia de efecto
+
+- **Dato/afectados:** `D001…D100` / `S001…S108` para display name, type/subtype, alignment, slot IV, Starter flag y coste. Costes de recurso explícitos candidatos afectan S012/D012, S028/D028, S032/D032, S051/D051, S054/D054, S064/D064, S069/D069 y S088/D088. La ausencia observada de texto/effect afecta las 41 definitions cuya primera copia es S003, S004, S005, S006, S007, S011, S014, S016, S019, S022, S024, S025, S027, S029, S030, S034, S035, S036, S039, S040, S041, S044, S045, S047, S048, S050, S052, S053, S062, S067, S070, S071, S072, S076, S079, S083, S084, S089, S091, S092 y S095.
+- **Fuentes:** Card Component DRAFT §3 como evidencia; DEC-025/026/039/043…047 y oracle sólo donde fijan comportamiento; Registry Snapshot `field_authority`.
+- **Alternativas:** (A) aprobar campos por revisión del material físico; (B) corregir field-by-field con nueva evidencia; (C) mantener `null`/pending y no seedear.
+- **Recomendación:** revisión de 108/108 caras y registro de source reference por definición; usar C hasta decisión expresa.
+- **Bloqueado:** cierre M2-0; seed M2-1; slots/bonuses M2-3; Action/Starter/Regime M2-4; Reaction/Veto M2-5.
+
+### REG-CAND-003 — Effect identity, trigger, timing y operaciones
+
+- **Dato/afectados:** effects `E001…E059`, ligados a las definitions cuya primera copia es S001, S002, S008, S009, S010, S012, S013, S015, S017, S018, S020, S021, S023, S026, S028, S031, S032, S033, S037, S038, S042, S043, S046, S049, S051, S054, S055, S056, S057, S058, S059, S060, S061, S063, S064, S065, S066, S068, S069, S073, S074, S075, S077, S078, S080, S081, S082, S085, S086, S087, S088, S090, S093, S094, S097, S099, S102, S104 y S107.
+- **Fuentes:** texto exacto Card Component DRAFT §3; Rule Effect Taxonomy v0.2; Adjudication Engine; DEC-026…029, 039, 043…047; oracle Action/Reaction/Veto/ERT. La semántica aprobada no aprueba automáticamente el binding al nuevo ID.
+- **Alternativas:** (A) aprobar cada binding/operation sequence y parameters; (B) corregir mappings con una registry version nueva; (C) mantener effects pending y fuera del manifest ejecutable.
+- **Recomendación:** revisión effect-by-effect contra oracle/decisions; unknown/unsupported debe fallar cerrado. Usar C hasta aprobación.
+- **Bloqueado:** cierre M2-0; `GE-M2-EFX-001` completo en M2-3; M2-4; M2-5.
+
+### REG-CAND-004 — Snapshot y hashes
+
+- **Dato/afectados:** snapshot completo `MALIGN_AI_CARD_REGISTRY_SNAPSHOT_v0.1.json`, Registry Spec y sus digests. Hashes actuales: JCS SHA-256 `37e1e27e142a2e08d8a19418089602bc72d775b9f5944059acc27ee4de93c83e`, JSON blob `a8c3ee9f3b78113e1f94891a9b0c634083107ec3`, Markdown blob `6472b136a806f403747defe1d59ed44fb78f49fa`.
+- **Fuentes:** DEC-075/076; RFC 8785/JCS contract; M2 Addendum DB/hash cases.
+- **Alternativas:** (A) aprobar hashes sólo después de aprobar contenido sin cambios; (B) cambiar contenido, regenerar JCS/blobs y repetir review.
+- **Recomendación:** B si cambia cualquier byte semántico; A únicamente mediante decisión posterior expresa.
+- **Bloqueado:** cierre M2-0 y registry seed M2-1.
+
+- **Status:** **PARTIALLY RESOLVED / BLOCKED BY LISTED ITEMS**. La estructura y los artifacts reproducibles existen; contenido, bindings y hashes no están aprobados.
+
+## IQ-M2-011 — UUIDv7 generation boundary — OPEN
+
+- **Evidence:** PTD-M2-002 exige UUIDv7 para identidades físicas, pero no aprueba versión concreta de PostgreSQL, extensión, función ni generación application-side.
+- **Question:** generar UUIDv7 mediante primitive PostgreSQL aprobada, extensión auditada o port application-side con validation DB.
+- **Recommendation:** decidir en el gate técnico previo al DDL y probar monotonicidad/uniqueness; no acoplar Domain a la elección.
+- **Impact:** bloquea defaults/DDL exactos de PK físicas en M2-1, no el modelo documental.
+- **Status:** OPEN / PENDING RESOLUTION.
+
+## IQ-M2-012 — PostgreSQL RLS defense-in-depth — OPEN
+
+- **Evidence:** autorización/proyección server-side está aprobada; no existe decisión sobre RLS, identity binding ni policy matrix en DB.
+- **Question:** adoptar RLS como defensa adicional o restringir todas las tablas a un application role sin acceso cliente-directo.
+- **Recommendation:** evaluar ambos modelos con la Information Security Matrix; cualquier ausencia de policy debe fallar cerrada, nunca habilitar acceso browser-directo.
+- **Impact:** bloquea afirmar seguridad productiva del adapter M2-1/M2-2; no bloquea Rule Engine.
+- **Status:** OPEN / PENDING RESOLUTION.
+
+## IQ-M2-013 — Partitioning, archival thresholds and recovery tiers — OPEN
+
+- **Evidence:** DEC-075 exige retención íntegra, snapshots y no compaction/hard-delete durante M2, pero no fija volúmenes, edades, RPO/RTO ni thresholds de partition/archive.
+- **Question:** qué métricas disparan partitioning de events/traces/outbox y qué tiers/restore drills se requieren.
+- **Recommendation:** mantener tablas no particionadas en el primer DDL hasta medir y aprobar thresholds; diseñar índices por `game_id` sin prometer topology.
+- **Impact:** bloquea operating envelope/archival productivo, no el catálogo físico ni la retención íntegra de M2.
 - **Status:** OPEN / PENDING RESOLUTION.

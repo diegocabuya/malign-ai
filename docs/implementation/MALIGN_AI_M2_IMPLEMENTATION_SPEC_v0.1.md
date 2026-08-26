@@ -1,11 +1,11 @@
 # MALIGN-AI — M2 IMPLEMENTATION SPECIFICATION v0.1
 
 **Fecha:** 2026-08-25
-**Estado:** AMENDED / PENDING FINAL REVIEW
-**Autoridad:** DEC-074 + DEC-075 — documentación únicamente
+**Estado:** PLANNING GATE APPROVED AND CLOSED / M2-0 DOCUMENTED — RESULT PENDING REVIEW
+**Autoridad:** DEC-074 + DEC-075 + DEC-076 — M2-0 documental únicamente
 **Implementación M2:** **NOT AUTHORIZED**
 
-> Este documento cataloga un plan test-first. DEC-075 aprueba decisiones de planificación y el baseline de aceptación M2, pero no autoriza código, tests ejecutables, migrations, seeds, infraestructura, dependencias, proveedores ni ninguna subetapa M2.
+> Este documento cataloga un plan test-first. DEC-076 cierra el planning gate y autoriza exclusivamente producir el gate documental M2-0. No autoriza código, tests ejecutables, migrations, seeds, infraestructura, dependencias, proveedores ni M2-1…M2-7.
 
 ## 1. Objetivo y checkpoint aprobado
 
@@ -28,7 +28,7 @@ El golden usa BASE_2025 con `turn_limit=1` sólo como fixture determinístico. N
 
 ## 2. Fuentes y precedencia
 
-1. `MALIGN_AI_DECISIONS_v0.3.md`, incluidas DEC-048…059, DEC-065, DEC-073 y DEC-075.
+1. `MALIGN_AI_DECISIONS_v0.3.md`, incluidas DEC-048…059, DEC-065, DEC-073, DEC-075 y DEC-076.
 2. Especificaciones normativas de Game Engine, Scenario, Contract, Data Model, Data Dictionary, Security y Architecture.
 3. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_SPEC_v0.1.md` (224 IDs; blob aprobado `8291b56e20b9fdf55b8c01c156b66cd641b52d92`).
 4. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` (38 IDs; blob aprobado `a5e140eb55b442230110e8ae77d5763401db3117`).
@@ -70,7 +70,7 @@ Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, an
 
 | Bloque | Alcance | Dependencias/gates | Casos nuevos únicos | Estado |
 |---|---|---|---:|---|
-| M2-0 | Canonical Foundations Gate documental | revisión de Physical DB Spec, addendum M2, registry candidate y hashes | 0 | NOT AUTHORIZED |
+| M2-0 | Canonical Foundations Gate documental | revisión de Physical DB Spec, addendum M2, registry candidate y hashes | 0 | DOCUMENTATION AUTHORIZED / RESULT BLOCKED PENDING REVIEW |
 | M2-1 | PostgreSQL Persistence and Durable Recovery | M2-0 aprobado; registry aprobado para seed | 22 | NOT AUTHORIZED |
 | M2-2 | Productive Transport and Reconnect | M2-1; IQ-M2-008/009 | 8 | NOT AUTHORIZED |
 | M2-3 | Complete Scheduler and Remaining Core Rules | M2-1; contrato de registry suficiente | 39 | NOT AUTHORIZED |
@@ -83,7 +83,7 @@ Ningún bloque de implementación supera 50 casos nuevos únicos. La autorizaci�
 
 ## 6. M2-0 — Canonical Foundations Gate
 
-Bloque exclusivamente documental:
+Bloque exclusivamente documental autorizado mediante DEC-076:
 
 - Physical Database Specification;
 - addendum normativo M2;
@@ -91,15 +91,22 @@ Bloque exclusivamente documental:
 - reconciliación de entidades, IDs, versions, effects y fuentes;
 - revisión expresa de contenido y hashes.
 
-### Gate de salida futuro
+Artifacts producidos:
+
+- `MALIGN_AI_M2_PHYSICAL_DATABASE_SPEC_v0.1.md`: 84 tablas físicas reconciliadas, no DDL; blob candidato `30a8bc9657fb958e21a09af22591f6e959edb3fe`;
+- `MALIGN_AI_CARD_REGISTRY_SPEC_v0.1.md`: 100 definitions, 108 serial templates, 4 aliases y 59 effects candidatos; blob candidato `6472b136a806f403747defe1d59ed44fb78f49fa`;
+- `MALIGN_AI_CARD_REGISTRY_SNAPSHOT_v0.1.json`: status `candidate_pending_review`, no seedable; JCS SHA-256 `37e1e27e142a2e08d8a19418089602bc72d775b9f5944059acc27ee4de93c83e`; blob candidato `a8c3ee9f3b78113e1f94891a9b0c634083107ec3`;
+- `MALIGN_AI_M2_0_CANONICAL_FOUNDATIONS_GATE_v0.1.md`: resultado `BLOCKED / PENDING RESOLUTION`.
+
+### Gate de salida
 
 - Physical DB Spec coherente con PTD-M2-002…005/008/010/011;
 - 32/32 IDs del addendum M2 revisados;
-- registry candidate reconciliado y `IQ-M2-010` resuelta;
+- registry candidate reconciliado y `IQ-M2-010` definitivamente resuelta;
 - blobs documentales aprobados expresamente;
 - ninguna selección silenciosa de provider/ORM/runtime.
 
-M2-0 no implementa código, migrations, seeds ni tests ejecutables. DEC-075 no autoriza ejecutar siquiera este gate.
+El trabajo documental se completó, pero el gate no pasa: contenido, effect bindings y hashes del registry requieren revisión humana; `IQ-M2-010` queda **PARTIALLY RESOLVED / BLOCKED BY LISTED ITEMS**. M2-0 no queda APPROVED/CLOSED. No se implementaron código, migrations, seeds ni tests ejecutables.
 
 ## 7. M2-1 — PostgreSQL Persistence and Durable Recovery
 
@@ -196,7 +203,7 @@ DoD futuro: awards/outcome/final events/outbox atómicos e idempotentes; tiebrea
 | Riesgo | Mitigación | Bloque |
 |---|---|---|
 | schema cristaliza interpretación no aprobada | M2-0 + Physical DB Spec review | M2-1 |
-| DRAFT se convierte silenciosamente en seed | candidate con `UNRESOLVED`, snapshot/hash approval | M2-0/M2-1/M2-4 |
+| DRAFT se convierte silenciosamente en seed | candidate con field authority pendiente, `seedable=false` y aprobación expresa de snapshot/hash | M2-0/M2-1/M2-4 |
 | doble gasto o sequence duplicada | row lock + CAS + fault injection | M2-1 |
 | commit no publicado o publicación duplicada | transactional outbox + at-least-once/dedup | M2-1/M2-2 |
 | replay diverge/consume RNG | reconciliation fail-closed | M2-1/M2-7 |
@@ -217,7 +224,10 @@ DoD futuro: awards/outcome/final events/outbox atómicos e idempotentes; tiebrea
 | IQ-M2-005 | RESOLVED AS CONTRACT DIRECTION | runtime/envelope pendiente en IQ-M2-009 |
 | IQ-M2-008 | OPEN | bloquea afirmar transporte productivo M2-2 |
 | IQ-M2-009 | OPEN | bloquea implementar transporte productivo M2-2 |
-| IQ-M2-010 | OPEN | bloquea seed y reglas dependientes del registry |
+| IQ-M2-010 | PARTIALLY RESOLVED / BLOCKED BY LISTED ITEMS | REG-CAND-001…004 bloquean cierre, seed y reglas registry-dependent |
+| IQ-M2-011 | OPEN | mecanismo UUIDv7 bloquea defaults/DDL exactos de M2-1 |
+| IQ-M2-012 | OPEN | RLS/application-role decision bloquea security claim productivo |
+| IQ-M2-013 | OPEN | partition/archive thresholds bloquean operating envelope, no el modelo |
 
 No surgió una contradicción nueva entre reglas oficiales durante la reconciliación documental; `OPEN_QUESTIONS.md` permanece intacto.
 
@@ -237,4 +247,4 @@ M2 sólo podrá cerrarse tras nuevas autorizaciones si:
 
 ## 19. Gate de salida documental
 
-El paquete queda **AMENDED / PENDING FINAL REVIEW** mediante DEC-075. M2, M2-0…M2-7 y M3 permanecen **NOT AUTHORIZED**. El siguiente paso permitido es revisión humana de esta enmienda, del addendum M2 y del candidate registry; no implementación ni preparación de implementación.
+El planning gate queda **APPROVED AND CLOSED mediante DEC-076** y M2G-R01…R05 quedan **CLOSED**. M2-0 fue autorizado y documentado, pero su resultado es **BLOCKED / PENDING RESOLUTION**; no está APPROVED/CLOSED. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**. El siguiente paso permitido es revisión humana del Physical DB Spec y del registry/snapshot candidatos, incluida resolución de IQ-M2-010/011…013; no implementación ni preparación de implementación.
