@@ -98,17 +98,17 @@
 | M20-R02 — durable idempotency lifecycle | **CORRECTION IMPLEMENTED / PENDING TECHNICAL REVIEW** |
 | M20-R03 — outbox attempt history | **CORRECTION IMPLEMENTED / PENDING TECHNICAL REVIEW** |
 | M20-R04 — human registry review matrix | **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** |
-| Primary source M20-R09 | **PRIMARY_SOURCE_UNAVAILABLE** — `Cartas frente.pdf` con SHA-256 esperado `3301fd9e92e5d8a8df7a3efc1407434afe0395263a5d6c0e16e0e486faa35113` no está disponible; un PDF de nombre distinto fue rechazado por digest `04dee936ddf0bafd056aca0e2d4752c68741381c6688f61f2d997d2c717f0601` |
-| M20-R05 — concurrent idempotency recheck | **NOT EXECUTED / BLOCKED BY PRIMARY_SOURCE_UNAVAILABLE** |
-| M20-R06 — deterministic journal ordering | **NOT EXECUTED / BLOCKED BY PRIMARY_SOURCE_UNAVAILABLE** |
-| M20-R07 — canonical REG-CAND meanings | **NOT EXECUTED / BLOCKED BY PRIMARY_SOURCE_UNAVAILABLE** |
-| M20-R08 — complete typed parameters | **NOT EXECUTED / BLOCKED BY PRIMARY_SOURCE_UNAVAILABLE** |
-| M20-R09 — exhaustive primary-source audit | **0/108 AUDITED / PRIMARY_SOURCE_UNAVAILABLE** |
+| Primary source M20-R09 | **PREFLIGHT PASS / EXTERNAL / NOT IN GIT** — `Cartas frente.pdf`, 108 páginas, SHA-256 `3301fd9e92e5d8a8df7a3efc1407434afe0395263a5d6c0e16e0e486faa35113`; página N = serial N |
+| M20-R05 — concurrent idempotency recheck | **CORRECTION IMPLEMENTED / PENDING TECHNICAL REVIEW** |
+| M20-R06 — deterministic journal ordering | **CORRECTION IMPLEMENTED / PENDING TECHNICAL REVIEW** |
+| M20-R07 — canonical REG-CAND meanings | **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** |
+| M20-R08 — complete typed parameters | **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW — 103/103 complete, 0 unknown/N/A** |
+| M20-R09 — exhaustive primary-source audit | **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW — 108/108 audited; 102 MATCH, 5 DIFFERENCE, 1 AMBIGUOUS** |
 | Registry candidate histórico | **PRESERVED / CANDIDATE ONLY — blob `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`** |
-| Physical Database Spec v0.1 | **87 TABLES / M20-R01…R03 CORRECTION IMPLEMENTED / PENDING TECHNICAL REVIEW — blob candidato `90a7236e2fde6c86e807764630a579bc494aee7a`** |
-| Registry Spec v0.1 | **100 definitions / 108 templates / 4 aliases / 59 effects — PENDING OWNER APPROVAL — blob candidato `6472b136a806f403747defe1d59ed44fb78f49fa`** |
-| Registry Snapshot v0.1 | **candidate_pending_review / NOT SEEDABLE — JCS SHA-256 `37e1e27e142a2e08d8a19418089602bc72d775b9f5944059acc27ee4de93c83e`; blob `a8c3ee9f3b78113e1f94891a9b0c634083107ec3`** |
-| Product Owner Review Matrix v0.1 | **100/100 definitions, 108/108 serials, 6/6 groups, 41/41 no-effect, 59/59 effects; DRAFT_ONLY / checklist vacío / PENDING REVIEW — blob `e148918b9414c49baa25fd84691ce8328edd4f14`** |
+| Physical Database Spec v0.1 | **87 TABLES / M20-R01…R06 CORRECTION IMPLEMENTED / PENDING REVIEW — blob candidato `873049f4dba4297a87f3e8dfdccaf028cc2c4a1f`** |
+| Registry Spec v0.1 | **100 definitions / 108 templates / 4 aliases / 59 effects / 103 operations — PENDING OWNER APPROVAL — blob candidato `c3129937a45f55c94a7546c350b93ac331f5b7b6`** |
+| Registry Snapshot v0.1 | **candidate_pending_review / NOT SEEDABLE / 108 primary audit rows — JCS SHA-256 `6f777a5bafe7611389d80baa47fa3f0a785014d10b659e3446846bf735e1c897`; blob `d8d8afe220d76043d836c5ba15f89acde0f3a939`** |
+| Product Owner Review Matrix v0.1 | **100/108/6/41/59/103 complete; primary audit 108/108; checklist vacío; PENDING REVIEW — blob `1dbfee8a72016787dd8b829bc1ffb1cf8dc0d826`** |
 | M2-0 — Canonical Foundations Gate documental | **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW — NOT APPROVED/CLOSED** |
 | M2-1 — PostgreSQL Persistence and Durable Recovery | **NOT AUTHORIZED** |
 | M2-2 — Productive Transport and Reconnect | **NOT AUTHORIZED** |
@@ -219,7 +219,9 @@ M2G-R01…R05 quedan **CLOSED** mediante DEC-076: `GE-M2-EFX-001` conserva owner
 
 `IQ-M2-001…007` quedan **RESOLVED mediante DEC-075**. `IQ-M2-008 — Production AuthN provider` e `IQ-M2-009 — WebSocket runtime and operating envelope` permanecen **OPEN / PENDING RESOLUTION** sin cambios. `IQ-M2-010` queda **PARTIALLY RESOLVED / BLOCKED BY REG-CAND-001…004**: la matriz habilita revisión humana, no aprobación. `IQ-M2-011` (UUIDv7 generation boundary), `IQ-M2-012` (RLS defense-in-depth) e `IQ-M2-013` (partitioning/archival thresholds) permanecen **OPEN**. No apareció contradicción normativa real; `OPEN_QUESTIONS.md` permanece intacto.
 
-M2-0 fue ejecutado sólo como gate documental. La corrección acotada M20-R01…R04 separa AP balance+journal, fija el lifecycle durable de idempotencia, separa outbox message/state/attempt y crea la matriz humana exhaustiva del registry. Physical DB Spec queda en **87 tablas**. El dictamen posterior exige M20-R05…R09, pero el preflight obligatorio termina en `PRIMARY_SOURCE_UNAVAILABLE`: no se encontró `Cartas frente.pdf` con SHA-256 `3301fd9e92e5d8a8df7a3efc1407434afe0395263a5d6c0e16e0e486faa35113`; un PDF de nombre distinto con SHA-256 `04dee936ddf0bafd056aca0e2d4752c68741381c6688f61f2d997d2c717f0601` fue rechazado y no se usó. Por mandato del dictamen, M20-R05…R09 no se ejecutaron, la auditoría primaria queda **0/108** y las inconsistencias conocidas permanecen abiertas. M2-0 sigue **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**, no APPROVED/CLOSED. M2-1…M2-7 son bloques futuros y permanecen **NOT AUTHORIZED**; M2 global y M3 también. PostgreSQL/migrations/outbox ejecutable, durabilidad entre procesos/nodos, realtime/WebSocket productivo, registry seed, scheduler/reglas M2, Action/Reaction/Veto, Regime Abilities, Cleanup/End Turn, objectives/victory, AuthN productiva, UI e IA permanecen **NOT STARTED / NOT AUTHORIZED**.
+M2-0 fue ejecutado sólo como gate documental. M20-R01…R04 separa AP balance+journal, fija el lifecycle durable de idempotencia, separa outbox message/state/attempt y crea la matriz humana exhaustiva. La fuente exacta `Cartas frente.pdf` pasó el preflight con SHA-256 `3301fd9e92e5d8a8df7a3efc1407434afe0395263a5d6c0e16e0e486faa35113`; se auditó externamente 108/108 y no se incorporó a Git. M20-R05 añade fast lookup + recheck obligatorio bajo Game lock; M20-R06 fija orden causal `(game_event_sequence, artifact_ordinal)` y rollback/CAS sin gaps; M20-R07 restaura los significados canónicos REG-CAND-001…004; M20-R08 completa 103/103 parámetros machine-readable; M20-R09 registra 102 MATCH, 5 DIFFERENCE y 1 AMBIGUOUS, con 59 literales y 41 ausencias por definition. La Physical DB Spec permanece en **87 tablas**.
+
+M20-R01…R09 quedan **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**. REG-CAND-001…004 siguen **PENDING PRODUCT OWNER DECISION**; `IQ-M2-010` sigue **PARTIALLY RESOLVED / BLOCKED BY REG-CAND-001…004** e `IQ-M2-011…013` continúan OPEN. M2-0 sigue **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**, no APPROVED/CLOSED. M2-1…M2-7 son bloques futuros y permanecen **NOT AUTHORIZED**; M2 global y M3 también. PostgreSQL/migrations/outbox ejecutable, durabilidad entre procesos/nodos, realtime/WebSocket productivo, registry seed, scheduler/reglas M2, Action/Reaction/Veto, Regime Abilities, Cleanup/End Turn, objectives/victory, AuthN productiva, UI e IA permanecen **NOT STARTED / NOT AUTHORIZED**.
 
 La suite **215/215 PASS en 27 archivos, 0 skips, 0 todo y 0 waivers** se conserva sólo como baseline aprobada; no fue reejecutada. Ningún código M2 ha iniciado.
 
@@ -227,7 +229,7 @@ La suite **215/215 PASS en 27 archivos, 0 skips, 0 todo y 0 waivers** se conserv
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**. El próximo paso permitido es aportar la fuente primaria exacta `Cartas frente.pdf` con SHA-256 `3301fd9e92e5d8a8df7a3efc1407434afe0395263a5d6c0e16e0e486faa35113`; sólo después podrá reiniciarse M20-R05…R09. M2-0 sigue pendiente y no cerrado. REG-CAND-001…004 permanecen pendientes; M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
+M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**. El próximo paso permitido es la revisión técnica de M20-R05/R06 y la decisión humana REG-CAND-001…004 sobre la matriz y hashes candidatos. M2-0 sigue pendiente y no cerrado. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
 
 ## Continuidad documental
 

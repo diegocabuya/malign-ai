@@ -1,7 +1,7 @@
 # MALIGN-AI — M2 PHYSICAL DATABASE SPECIFICATION v0.1
 
 **Fecha:** 2026-08-26
-**Estado:** **M2-0 CORRECTION M20-R01…R03 IMPLEMENTED / PENDING TECHNICAL REVIEW — NO EXECUTABLE SCHEMA AUTHORIZED**
+**Estado:** **M2-0 CORRECTION M20-R01…R06 IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW — NO EXECUTABLE SCHEMA AUTHORIZED**
 **Autoridad de preparación:** DEC-076
 **Implementación, DDL, migrations y seed:** **NOT AUTHORIZED**
 
@@ -33,7 +33,7 @@ No existe ninguna obligación normativa de mantener el número 61. Cada extensi�
 - `jsonb`: sólo para estructuras versionadas y runtime-validated; cada columna JSON crítica tiene `*_schema_id` + `*_schema_version` FK a `json_schema_versions`.
 - `bytea`: digests/hash binarios; la representación de intercambio es hex lowercase.
 - `M`: `id uuid PK`, `created_at timestamptz NOT NULL`, `updated_at timestamptz NOT NULL`, `row_version bigint NOT NULL DEFAULT 1 CHECK >0`.
-- `A`: `id uuid PK`, `created_at timestamptz NOT NULL`; fila append-only, sin update/delete funcional.
+- `A`: `id uuid PK`, `created_at timestamptz NOT NULL`; fila append-only, sin update/delete funcional. Todo journal o artifact game-scoped que participe en replay añade `game_event_sequence bigint NOT NULL` y `artifact_ordinal smallint NOT NULL`: el par se asigna bajo el lock de Game, usa ordinal 1…N determinístico dentro del command/event y tiene `UNIQUE(game_id, game_event_sequence, artifact_ordinal)` en cada journal. Una tabla con un orden canónico más fuerte ya declarado (`game_events`, outbox message/attempt, AP por subject) lo conserva y referencia la misma secuencia causal.
 - `TXS`: `id uuid PK`, `created_at timestamptz NOT NULL`; fila sellada por transacción: identidad y fingerprint inmutables, única transición `INTERNAL_PENDING → COMMITTED` dentro de la misma command transaction, y estado `INTERNAL_PENDING` nunca visible después de commit; una fila `COMMITTED` queda inmutable.
 - `V`: `id uuid PK`, `logical_id text NOT NULL`, `version text NOT NULL`, `status text NOT NULL DEFAULT 'DRAFT'`, `source_reference text NOT NULL`, `content_digest bytea NOT NULL`, `created_at timestamptz NOT NULL`, `UNIQUE(logical_id, version)`; retirada por status, nunca hard-delete si está referenciada.
 
@@ -111,16 +111,16 @@ Cada fila documenta columnas propias además de `M`, `A` o `V`; nulabilidad se m
 | # | Tabla física → lógica | Columnas físicas | PK/FK/UK/checks e índices | Política, transacción, JSON y versión |
 |---:|---|---|---|---|
 | 37 | `action_point_balances` → ActionPointBalance (proyección actual) | `M`; `game_id uuid`; `turn_id uuid`; `participant_id uuid`; `allocated integer`; `spent integer`; `remaining integer`; `last_transaction_sequence bigint=0` | UK(turn,participant); FKg; CK all>=0, allocated=spent+remaining y sequence>=0; IDX game/participant/turn | `CUR`; cache mutable sólo en command tx; debe reconciliar exactamente con #38 y nunca sustituye su journal |
-| 38 | `action_point_transactions` → ActionPointTransaction (journal autoritativo) | `A`; `game_id uuid`; `turn_id uuid`; `participant_id uuid`; `sequence_number bigint`; `delta integer`; `reason_type text`; `source_entity_type text?`; `source_entity_id uuid?`; `correlation_id uuid`; `adjudication_trace_id uuid`; `balance_after integer` | UK(game,turn,participant,sequence); FKg; CK sequence>0, delta!=0, balance_after>=0 y source type/id ambos NULL o ambos presentes; IDX game/participant/turn/sequence, source, correlation, trace | `APP`; journal AP autoritativo de deltas; #37 se actualiza y reconcilia en la misma tx; ajustes sólo compensatorios, nunca rewrite |
-| 39 | `resource_transactions` → ResourceTransaction | `A`; `game_id uuid`; `turn_id uuid?`; `participant_id uuid`; `delta integer`; `reason_type text`; `source_entity_type text?`; `source_entity_id uuid?`; `counterparty_participant_id uuid?`; `adjudication_trace_id uuid?`; `balance_after integer` | FKg; CK balance_after>=0; IDX game/participant/created_at, source | `APP`; ledger autoritativo; corrección compensatoria |
+| 38 | `action_point_transactions` → ActionPointTransaction (journal autoritativo) | `A`; `game_id uuid`; `game_event_sequence bigint`; `artifact_ordinal smallint`; `turn_id uuid`; `participant_id uuid`; `sequence_number bigint`; `delta integer`; `reason_type text`; `source_entity_type text?`; `source_entity_id uuid?`; `correlation_id uuid`; `adjudication_trace_id uuid`; `balance_after integer` | UK(game,turn,participant,sequence); UK(game,event_sequence,artifact_ordinal); FKg; CK sequences/ordinal>0, delta!=0, balance_after>=0 y source type/id ambos NULL o ambos presentes; IDX game/participant/turn/sequence, game/event/ordinal, source, correlation, trace | `APP`; journal AP autoritativo de deltas; #37 se actualiza y reconcilia en la misma tx; orden causal total por event/ordinal; ajustes sólo compensatorios, nunca rewrite |
+| 39 | `resource_transactions` → ResourceTransaction | `A`; `game_id uuid`; `game_event_sequence bigint`; `artifact_ordinal smallint`; `turn_id uuid?`; `participant_id uuid`; `delta integer`; `reason_type text`; `source_entity_type text?`; `source_entity_id uuid?`; `counterparty_participant_id uuid?`; `adjudication_trace_id uuid?`; `balance_after integer` | UK(game,event_sequence,artifact_ordinal); FKg; CK event_sequence/ordinal>0, balance_after>=0; IDX game/event/ordinal, game/participant/event/ordinal, source | `APP`; ledger autoritativo; orden total no depende de `created_at`; corrección compensatoria |
 | 40 | `card_instances` → CardInstance | `M`; `game_id uuid`; `country_owner_definition_id uuid`; `serial_template_id uuid`; `card_definition_id uuid`; `current_controller_participant_id uuid`; `zone text`; `face_state text`; `removed_from_game boolean=false`; `return_to_owner_on_discard boolean=false` | UK(game,country,serial_template); FKg; FK country/template/definition; IDX game/controller/zone, definition | `CUR/SEC`; single-zone; mano owner+F1; deck order SYSTEM_ONLY |
 | 41 | `deck_card_positions` → DeckCardPosition | `M`; `game_id uuid`; `participant_id uuid`; `card_instance_id uuid`; `position integer`; `shuffle_revision bigint` | UK(game,participant,revision,position), UK(card,revision); FKg; CK position/revision>0; IDX game/participant/revision | `CUR/SEC`; reemplazo denso atómico; future order SYSTEM_ONLY |
 | 42 | `campaigns` → Campaign | `M`; `game_id uuid`; `owner_participant_id uuid`; `created_turn_id uuid`; `row text`; `state text`; `intent_alignment text`; `target_dt_id uuid?`; `last_activated_turn_id uuid?`; `activation_count_current_turn_cache integer=0` | FKg; CK count>=0; IDX game/owner/state/row | `CUR/SEC`; face-down owner+F1 hasta reveal |
 | 43 | `campaign_card_assignments` → CampaignCardAssignment | `M`; `game_id uuid`; `campaign_id uuid`; `slot_type text`; `card_instance_id uuid`; `assigned_turn_id uuid`; `removed_turn_id uuid?` | partial UK(campaign,slot) active; partial UK(card) active; FKg; IDX game/campaign | `CUR/SEC`; slot/card zone se actualizan en misma tx |
 | 44 | `population_demographic_states` → PopulationDemographicState | `M`; `game_id uuid`; `scenario_pd_definition_id uuid`; `host_country_definition_id uuid`; `current_legitimacy_participant_id uuid?` | UK(game,scenario_pd); FKg; IDX game/host | `CUR`; board público autorizado |
 | 45 | `influence_stacks` → InfluenceStack | `M`; `game_id uuid`; `pd_state_id uuid`; `influence_type text`; `attribution_country_definition_id uuid`; `count integer=0` | UK(pd,type,country); FKg; CK count>=0; IDX game/pd/type | `CUR`; estado normalizado; cero puede retirarse sólo preservando mutation log |
-| 46 | `influence_mutations` → InfluenceMutation | `A`; `game_id uuid`; `turn_id uuid?`; `adjudication_trace_id uuid?`; `pd_state_id uuid`; `influence_type text`; `attribution_country_definition_id uuid`; `delta integer`; `mutation_reason text`; `source_entity_type text?`; `source_entity_id uuid?`; `resulting_count integer` | FKg; CK resulting_count>=0; IDX game/pd/created_at, trace | `APP`; historia íntegra durante M2 |
-| 47 | `legitimacy_events` → LegitimacyEvent | `A`; `game_id uuid`; `turn_id uuid?`; `pd_state_id uuid`; `previous_participant_id uuid?`; `new_participant_id uuid?`; `reason_type text`; `adjudication_trace_id uuid?` | FKg; CK previous/new no ambos iguales salvo audit reason; IDX game/pd/created_at | `APP`; estado actual se cambia atómicamente con evento |
+| 46 | `influence_mutations` → InfluenceMutation | `A`; `game_id uuid`; `game_event_sequence bigint`; `artifact_ordinal smallint`; `turn_id uuid?`; `adjudication_trace_id uuid?`; `pd_state_id uuid`; `influence_type text`; `attribution_country_definition_id uuid`; `delta integer`; `mutation_reason text`; `source_entity_type text?`; `source_entity_id uuid?`; `resulting_count integer` | UK(game,event_sequence,artifact_ordinal); FKg; CK event_sequence/ordinal>0, resulting_count>=0; IDX game/event/ordinal, game/pd/event/ordinal, trace | `APP`; historia íntegra y orden total determinístico durante M2 |
+| 47 | `legitimacy_events` → LegitimacyEvent | `A`; `game_id uuid`; `game_event_sequence bigint`; `artifact_ordinal smallint`; `turn_id uuid?`; `pd_state_id uuid`; `previous_participant_id uuid?`; `new_participant_id uuid?`; `reason_type text`; `adjudication_trace_id uuid?` | UK(game,event_sequence,artifact_ordinal); FKg; CK event_sequence/ordinal>0 y previous/new no ambos iguales salvo audit reason; IDX game/event/ordinal, game/pd/event/ordinal | `APP`; estado actual se cambia atómicamente con evento y conserva orden total |
 | 48 | `planned_actions` → PlannedAction | `M`; `game_id uuid`; `turn_id uuid`; `participant_id uuid`; `sequence_within_player smallint`; `action_type text`; `ap_cost integer`; `state text`; `target_entity_type text?`; `target_entity_id uuid?`; `card_instance_id uuid?`; `campaign_id uuid?`; `parameters_json jsonb?`; `parameters_schema_id text?`; `parameters_schema_version text?`; `locked_at timestamptz?` | UK(turn,participant,sequence); FKg/schema; CK sequence 1..3, cost>=0, JSON/schema paired; IDX game/turn/participant/state | `CUR/SEC`; owner+F1 antes de reveal; max 3 y AP lock atomically |
 | 49 | `action_resolutions` → ActionResolution | `M`; `game_id uuid`; `planned_action_id uuid`; `initiative_position smallint`; `resolution_status text`; `adjudication_trace_id uuid?`; `started_at timestamptz`; `ended_at timestamptz?` | UK(planned_action); FKg; CK position>0; IDX game/status | `CUR`; scheduler/system authority |
 
@@ -144,8 +144,8 @@ Cada fila documenta columnas propias además de `M`, `A` o `V`; nulabilidad se m
 | 63 | `influence_resolutions` → InfluenceResolution | `A`; `game_id uuid`; `adjudication_trace_id uuid`; `pd_state_id uuid`; `incoming_type text`; `incoming_attribution_country_definition_id uuid`; `generated_count integer`; `consumed_in_cancellation integer`; `opposite_removed_count integer`; `placed_count integer` | FKg; CK generated=consumed+placed y consumed=2*removed; IDX game/trace | `APP`; prueba exacta 2:1 |
 | 64 | `viralization_resolutions` → ViralizationResolution | `A`; `game_id uuid`; `turn_id uuid`; `origin_pd_state_id uuid`; `legitimacy_owner_participant_id uuid`; `influence_type text`; `origin_count integer`; `threshold integer`; `target_pd_state_id uuid?`; `shares_dt boolean`; `spread_check_die_roll_id uuid?`; `spread_succeeded boolean`; `quantity_die_roll_id uuid?`; `cubes_generated integer`; `adjudication_trace_id uuid` | FKg; CK counts>=0; IDX game/turn/origin | `APP`; M2-6 no autorizado |
 | 65 | `regime_ability_activations` → RegimeAbilityActivation | `A`; `game_id uuid`; `turn_id uuid`; `participant_id uuid`; `ability_definition_id uuid`; `planned_action_id uuid`; `die_roll_id uuid?`; `target_pd_state_id uuid?`; `adjudication_trace_id uuid` | UK(turn,participant,ability); FKg; IDX game/turn | `APP`; M2-4 no autorizado |
-| 66 | `adjudication_traces` → AdjudicationTrace | `A`; `game_id uuid`; `turn_id uuid?`; `phase_state_id uuid?`; `participant_id uuid?`; `trace_type text`; `source_action_id uuid?`; `source_card_instance_id uuid?`; `source_campaign_id uuid?`; `target_pd_state_id uuid?`; `pre_state_hash bytea`; `post_state_hash bytea`; `input_snapshot_json jsonb`; `rule_evaluation_json jsonb`; `output_snapshot_json jsonb`; `trace_schema_id text`; `trace_schema_version text`; `facilitator_intervention_id uuid?`; `correlation_id uuid`; `causation_id uuid?` | FKg/schema; CK hashes no vacíos/JSON objects; IDX game/turn/created, sources, correlation | `APP/SEC`; raw F1 y proyecciones redactadas; historia íntegra |
-| 67 | `vp_transactions` → VPTransaction | `A`; `game_id uuid`; `turn_id uuid?`; `participant_id uuid`; `delta integer`; `balance_after integer`; `reason_type text`; `source_entity_type text`; `source_entity_id uuid`; `adjudication_trace_id uuid?` | FKg; CK balance_after>=0; IDX game/participant/created | `APP`; ledger autoritativo, floor cero |
+| 66 | `adjudication_traces` → AdjudicationTrace | `A`; `game_id uuid`; `game_event_sequence bigint`; `artifact_ordinal smallint`; `turn_id uuid?`; `phase_state_id uuid?`; `participant_id uuid?`; `trace_type text`; `source_action_id uuid?`; `source_card_instance_id uuid?`; `source_campaign_id uuid?`; `target_pd_state_id uuid?`; `pre_state_hash bytea`; `post_state_hash bytea`; `input_snapshot_json jsonb`; `rule_evaluation_json jsonb`; `output_snapshot_json jsonb`; `trace_schema_id text`; `trace_schema_version text`; `facilitator_intervention_id uuid?`; `correlation_id uuid`; `causation_id uuid?` | UK(game,event_sequence,artifact_ordinal); FKg/schema; CK event_sequence/ordinal>0, hashes no vacíos/JSON objects; IDX game/event/ordinal, sources, correlation | `APP/SEC`; raw F1 y proyecciones redactadas; historia íntegra y orden causal total |
+| 67 | `vp_transactions` → VPTransaction | `A`; `game_id uuid`; `game_event_sequence bigint`; `artifact_ordinal smallint`; `turn_id uuid?`; `participant_id uuid`; `delta integer`; `balance_after integer`; `reason_type text`; `source_entity_type text`; `source_entity_id uuid`; `adjudication_trace_id uuid?` | UK(game,event_sequence,artifact_ordinal); FKg; CK event_sequence/ordinal>0, balance_after>=0; IDX game/event/ordinal, game/participant/event/ordinal | `APP`; ledger autoritativo, floor cero y orden total determinístico |
 | 68 | `victory_objective_progress` → VictoryObjectiveProgress | `M`; `game_id uuid`; `objective_definition_id uuid`; `participant_id uuid`; `current_status_json jsonb`; `status_schema_id text`; `status_schema_version text`; `currently_qualifies boolean`; `calculated_at timestamptz`; `evaluator_version text` | UK(game,objective,participant); FKg/schema; IDX game/participant | `CUR/SEC`; owner+F1; derivado/recalculable pero persistido para audit |
 
 ### 3.6 Outcome, colaboración, audit y delivery (69–87)
@@ -205,29 +205,34 @@ La separación evita elevar `BASE_CARD_001…108` de M1 a 100 definition IDs, ev
 
 ```text
 BEGIN READ COMMITTED
-  1. lookup only durable COMMITTED idempotency:
+  1. fast lookup of only durable COMMITTED idempotency:
        same fingerprint => return original result without readjudication
        different fingerprint => typed rejection without mutation
   2. SELECT Game row FOR UPDATE
-  3. CAS expected_game_version against current game_version
-       loser exits before idempotency/AP/outbox artifacts
-  4. runtime-validate command, JSON schemas and pinned versions
-  5. insert INTERNAL_PENDING idempotency reservation (not externally visible)
-  6. execute deterministic Engine with explicit RNG/Clock
-  7. persist normalized/current state, including AP balances
-  8. append resource/AP/VP/influence/legitimacy/RNG artifacts
-  9. append AdjudicationTrace and GameEvent with monotonic sequences
- 10. persist/close pending interaction and continuation as applicable
- 11. optionally append stable GameSnapshot
- 12. append immutable OutboxMessage + PENDING OutboxDeliveryState
- 13. increment Game.game_version exactly once
- 14. transition idempotency to COMMITTED with result before commit
+  3. MANDATORY second idempotency lookup under the Game lock:
+       same key + same fingerprint => return original result without checking expected_game_version
+       same key + different fingerprint => typed IDEMPOTENCY_KEY_REUSE_CONFLICT
+       only confirmed absence may continue
+  4. CAS expected_game_version against current game_version
+       loser exits before sequence allocation or any artifact
+  5. runtime-validate command, JSON schemas and pinned versions
+  6. insert INTERNAL_PENDING idempotency reservation (not externally visible)
+  7. execute deterministic Engine with explicit RNG/Clock
+  8. allocate next Game event sequence and deterministic artifact ordinals under the same lock
+  9. persist normalized/current state, including AP balances
+ 10. append resource/AP/VP/influence/legitimacy/RNG artifacts with event_sequence+ordinal
+ 11. append AdjudicationTrace and GameEvent with the same causal sequence
+ 12. persist/close pending interaction and continuation as applicable
+ 13. optionally append stable GameSnapshot
+ 14. append immutable OutboxMessage + PENDING OutboxDeliveryState
+ 15. increment Game.game_version exactly once
+ 16. transition idempotency to COMMITTED with result before commit
 COMMIT
 publisher post-commit appends delivery-attempt stages and mutates delivery state;
 delivery is at-least-once and consumer-deduplicated; INTERNAL_PENDING never commits
 ```
 
-El proceso perdedor de CAS no escribe mutación, journal AP, idempotency record, evento, trace, RNG, snapshot, outbox message, delivery state/attempt ni consumo/cursor. Cualquier fallo entre pasos revierte todo. La secuencia de eventos se asigna bajo el mismo lock de Game; no existe segundo writer lógico.
+El segundo lookup es obligatorio aunque el fast path haya fallado: cierra la carrera entre dos procesos que observaron ausencia. El proceso perdedor de CAS no escribe mutación, journal, idempotency record, evento, trace, RNG, snapshot, outbox message, delivery state/attempt ni consumo/cursor. Cualquier fallo entre pasos revierte todo. `games.event_sequence_head` se incrementa dentro de la transacción bajo el mismo lock y cada ordinal se deriva de una lista estable de artifacts; rollback o CAS loser revierten también el head, por lo que no dejan huecos permanentes. `created_at` es sólo metadata.
 
 Operaciones especialmente atómicas: setup/materialización; draw/shuffle/hand limit; plan lock/AP; transfer; campaign replacement; suspend/resume; reaction/Veto; campaign payment+ERT+2:1+VP/legitimacy; viral; victory settlement; facilitator correction; snapshot checkpoint.
 
@@ -260,6 +265,9 @@ Operaciones especialmente atómicas: setup/materialización; draw/shuffle/hand l
 | Después de OutboxMessage/DeliveryState | Rollback elimina ambos junto con el command; no hay mensaje de un estado no committed. |
 | Después de finalizar idempotencia, antes de COMMIT | Rollback elimina resultado y todos los artifacts; el retry adjudica una sola vez. |
 | Publisher: después de CLAIM, SEND_STARTED, retorno de transporte o antes de ACK | Mensaje/payload committed permanece; se añade la etapa/lease/fallo/retry correspondiente y el estado se reconstruye sin ejecutar gameplay. |
+| Dos procesos, misma key y mismo fingerprint, ambos fallan fast lookup | El primero adjudica; el segundo espera el lock, encuentra COMMITTED en el recheck y devuelve exactamente el resultado original sin evaluar `expected_game_version`; una mutación, una versión y una secuencia. |
+| Dos procesos, misma key y fingerprints distintos, ambos fallan fast lookup | El primero adjudica; el segundo encuentra la key en el recheck y recibe `IDEMPOTENCY_KEY_REUSE_CONFLICT`; cero artifacts del segundo aunque su expected version fuera válido. |
+| Fallo después de reservar event sequence/ordinals y antes de COMMIT | Rollback revierte `event_sequence_head` y todas las filas; el retry reutiliza el siguiente valor durable, sin hueco permanente ni `artifact_ordinal` parcial. |
 
 ## 7. Índices, N+1 y consultas
 
@@ -270,9 +278,9 @@ Además de los índices por tabla:
 - replay/feed: keyset pagination `(game_id, sequence_number)`; no OFFSET;
 - AP: `(game_id,participant_id,turn_id,sequence_number)` para journal y UK `(turn_id,participant_id)` para balance reconciliable;
 - outbox publisher: índice de `outbox_delivery_states(delivery_status,next_attempt_at)` y join por message ID; orden estable `(game_id,outbox_sequence)` del mensaje inmutable;
-- idempotencia: UK `(game_id,actor_id,idempotency_key)` y lookup de sólo `COMMITTED`; fingerprint nunca se actualiza;
+- idempotencia: UK `(game_id,actor_id,idempotency_key)` y covering lookup `(game_id,actor_id,idempotency_key,status,command_fingerprint)`; fast path y recheck bajo Game lock consultan sólo `COMMITTED`; fingerprint nunca se actualiza;
 - pending dashboard F1: `(game_id,status)` para choice/reaction/narrative/resolution;
-- traces/ledgers: índices por `game_id` + entity + sequence/time sólo para acceso; la autoridad sigue sequence/FK;
+- traces/ledgers: `(game_id,game_event_sequence,artifact_ordinal)` es el orden autoritativo; índices alternos por subject conservan esa cola y nunca usan timestamp como desempate;
 - toda carga de definitions usa registry/ruleset pinned y batch IDs; no lookup por nombre.
 
 Antes de DDL, M2-1 deberá adjuntar `EXPLAIN`/query-budget fixtures para aggregate load, projection build, replay page, pending dashboard y outbox claim. Esta especificación no fija un ORM.
@@ -284,7 +292,8 @@ Antes de DDL, M2-1 deberá adjuntar `EXPLAIN`/query-budget fixtures para aggrega
 | two writers / stale state | Game PK lock + CAS `game_version` | PK games(id) |
 | duplicate/ordered events | UK(game_id, sequence_number), positive check | (game_id, sequence_number) |
 | duplicate outbox/delivery | mensaje: UK(game_id,outbox_sequence), event/audience y dedup key; attempt: UK(message,attempt,stage) | delivery state status/next_attempt + message game/sequence |
-| idempotency key reuse | UK(game,actor,key) + fingerprint immutable; transición transaction-sealed a COMMITTED | game/status y command ID; sólo COMMITTED es durable |
+| idempotency key reuse/concurrent miss | UK(game,actor,key) + fingerprint immutable + recheck obligatorio bajo Game lock; transición transaction-sealed a COMMITTED | covering game/actor/key/status/fingerprint y command ID; sólo COMMITTED es durable |
+| journal/trace ordering | UK(game,event_sequence,artifact_ordinal), ambos positivos; event head transaccional | game/event_sequence/artifact_ordinal y game/subject/event_sequence/artifact_ordinal |
 | cross-game reference | composite FKg in game-scoped relations | leading game_id on access paths |
 | card in two active slots/zones | partial UK card assignment + state/zone transaction check | game/controller/zone; campaign active slot |
 | duplicate seat/country/order | three UKs on player_seats | game/clockwise |
@@ -346,7 +355,7 @@ Cada schema tiene ID, versión, JCS SHA-256, fuente y `compatibility_mode = EXAC
 
 ## 11. Manifest mínimo futuro `GE-M2-DB-001`
 
-La prueba contractual del futuro adapter debe cubrir las 87 tablas por grupos, sus PK/FK/UK/checks/índices manifestados, pins de versión, schema JSON, single-zone, journals append-only, el par AP balance+journal, una fila Game lock/CAS, requests/continuations durables, sequences monotónicas, idempotencia `TXS` y el trío outbox message/state/attempt. Tras la aprobación humana futura, deberá comparar un manifest generado por introspección contra el catálogo que resulte aprobado; no basta contar tablas.
+La prueba contractual del futuro adapter debe cubrir las 87 tablas por grupos, sus PK/FK/UK/checks/índices manifestados, pins de versión, schema JSON, single-zone, journals append-only, el par AP balance+journal, una fila Game lock/CAS, requests/continuations durables, sequences monotónicas, idempotencia `TXS` con fast path + recheck obligatorio y el trío outbox message/state/attempt. El manifest deberá comprobar en `resource_transactions`, `vp_transactions`, `influence_mutations`, `legitimacy_events`, `action_point_transactions` y `adjudication_traces` las columnas/UK/CK/IDX de `(game_id,game_event_sequence,artifact_ordinal)`. Tras la aprobación humana futura, deberá comparar introspección contra el catálogo aprobado; no basta contar tablas.
 
 Acceptance adicional obligatoria:
 
@@ -356,6 +365,8 @@ Acceptance adicional obligatoria:
 - FK cross-game y version mismatch rechazan;
 - fault injection en cada write boundary revierte todos los artifacts;
 - fault injection específico demuestra: cero CAS-loser artifact, cero `INTERNAL_PENDING` committed, AP balance+journal atómicos y outbox gameplay/post-commit reconstruible;
+- dos miss concurrentes de idempotencia demuestran recheck: same fingerprint retorna el resultado original sin expected-version check; different fingerprint rechaza tipadamente sin artifacts;
+- replay de dos o más mutations del mismo command demuestra orden único event/ordinal; rollback y CAS loser no dejan gaps permanentes ni ordinals parciales;
 - restore produce state hash/replay equivalentes;
 - query fixtures no incurren en N+1;
 - no secrets ni unauthorized rows aparecen en projection queries.
@@ -370,4 +381,4 @@ Acceptance adicional obligatoria:
 
 ## 13. Gate
 
-Las correcciones documentales **M20-R01…R03 están IMPLEMENTED / PENDING TECHNICAL REVIEW**. Este documento queda **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**: no contiene DDL ejecutable y no aprueba las 87 tablas, UUID generator, RLS, particionado, proveedor, ORM, cloud, AuthN, WebSocket ni migrations. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
+Las correcciones documentales **M20-R01…R06 están IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**. El catálogo permanece en **87 tablas**: R05/R06 sólo completan lifecycle, columnas e invariantes de las tablas ya reconciliadas. Este documento queda **BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW**: no contiene DDL ejecutable y no aprueba las 87 tablas, UUID generator, RLS, particionado, proveedor, ORM, cloud, AuthN, WebSocket ni migrations. M2-1…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
