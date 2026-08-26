@@ -43,12 +43,12 @@ Los 35 IDs M0 y 49 IDs oracle owner M1 se solapan en 13; su unión verificable e
 | M2-2 | 0 | 8 | 8 | 17 | 25 | 245 |
 | M2-3 | 37 | 2 | 39 | 18 | 57 | 284 |
 | M2-4 | 45 | 0 | 45 | 12 | 57 | 329 |
-| M2-5 | 20 | 3 | 23 | 10 | 33 | 352 |
+| M2-5 | 20 | 3 | 23 | 11 | 34 | 352 |
 | M2-6 | 17 | 1 | 18 | 6 | 24 | 370 |
 | M2-7 | 28 | 2 | 30 | 8 | 38 | 400 |
-| **Total** | **153** | **32** | **185** | **85 ejecuciones** | **270** | **400** |
+| **Total** | **153** | **32** | **185** | **86 ejecuciones** | **271** | **400** |
 
-La redistribución recalcula las regresiones por riesgo y reemplaza el total anterior de 66; no intenta preservarlo. Las siete ejecuciones futuras del baseline 215/215 para M2-1…M2-7 son gates completos separados y no forman parte de las 270 ejecuciones dirigidas. Ningún bloque de implementación contiene más de 50 casos nuevos únicos.
+La redistribución recalcula las regresiones por riesgo y reemplaza el total anterior de 66; no intenta preservarlo. Las siete ejecuciones futuras del baseline 215/215 para M2-1…M2-7 son gates completos separados y no forman parte de las 271 ejecuciones dirigidas. Ningún bloque de implementación contiene más de 50 casos nuevos únicos.
 
 ## 4. M2-0 — Canonical Foundations Gate
 
@@ -146,7 +146,7 @@ Los 30 `GE-ACT-*` y 15 `GE-REG-*` se trasladan a M2-4.
 - `GE-M2-SCH-001`
 - `GE-M2-EFX-001`
 
-`GE-M2-EFX-001` valida aquí el contrato genérico de dispatch tipado y fail-closed sin implementar Action/Starter/Regime. M2-4 lo repite como regresión de integración; conserva un solo owner.
+`GE-M2-EFX-001` valida aquí sólo el contrato genérico: dispatch por `effect_id` y versión, nunca por nombre/prompt; handler tipado y determinístico; cobertura exhaustiva del manifest habilitado para M2-3; rechazo fail-closed tanto de ID desconocido como de ID conocido pero todavía no habilitado. Todo rechazo conserva state/AP/Resources/RNG/Clock/provider cursors y crea cero events, ledgers, trace, outbox o resultado idempotente. No exige Action/Starter, Regime, Reaction ni Veto. M2-4 y M2-5 lo repiten incrementalmente como regresión; conserva un solo owner.
 
 ### 7.3 Regresiones — 18
 
@@ -180,7 +180,7 @@ Riesgo trazado: phase progression, hidden plan/reveal, campaign integrity, costs
 
 ### 8.2 Addendum owner — 0
 
-`GE-M2-EFX-001` no se duplica: owner M2-3; se ejecuta abajo como regresión porque M2-4 integra efectos reales del registry.
+`GE-M2-EFX-001` no se duplica: owner M2-3; se ejecuta abajo como regresión con un manifest expandido que debe cubrir Action Cards, Starter Cards y Regime Abilities.
 
 ### 8.3 Regresiones — 12
 
@@ -214,7 +214,7 @@ Gate futuro: **57 ejecuciones dirigidas + baseline 215/215**; 45 casos nuevos; s
 
 - `GE-M2-RX-001…003`
 
-### 9.3 Regresiones — 10
+### 9.3 Regresiones — 11
 
 - `GE-CORE-009 [REGRESSION]`
 - `GE-CHO-001 [REGRESSION]`
@@ -226,10 +226,11 @@ Gate futuro: **57 ejecuciones dirigidas + baseline 215/215**; 45 casos nuevos; s
 - `GE-SEC-004 [REGRESSION]`
 - `GE-M1-ADJ-006 [REGRESSION]`
 - `GE-M1-RT-003 [REGRESSION]`
+- `GE-M2-EFX-001 [REGRESSION]`
 
-Riesgo trazado: nested continuations, choices, ordering, no-auto-pass y privacy/reconnect. Las security/choice repeticiones se justifican por ventanas privadas nuevas.
+Riesgo trazado: nested continuations, choices, ordering, no-auto-pass, privacy/reconnect y completitud final del registry effect manifest. `GE-M2-EFX-001 [REGRESSION]` expande el manifest para cubrir Reaction, Veto y efectos narrativos determinísticos relacionados; aquí se demuestra por primera vez la cobertura completa de todos los efectos de cartas del registry aprobado, sin fallback textual ni handler genérico silencioso. Las security/choice repeticiones se justifican por ventanas privadas nuevas.
 
-Gate futuro: **33 ejecuciones dirigidas + baseline 215/215**; 23 casos nuevos; suite mínima acumulada 352.
+Gate futuro: **34 ejecuciones dirigidas + baseline 215/215**; 23 casos nuevos; suite mínima acumulada 352.
 
 ## 10. M2-6 — Cleanup, Viralization and End Turn
 
@@ -296,7 +297,7 @@ Gate futuro: **38 ejecuciones dirigidas + baseline 215/215**; 30 casos nuevos; s
 | ordering/dedup/gaps | M2-2 | `GE-M2-RT-002…005` |
 | privacy/reconnect | M2-2/M2-5 | `GE-M2-RT-006/007`, `GE-M2-RX-002/003` |
 | scheduler/core | M2-3 | 37 oracle + `GE-M2-SCH-001` |
-| registry dispatch | M2-3 owner/M2-4 regression | `GE-M2-EFX-001` |
+| registry dispatch incremental | M2-3 owner; M2-4/M2-5 regression | `GE-M2-EFX-001`: manifest core → Action/Starter/Regime → complete cards con Reaction/Veto/narrativa |
 | Action/Starter/Regime | M2-4 | 30 ACT + 15 REG |
 | Reaction/Veto/Narrative | M2-5 | 20 oracle + 3 RX |
 | Cleanup/Viral/End Turn | M2-6 | 17 oracle + LC |
@@ -325,7 +326,7 @@ Cada fallo afirma ausencia de publish, mutación parcial, RNG adicional y leakag
 - 32/32 addendum M2 únicos, un owner, sin choque oracle/addendum M1;
 - 185 nuevos únicos = 153 + 32;
 - máximo por bloque de implementación = 45, menor que 51;
-- 85 regresiones reconciliadas, sin duplicado intrabloque;
+- 86 regresiones reconciliadas, sin duplicado intrabloque;
 - repeticiones interbloque justificadas por boundary/riesgo;
 - baseline 215 separado de nuevos/regresiones;
 - oracle y addendum M1 byte-for-byte intactos;

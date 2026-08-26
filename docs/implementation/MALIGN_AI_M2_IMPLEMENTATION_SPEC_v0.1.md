@@ -44,6 +44,7 @@ Ante contradicción se falla cerrado, se registra pregunta y no se inventa compo
 - Oracle: `71 implementados + 153 owner M2 = 224`.
 - Addendum M2: 32 IDs canónicos de aceptación.
 - Casos nuevos únicos M2: `153 + 32 = 185`.
+- Regresiones dirigidas M2: 86; ejecuciones dirigidas: `185 + 86 = 271`.
 - Suite mínima acumulada futura: `215 + 185 = 400`.
 - PostgreSQL, migrations, outbox, transporte productivo, AuthN productiva, reglas M2, UI final e IA no han iniciado.
 
@@ -130,7 +131,7 @@ DoD futuro: handshake no confía en claims del cliente; cursor/projection ligado
 
 Incluye setup/maintenance restantes; planning y negociación; campaign lifecycle restante; costs, bonuses, backlash y legitimacy; manual die; seguridad relacionada; scheduler completo y `GE-M2-SCH-001`.
 
-No incluye comportamiento de Action Cards ni Regime Abilities. El test gate asigna también `GE-M2-EFX-001` a M2-3 para conservar el reparto exacto `37 oracle + 2 addendum`: aquí sólo se prueba el contrato genérico de dispatch tipado/fail-closed, sin efectos de Action/Starter/Regime. M2-4 debe reejecutarlo como regresión de integración cuando conecte el catálogo.
+No incluye comportamiento de Action Cards ni Regime Abilities. El test gate asigna también `GE-M2-EFX-001` a M2-3 para conservar el reparto exacto `37 oracle + 2 addendum`: aquí se prueba exclusivamente el contrato genérico del dispatcher, selección por `effect_id` y versión, handler tipado, determinismo y cobertura exhaustiva del manifest habilitado para M2-3. IDs desconocidos o conocidos pero aún no habilitados fallan cerrados con cero state mutation, costs, AP/Resources, RNG/Clock/provider cursor, events, ledgers, trace, outbox o resultado idempotente. No se exige implementar Action/Starter, Regime, Reaction ni Veto.
 
 DoD futuro: continuations persistibles, actoría SYSTEM correcta, orden por initiative/sequence, costes atómicos y reuse del Rule Kernel; **39/39 nuevos únicos** y regresiones dirigidas, más baseline 215/215.
 
@@ -138,7 +139,7 @@ DoD futuro: continuations persistibles, actoría SYSTEM correcta, orden por init
 
 Incluye 30 IDs `GE-ACT-*`; 15 IDs `GE-REG-*`; lifecycle, costes, zonas, secretos y proyecciones relacionados; integración de registry effect dispatch.
 
-`GE-M2-EFX-001` conserva owner único M2-3 por el reparto obligatorio de DEC-075 y se reejecuta aquí como `[REGRESSION]`; esa repetición no lo convierte en caso nuevo M2-4.
+`GE-M2-EFX-001` conserva owner único M2-3 por el reparto obligatorio de DEC-075 y se reejecuta aquí como `[REGRESSION]` con el manifest expandido para cubrir Action Cards, Starter Cards y Regime Abilities; esa repetición no lo convierte en caso nuevo M2-4.
 
 DoD futuro: 30/30 Action y 15/15 Regime owner, effects sólo por IDs/handlers aprobados, atomicidad completa, no dispatch por nombre/prompt y no leakage; **45/45 nuevos únicos** y regresiones dirigidas, más baseline 215/215.
 
@@ -146,7 +147,9 @@ DoD futuro: 30/30 Action y 15/15 Regime owner, effects sólo por IDs/handlers ap
 
 Incluye 10 `GE-REA-*`, cuatro `GE-NAR-*`, cinco `GE-VETO-*`, `GE-AUD-005` y `GE-M2-RX-001…003`; nested continuations, privacy y reconnect.
 
-DoD futuro: ventanas/priority determinísticas; continuation discriminada persistida; no timer ni auto-pass; `expires_at=null`; F1 auditado; opciones/errores opacos; **23/23 nuevos únicos** y regresiones dirigidas, más baseline 215/215.
+`GE-M2-EFX-001 [REGRESSION]` se reejecuta nuevamente con el manifest expandido para Reaction, Veto y efectos narrativos determinísticos relacionados. M2-5 demuestra la cobertura completa final de todos los efectos de cartas del registry aprobado y la ausencia de fallback textual o handler genérico silencioso.
+
+DoD futuro: ventanas/priority determinísticas; una sola transición de continuation comprometida mediante idempotencia + CAS, con retry del resultado original y sin afirmar exactly-once delivery; no timer ni auto-pass; `expires_at=null`; F1 auditado; opciones/errores opacos; **23/23 nuevos únicos + 11 regresiones = 34 ejecuciones dirigidas**, más baseline 215/215.
 
 ## 12. M2-6 — Cleanup, Viralization and End Turn
 
@@ -178,9 +181,9 @@ DoD futuro: awards/outcome/final events/outbox atómicos e idempotentes; tiebrea
 | Obligación | Fuente principal | Owner/gate |
 |---|---|---|
 | Physical schema, IDs, versions, migrations | Architecture §29; Data Dictionary; PTD-M2-002/011 | M2-0 review → M2-1 |
-| Registry 108/100 y aliases | DEC-025/029; Card Component DRAFT; IQ-M2-010 | M2-0 review → M2-1 seed/M2-4 rules |
+| Registry: 108 serial templates por country set × 5 países = 540 `CardInstance`; 100 definition groups candidatos; 5 Starter templates por set = 25 Starter materializadas; aliases | DEC-025/029; Card Component DRAFT; IQ-M2-010 | contenido/hash pendientes; M2-0 review → M2-1 seed/M2-4/M2-5 rules |
 | Transaction/outbox | DEC-054; PTD-M2-003/005 | M2-1; `GE-M2-TX-*` |
-| Durable replay/recovery | Data Dictionary §28; PTD-M2-004 | M2-1; `GE-AUD-004`, `GE-M2-TX-008/009` |
+| Durable replay/recovery | Data Dictionary §28; replay contracts; PTD-M2-004/008 | M2-1; `GE-AUD-004`, `GE-M2-TX-008/009` |
 | Productive transport | DEC-053; Contract; IQ-M2-008/009 | M2-2; `GE-M2-RT-*` |
 | Scheduler/core remainder | Adjudication; oracle | M2-3; 37 oracle + SCH/EFX |
 | Action/Starter/Regime | DEC-011…016/23/25…29/39…47; oracle | M2-4; 45 oracle |

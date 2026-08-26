@@ -81,10 +81,11 @@
 | DEC-074 | **APPROVED — DOCUMENTATION-ONLY AUTHORIZATION** |
 | DEC-075 | **APPROVED — DOCUMENTATION-ONLY AMENDMENT** |
 | M2 planning gate | **AMENDED / PENDING FINAL REVIEW** |
+| M2G-R01…R05 | **DOCUMENTALLY CORRECTED / PENDING FINAL REVIEW** |
 | M2 oracle inventory | **224 IDs = 71 implementados + 153 owner M2** |
 | Addendum M2 v0.1 | **32 IDs canónicos de test acceptance mediante DEC-075 — IMPLEMENTATION NOT AUTHORIZED** |
 | Casos nuevos únicos M2 | **185 = 153 oracle + 32 addendum** |
-| Ejecuciones dirigidas propuestas M2 | **185 casos nuevos únicos + 85 regresiones = 270** |
+| Ejecuciones dirigidas propuestas M2 | **185 casos nuevos únicos + 86 regresiones = 271** |
 | Suite mínima futura propuesta | **400 = 215 baseline + 185 nuevos únicos** |
 | Suite aprobada de entrada | **215/215 PASS en 27 archivos, 0 skips, 0 todo, 0 waivers — baseline histórica, no reejecutada por este gate documental** |
 | PTD-M2-001…011 | **CLASSIFIED mediante DEC-075** |
@@ -193,9 +194,11 @@ La corrección posterior al gate `CHANGES REQUIRED` endurece phase enforcement, 
 
 DEC-074 autorizó exclusivamente preparar el planning gate. DEC-075 aprueba la presente enmienda documental: resuelve `IQ-M2-001…007`, clasifica `PTD-M2-001…011`, convierte los 32 `GE-M2-*` en baseline canónico de test acceptance y reestructura el milestone en M2-0…M2-7. El gate queda **AMENDED / PENDING FINAL REVIEW**.
 
-El oracle conserva **224 IDs = 71 implementados M0/M1 + 153 owner M2**. El addendum M2 contiene **32/32 IDs canónicos**, cada uno con owner único, pero no autoriza tests ejecutables. Los casos nuevos únicos son **185 = 153 + 32**; las regresiones se recalculan por riesgo a **85 ejecuciones**, para **270 ejecuciones dirigidas**. La suite mínima acumulada futura sigue siendo **400 = 215 + 185**.
+El oracle conserva **224 IDs = 71 implementados M0/M1 + 153 owner M2**. El addendum M2 contiene **32/32 IDs canónicos**, cada uno con owner único, pero no autoriza tests ejecutables. Los casos nuevos únicos son **185 = 153 + 32**; tras M2G-R01 las regresiones dirigidas son **86**, para **271 ejecuciones dirigidas**. M2-5 queda en **23 casos nuevos + 11 regresiones = 34 ejecuciones dirigidas**. La suite mínima acumulada futura sigue siendo **400 = 215 + 185**.
 
-El candidate registry registra los 108 serial templates por país y reconcilia 100 grupos nominales sin elevar el Card Component DRAFT a fuente aprobada. `definition_id`, `effect_id`, contenido/timing no aprobados y el snapshot/hash permanecen `UNRESOLVED` bajo `IQ-M2-010`; el candidate queda pendiente de revisión de contenido y hash y no es seedable.
+El candidate registry registra **108 serial templates por country set**, **100 definition groups candidatos**, **cinco Starter serial templates por country set** y **cinco países**. La materialización futura sería exactamente **540 `CardInstance`**, incluidas **25 Starter**, pero continúa bloqueada: `definition_id`, `effect_id`, contenido/timing no aprobados y snapshot/hash permanecen `UNRESOLVED` bajo `IQ-M2-010`; el candidate queda pendiente de revisión de contenido y hash y no es seedable.
+
+M2G-R01…R05 quedan corregidas documentalmente: `GE-M2-EFX-001` conserva owner único M2-3 con aceptación incremental y regresiones M2-4/M2-5; el loser de `GE-M2-TX-003` queda sin mutación ni artifacts/consumos; `GE-M2-RX-001` usa idempotencia + CAS sin afirmar exactly-once delivery; `GE-M2-DB-005` fija cardinalidades explícitas; y `GE-M2-TX-008` traza replay a PTD-M2-004/008. El planning gate sigue **NOT YET APPROVED / PENDING FINAL REVIEW**.
 
 `IQ-M2-001…007` quedan **RESOLVED mediante DEC-075**. `IQ-M2-008 — Production AuthN provider`, `IQ-M2-009 — WebSocket runtime and operating envelope` e `IQ-M2-010 — Registry candidate content and hash approval` quedan **OPEN / PENDING RESOLUTION**. No se detectó contradicción nueva entre reglas oficiales; `OPEN_QUESTIONS.md` permanece intacto.
 
