@@ -19,6 +19,7 @@
 | Registry Spec v0.1 | 100 definitions/108 templates/59 effects; blob candidato `6472b136a806f403747defe1d59ed44fb78f49fa` |
 | Registry Snapshot v0.1 | JCS SHA-256 `37e1e27e142a2e08d8a19418089602bc72d775b9f5944059acc27ee4de93c83e`; blob candidato `a8c3ee9f3b78113e1f94891a9b0c634083107ec3` |
 | Product Owner Review Matrix v0.1 | 100 definitions, expansión 108→100, 6 grupos repetidos, 41 ausencias de efecto, 59 efectos y checklist vacío; blob candidato `e148918b9414c49baa25fd84691ce8328edd4f14` |
+| Primary source preflight M20-R09 | **PRIMARY_SOURCE_UNAVAILABLE**: `Cartas frente.pdf` no está disponible localmente; SHA-256 esperado `3301fd9e92e5d8a8df7a3efc1407434afe0395263a5d6c0e16e0e486faa35113`. Un PDF local de nombre distinto fue rechazado por `PRIMARY_SOURCE_DIGEST_MISMATCH` (`04dee936ddf0bafd056aca0e2d4752c68741381c6688f61f2d997d2c717f0601`). No fue usado como evidencia. |
 | Baseline ejecutable histórica | 215/215 PASS, 0 skips/todo/waivers; no reejecutada en M2-0 |
 
 Los hashes de los artifacts candidatos son datos de integridad para revisión, no hashes aprobados.
@@ -71,6 +72,20 @@ Resultado Registry: **CANONICAL CANDIDATE / PENDING PRODUCT OWNER APPROVAL — N
 | M20-R03 — outbox attempt history | mensaje inmutable, delivery state mutable e historial de attempts append-only; etapas de crash/retry y reconstrucción post-commit explícitas. | **CORRECTION IMPLEMENTED / PENDING TECHNICAL REVIEW** |
 | M20-R04 — human registry review | nueva matriz exhaustiva 100/108/6/41/59, source trace y checklist REG-CAND-001…004 vacío. | **CORRECTION IMPLEMENTED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW** |
 
+### 3.2 Preflight de segunda corrección M20-R05…R09
+
+El dictamen posterior exige que `Cartas frente.pdf` esté disponible y que su SHA-256 sea exactamente `3301fd9e92e5d8a8df7a3efc1407434afe0395263a5d6c0e16e0e486faa35113`. El archivo no está presente en los adjuntos ni en las ubicaciones locales inspeccionadas. Un archivo de nombre diferente potencialmente relacionado tiene SHA-256 `04dee936ddf0bafd056aca0e2d4752c68741381c6688f61f2d997d2c717f0601`; se clasifica `PRIMARY_SOURCE_DIGEST_MISMATCH` y queda expresamente excluido de la auditoría.
+
+| Hallazgo | Estado | Motivo de no ejecución |
+|---|---|---|
+| M20-R05 — concurrent idempotency recheck | **NOT EXECUTED / BLOCKED** | El preflight normativo ordena detener toda la segunda corrección ante `PRIMARY_SOURCE_UNAVAILABLE`; el stale lookup conocido permanece pendiente. |
+| M20-R06 — deterministic journal ordering | **NOT EXECUTED / BLOCKED** | No se alteró el catálogo físico; el orden autoritativo adicional permanece pendiente. |
+| M20-R07 — canonical REG-CAND meanings | **NOT EXECUTED / BLOCKED** | No se modificaron checklist ni referencias; sus inconsistencias conocidas permanecen pendientes y la matriz no es apta para aprobación. |
+| M20-R08 — complete typed parameters | **NOT EXECUTED / BLOCKED** | No se modificaron Registry Spec ni Snapshot; las 80/103 operaciones señaladas siguen sin parámetros ejecutables completos. |
+| M20-R09 — exhaustive primary-source audit | **PRIMARY_SOURCE_UNAVAILABLE / 0 OF 108 AUDITED** | No existe una copia verificable del PDF con el digest exigido; se prohíbe inventar o usar el PDF de digest distinto. |
+
+Este registro no implementa ni cierra M20-R05…R09. No altera el registry candidate, sus hashes, `seedable=false` ni las casillas REG-CAND-001…004.
+
 ## 4. Criterios binarios — Snapshot y reproducibilidad
 
 | ID | Criterio de PASS | Resultado |
@@ -101,7 +116,7 @@ Bloquean el cierre M2-0, el registry seed de M2-1, el manifest completo M2-3 y l
 M2-0 RESULT = BLOCKED / PENDING PRODUCT OWNER AND TECHNICAL REVIEW
 ```
 
-Razón binaria: las correcciones M20-R01…R04 están implementadas documentalmente, pero PDB-13, REG-07…10 y SNP-08 siguen FAIL/PENDING hasta revisión. El artifact físico está documentado, y registry/snapshot/matriz son reproducibles como candidatos, pero no existe aprobación humana de contenido ni hashes. Por tanto:
+Razón binaria: las correcciones M20-R01…R04 están implementadas documentalmente, pero la segunda corrección M20-R05…R09 no pudo iniciarse por `PRIMARY_SOURCE_UNAVAILABLE`. PDB-13, REG-07…10 y SNP-08 siguen FAIL/PENDING hasta revisión; las inconsistencias de concurrencia, ordering, significados REG-CAND y parámetros señaladas por el dictamen continúan abiertas. Registry/snapshot/matriz permanecen candidatos no aprobados. Por tanto:
 
 - M2-0 **no** queda APPROVED ni CLOSED;
 - M2-1…M2-7 permanecen **NOT AUTHORIZED**;
@@ -110,4 +125,4 @@ Razón binaria: las correcciones M20-R01…R04 están implementadas documentalme
 
 ## 7. Próxima acción permitida
 
-Revisión técnica de Physical DB Spec + Gate y revisión del Product Owner/técnica de Registry Spec + Snapshot + Review Matrix; después, resolución expresa de `REG-CAND-001…004`/IQ-M2-010. Si hay cambios, se recalculan hashes y se repite este gate. Ningún paso de implementación queda implícitamente autorizado.
+Adjuntar `Cartas frente.pdf` con SHA-256 exacto `3301fd9e92e5d8a8df7a3efc1407434afe0395263a5d6c0e16e0e486faa35113`. Sólo entonces puede reiniciarse M20-R05…R09, incluida la auditoría 108/108, y repetirse el gate. Ningún paso de implementación queda implícitamente autorizado.
