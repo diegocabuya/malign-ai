@@ -146,26 +146,23 @@
 
 - **Status:** **RESOLVED mediante DEC-077**. REG-CAND-001…004 están aprobadas y M2-0 cerrado; esta resolución no autoriza código, migrations ni seed.
 
-## IQ-M2-011 — UUIDv7 generation boundary — OPEN
+## IQ-M2-011 — UUIDv7 generation boundary — RESOLVED
 
 - **Evidence:** PTD-M2-002 exige UUIDv7 para identidades físicas, pero no aprueba versión concreta de PostgreSQL, extensión, función ni generación application-side.
-- **Question:** generar UUIDv7 mediante primitive PostgreSQL aprobada, extensión auditada o port application-side con validation DB.
-- **Recommendation:** decidir en el gate técnico previo al DDL y probar monotonicidad/uniqueness; no acoplar Domain a la elección.
-- **Impact:** bloquea defaults/DDL exactos de PK físicas en M2-1, no el modelo documental.
-- **Status:** OPEN / PENDING RESOLUTION.
+- **Resolution DEC-078:** PostgreSQL 18.6 genera UUIDv7 mediante `uuidv7()` sin extensión; las PK físicas usan `DEFAULT uuidv7()` y `uuid_extract_version(id)=7`; el adapter obtiene identidades con `RETURNING`; Domain y Game Engine permanecen desacoplados.
+- **Acceptance:** pruebas reales de version, uniqueness y orden temporal controlado.
+- **Status:** **RESOLVED mediante DEC-078**.
 
-## IQ-M2-012 — PostgreSQL RLS defense-in-depth — OPEN
+## IQ-M2-012 — PostgreSQL RLS defense-in-depth — RESOLVED
 
 - **Evidence:** autorización/proyección server-side está aprobada; no existe decisión sobre RLS, identity binding ni policy matrix en DB.
-- **Question:** adoptar RLS como defensa adicional o restringir todas las tablas a un application role sin acceso cliente-directo.
-- **Recommendation:** evaluar ambos modelos con la Information Security Matrix; cualquier ausencia de policy debe fallar cerrada, nunca habilitar acceso browser-directo.
-- **Impact:** bloquea afirmar seguridad productiva del adapter M2-1/M2-2; no bloquea Rule Engine.
-- **Status:** OPEN / PENDING RESOLUTION.
+- **Resolution DEC-078:** M2-A no usa RLS. Se prohíbe acceso DB directo desde browser/cliente y se separan migration owner, application runtime y outbox publisher con mínimo privilegio y `REVOKE` de `PUBLIC`. AuthZ y proyecciones fail-closed permanecen en application layer; toda consulta es game-scoped.
+- **Future boundary:** cualquier RLS futuro requiere decisión expresa.
+- **Status:** **RESOLVED mediante DEC-078**.
 
-## IQ-M2-013 — Partitioning, archival thresholds and recovery tiers — OPEN
+## IQ-M2-013 — Partitioning, archival thresholds and recovery tiers — RESOLVED FOR M2
 
 - **Evidence:** DEC-075 exige retención íntegra, snapshots y no compaction/hard-delete durante M2, pero no fija volúmenes, edades, RPO/RTO ni thresholds de partition/archive.
-- **Question:** qué métricas disparan partitioning de events/traces/outbox y qué tiers/restore drills se requieren.
-- **Recommendation:** mantener tablas no particionadas en el primer DDL hasta medir y aprobar thresholds; diseñar índices por `game_id` sin prometer topology.
-- **Impact:** bloquea operating envelope/archival productivo, no el catálogo físico ni la retención íntegra de M2.
-- **Status:** OPEN / PENDING RESOLUTION.
+- **Resolution DEC-078:** durante M2 las tablas permanecen no particionadas, con conservación íntegra, sin compaction, archival ni hard-delete. Se instrumentan métricas, query counts y planes.
+- **Future boundary:** cualquier particionado, tier o política de archivo requiere evidencia y nueva aprobación.
+- **Status:** **RESOLVED FOR M2 mediante DEC-078**.

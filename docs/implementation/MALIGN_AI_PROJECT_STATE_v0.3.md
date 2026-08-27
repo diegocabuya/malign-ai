@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
-**Fecha:** 2026-08-26
-**Fase actual:** M1 IMPLEMENTED AND APPROVED / CLOSED — M2 PLANNING GATE APPROVED AND CLOSED — M2-0 APPROVED AND CLOSED mediante DEC-077 — M2 NOT AUTHORIZED
+**Fecha:** 2026-08-27
+**Fase actual:** M1 CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 IMPLEMENTED / PENDING EXTERNAL REVIEW mediante DEC-078 — M2-2…M2-7, M2 global y M3 NOT AUTHORIZED
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -94,7 +94,9 @@
 | IQ-M2-001…007 | **RESOLVED mediante DEC-075** |
 | IQ-M2-008/009 | **OPEN / PENDING RESOLUTION — sin cambios** |
 | IQ-M2-010 | **RESOLVED mediante DEC-077; REG-CAND-001…004 APPROVED** |
-| IQ-M2-011…013 | **OPEN — UUIDv7 generation / RLS / partitioning** |
+| IQ-M2-011 | **RESOLVED mediante DEC-078 — PostgreSQL 18.6 `uuidv7()` sin extensión** |
+| IQ-M2-012 | **RESOLVED mediante DEC-078 — sin RLS; roles separados y mínimo privilegio** |
+| IQ-M2-013 | **RESOLVED FOR M2 mediante DEC-078 — no partition/archive/compaction/hard-delete** |
 | M20-R01 — AP balance/journal | **CLOSED mediante DEC-077** |
 | M20-R02 — durable idempotency lifecycle | **CLOSED mediante DEC-077** |
 | M20-R03 — outbox attempt history | **CLOSED mediante DEC-077** |
@@ -112,12 +114,12 @@
 | Registry Snapshot v0.1 | **approved / SEEDABLE / 108 primary audit rows — JCS SHA-256 candidato aprobado `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74`; JCS SHA-256 final `735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a`; blob final `8d5c150bed742391555bc6bafe022f45baee0163`** |
 | Product Owner Review Matrix v0.1 | **APPROVED / 100/108/6/41/59/103 complete; primary audit 108/108 = 102 MATCH / 6 DIFFERENCE / 0 AMBIGUOUS — blob final `cefed690a7c2068f9fe868efaa3df4b2e504e508`** |
 | M2-0 Canonical Foundations Gate v0.1 | **APPROVED AND CLOSED mediante DEC-077 — blob final `93f3632f166d2b430784b1204e45f087bba75274`** |
-| M2 Implementation Spec v0.1 | **M2-0 CLOSED / M2-1…M2-7 NOT AUTHORIZED — blob final `b3ea5ce0f22c3d649cd6354725db48a58f9695f6`** |
-| M2 Test Gate v0.1 | **M2-0 CLOSED DOCUMENTALLY / no executable tests authorized — blob final `420f638959370f0ce0d121aa7d09c500838053d0`** |
-| IMPLEMENTATION_QUESTIONS | **IQ-M2-010 RESOLVED; IQ-M2-008/009 y 011…013 conservadas OPEN — blob final `9fa77e0aec0824e87c1d0fff15efcdbda216f387`** |
-| Decisions v0.3 | **DEC-077 APPROVED — M2-0 CLOSED — blob final `39cdc3237a8fc2f595847e0c3189bcacf237d616`** |
+| M2 Implementation Spec v0.1 | **M2-A/M2-1 IMPLEMENTED / PENDING EXTERNAL REVIEW mediante DEC-078** |
+| M2 Test Gate v0.1 | **M2-A owner 22/22 PASS; suite 237/237 PASS** |
+| IMPLEMENTATION_QUESTIONS | **IQ-M2-008/009 OPEN; IQ-M2-010…012 RESOLVED; IQ-M2-013 RESOLVED FOR M2** |
+| Decisions v0.3 | **DEC-078 IMPLEMENTED — no cierre final de M2-A** |
 | M2-0 — Canonical Foundations Gate documental | **APPROVED AND CLOSED mediante DEC-077** |
-| M2-1 — PostgreSQL Persistence and Durable Recovery | **NOT AUTHORIZED** |
+| M2-A/M2-1 — PostgreSQL Persistence and Durable Recovery | **IMPLEMENTED / PENDING EXTERNAL REVIEW mediante DEC-078** |
 | M2-2 — Productive Transport and Reconnect | **NOT AUTHORIZED** |
 | M2-3 — Complete Scheduler and Remaining Core Rules | **NOT AUTHORIZED** |
 | M2-4 — Action/Starter Cards and Regime Abilities | **NOT AUTHORIZED** |
@@ -147,8 +149,8 @@ El Product Owner mantiene aprobadas `ARC-01` a `ARC-12`. Las decisiones canónic
 
 | Componente | Estado |
 |---|---|
-| PostgreSQL productivo y migraciones | **NOT STARTED / NOT AUTHORIZED** |
-| Transactional Outbox y durabilidad entre procesos/nodos | **NOT STARTED / NOT AUTHORIZED** |
+| PostgreSQL 18.6, migrations y recovery M2-A | **IMPLEMENTED / PENDING EXTERNAL REVIEW** |
+| Transactional Outbox durable + publisher de pruebas M2-A | **IMPLEMENTED / PENDING EXTERNAL REVIEW — sin transporte productivo** |
 | Realtime/WebSocket productivo | **NOT STARTED / NOT AUTHORIZED** |
 | Autenticación productiva | **NOT STARTED / NOT AUTHORIZED** |
 | UI final | **NOT STARTED / NOT AUTHORIZED** |
@@ -230,7 +232,7 @@ M2-0 fue ejecutado sólo como gate documental. M20-R01…R04 separa AP balance+j
 
 DEC-077 aprueba el contenido candidato exacto del baseline `d7cd1b087bf1aa99a4d336c3d8b1d9345414c970` y ejecuta únicamente su promoción mecánica de metadatos de gobernanza. M20-R01…R10 quedan **CLOSED**; REG-CAND-001…004 quedan **APPROVED**; `IQ-M2-010` queda **RESOLVED**; y M2-0 queda **APPROVED AND CLOSED**. El snapshot final conserva sin cambio semántico **264610 bytes** de proyección y SHA-256 `8a46133ca70883df2d173fddd9c725cd0611b2be8311a5fe42057464415d6a13`; el JCS candidato aprobado es `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74` y el JCS final, tras la promoción de gobernanza, es `735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a`.
 
-DEC-077 cierra exclusivamente M2-0 y **no autoriza** implementación, migraciones, seeds ni tests ejecutables. M2-1…M2-7 son bloques futuros y permanecen **NOT AUTHORIZED**; en particular, ni M2-1 ni el alias operativo M2-A fueron iniciados. M2 global y M3 también permanecen **NOT AUTHORIZED**. PostgreSQL/migrations/outbox ejecutable, durabilidad entre procesos/nodos, realtime/WebSocket productivo, registry seed, scheduler/reglas M2, Action/Reaction/Veto, Regime Abilities, Cleanup/End Turn, objectives/victory, AuthN productiva, UI e IA permanecen **NOT STARTED / NOT AUTHORIZED**.
+En el cierre histórico de DEC-077, M2-A aún no estaba autorizado ni iniciado. DEC-078 lo autorizó posteriormente y supersede únicamente ese estado para M2-A/M2-1; M2-2…M2-7, M2 global y M3 continúan **NOT AUTHORIZED**.
 
 La suite **215/215 PASS en 27 archivos, 0 skips, 0 todo y 0 waivers** se conserva sólo como baseline aprobada; no fue reejecutada. Ningún código M2 ha iniciado y no se ejecutaron `typecheck`, `lint`, `test` ni `build` durante este cierre documental.
 
@@ -238,8 +240,16 @@ La suite **215/215 PASS en 27 archivos, 0 skips, 0 todo y 0 waivers** se conserv
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**, y M2-0 queda **APPROVED AND CLOSED mediante DEC-077**. No existe un siguiente bloque autorizado: M2-1/M2-A, M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED** y requieren autorización expresa futura.
+M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**, M2-0 queda **APPROVED AND CLOSED mediante DEC-077**, y M2-A/M2-1 queda **IMPLEMENTED / PENDING EXTERNAL REVIEW mediante DEC-078**. M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
 
 ## Continuidad documental
 
-Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. M2-0 preserva intactos el oracle v0.1 con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92`, el addendum M1 v0.1 con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`, el addendum M2 con blob SHA `6ae87a904a14a82e4fb174ff4d76eefd47052832` y el candidate registry histórico con blob SHA `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`. DEC-077 aprueba los artefactos finales de Registry Spec, Snapshot, Review Matrix, Physical Database Spec y gate documental sin alterar su contenido semántico. No se alteran código, tests, fixtures, dependencias, arquitectura ni package boundaries.
+Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuente de verdad del desarrollo. M2-A preserva intactos el oracle v0.1 con blob SHA `8291b56e20b9fdf55b8c01c156b66cd641b52d92`, el addendum M1 v0.1 con blob SHA `a5e140eb55b442230110e8ae77d5763401db3117`, el addendum M2 con blob SHA `6ae87a904a14a82e4fb174ff4d76eefd47052832`, Registry Spec `d7d1325da916f4f867c4a142f8e345d66eaa780e`, Registry Snapshot `8d5c150bed742391555bc6bafe022f45baee0163`, Physical Database Spec `13cd601b30db2db22be64c4fda5df94144dcf8d5` y Review Matrix `cefed690a7c2068f9fe868efaa3df4b2e504e508`.
+
+## Implementación M2-A/M2-1 mediante DEC-078
+
+M2-A implementa PostgreSQL **18.6** con driver `pg` **8.23.0**, cuatro migrations SQL forward-only, ledger técnico separado y manifest contractual de **87 tablas**. El registry aprobado valida JCS SHA-256 `735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a`, siembra 100 definitions, 108 templates, 4 aliases, 59 effects y 103 operaciones, y materializa por Game 540 CardInstance —108 por país— incluidas 25 Starter.
+
+El Unit of Work usa `READ COMMITTED`, fast lookup de idempotencia, `SELECT ... FOR UPDATE`, recheck bajo lock, CAS de `game_version`, un único `pg` client, journals/traces/snapshot/outbox dentro de la misma transacción y publicación sólo post-commit. OutboxMessage es inmutable, DeliveryState mutable y DeliveryAttempt append-only; no se afirma exactly-once delivery. Recovery y reconciliation fallan cerrado y fijan `recovery_blocked` ante mismatch.
+
+El owner gate M2-A reporta **22/22 PASS**; las 14 regresiones dirigidas permanecen verdes dentro de la suite completa; baseline M0/M1 **215/215 preservada**; suite acumulada **237/237 PASS en 28 archivos, 0 skips, 0 todo y 0 waivers**. La autoauditoría cerró M2A-R01…R10 dentro del alcance. DEC-078 queda **IMPLEMENTED**, pero no constituye cierre final: M2-A/M2-1 permanece **PENDING EXTERNAL REVIEW**. No existe `IMPLEMENTATION_QUESTION` nueva; IQ-M2-008/009 permanecen OPEN y sólo bloquean M2-2.

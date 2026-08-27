@@ -1,13 +1,13 @@
 # MALIGN-AI — M2 TEST GATE v0.1
 
-**Fecha:** 2026-08-25
-**Estado:** PLANNING GATE APPROVED AND CLOSED / M2-0 APPROVED AND CLOSED mediante DEC-077
-**Autoridad:** DEC-074 + DEC-075 + DEC-076 + DEC-077 — M2-0 documental únicamente
+**Fecha:** 2026-08-27
+**Estado:** M2-0 APPROVED AND CLOSED / M2-A/M2-1 IMPLEMENTED — PENDING EXTERNAL REVIEW
+**Autoridad:** DEC-074…DEC-078; DEC-078 autoriza exclusivamente M2-A/M2-1
 **Oracle:** `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_SPEC_v0.1.md`
 **Addenda:** M1 v0.1 preservado; M2 v0.1 aprobado como test acceptance baseline
-**Implementación M2:** **NOT AUTHORIZED**
+**Implementación M2:** **M2-A/M2-1 IMPLEMENTED; M2-2…M2-7 NOT AUTHORIZED**
 
-> Este gate cataloga y asigna cobertura; no crea tests ejecutables. DEC-077 cierra documentalmente M2-0. Los 32 IDs `GE-M2-*` permanecen baseline canónico futuro; su implementación no está autorizada.
+> DEC-078 materializa exclusivamente los 22 owner asignados a M2-A/M2-1. Los owners de M2-2…M2-7 permanecen futuros y no autorizados.
 
 ## 1. Reglas del gate
 
@@ -54,7 +54,7 @@ La redistribución recalcula las regresiones por riesgo y reemplaza el total ant
 
 No tiene owner ni regresión ejecutable. Su gate es documental: Physical DB Spec, addendum M2, registry, snapshot, reconciliación de fuentes y aprobación expresa de contenido/hashes. **0 casos nuevos / 0 regresiones / DOCUMENTATION CLOSED**.
 
-Resultado actual: **APPROVED AND CLOSED mediante DEC-077**. Physical DB Spec conserva 87 tablas (blob final `13cd601b30db2db22be64c4fda5df94144dcf8d5`). Registry/snapshot conservan 100 definitions, 108 templates, 4 aliases, 59 effects, 103 operaciones y 108 audit rows (Registry blob final `d7d1325da916f4f867c4a142f8e345d66eaa780e`; JCS final `735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a`; JSON blob final `8d5c150bed742391555bc6bafe022f45baee0163`). Review Matrix expone 100/108/6/41/59/103 aprobados y auditoría 102/6/0 (blob final `cefed690a7c2068f9fe868efaa3df4b2e504e508`). REG-CAND-001…004 están aprobadas, M20-R01…R10 cerradas e IQ-M2-010 resuelta. La proyección semántica antes/después permanece en 264610 bytes / SHA-256 `8a46133ca70883df2d173fddd9c725cd0611b2be8311a5fe42057464415d6a13`. M2-1/M2-A no queda autorizado.
+Resultado M2-0: **APPROVED AND CLOSED mediante DEC-077**. Physical DB Spec conserva 87 tablas (blob final `13cd601b30db2db22be64c4fda5df94144dcf8d5`). Registry/snapshot conservan 100 definitions, 108 templates, 4 aliases, 59 effects, 103 operaciones y 108 audit rows (Registry blob final `d7d1325da916f4f867c4a142f8e345d66eaa780e`; JCS final `735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a`; JSON blob final `8d5c150bed742391555bc6bafe022f45baee0163`). Review Matrix expone 100/108/6/41/59/103 aprobados y auditoría 102/6/0 (blob final `cefed690a7c2068f9fe868efaa3df4b2e504e508`). REG-CAND-001…004 están aprobadas, M20-R01…R10 cerradas e IQ-M2-010 resuelta. La proyección semántica permanece en 264610 bytes / SHA-256 `8a46133ca70883df2d173fddd9c725cd0611b2be8311a5fe42057464415d6a13`. DEC-078 autorizó posteriormente M2-A/M2-1.
 
 ## 5. M2-1 — PostgreSQL Persistence and Durable Recovery
 
@@ -91,7 +91,7 @@ Resultado actual: **APPROVED AND CLOSED mediante DEC-077**. Physical DB Spec con
 
 Riesgo trazado: setup/registry materializado, matriz ERT persistida, CAS/idempotencia, audit ordering, snapshots y replay. La antigua repetición de `GE-M1-ADJ-008` entre los bloques físicos se deduplicó al fusionarlos.
 
-Gate futuro: **36 ejecuciones dirigidas + baseline 215/215**; 22 casos nuevos; suite mínima acumulada 237.
+Resultado DEC-078: **22/22 owner PASS**, **14/14 regresiones dirigidas preservadas**, baseline **215/215 preservada** y suite acumulada **237/237 PASS en 28 archivos, 0 skips, 0 todo y 0 waivers**. Evidencia owner ejecutada con PostgreSQL 18.6 real; M2-A/M2-1 queda **IMPLEMENTED / PENDING EXTERNAL REVIEW**.
 
 ## 6. M2-2 — Productive Transport and Reconnect
 
@@ -354,4 +354,4 @@ FAIL ante ID/owner inválido, conteo irreconciliable, test suavizado, fixture qu
 
 ## 16. Estado
 
-El planning gate está **APPROVED AND CLOSED mediante DEC-076** y M2-0 **APPROVED AND CLOSED mediante DEC-077**. M20-R01…R10 están **CLOSED**, REG-CAND-001…004 **APPROVED** e IQ-M2-010 **RESOLVED**. M2-1/M2-A, M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**. Este documento no crea tests ejecutables ni autoriza implementación.
+El planning gate está **APPROVED AND CLOSED mediante DEC-076**, M2-0 **APPROVED AND CLOSED mediante DEC-077** y M2-A/M2-1 **IMPLEMENTED / PENDING EXTERNAL REVIEW mediante DEC-078**. M20-R01…R10 y M2A-R01…R10 están **CLOSED**. M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.

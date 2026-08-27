@@ -1074,3 +1074,45 @@ DEC-075 autoriza exclusivamente documentación. No autoriza M2 ni ninguna subeta
 **IMPACTO:** M2-0 queda formalmente cerrado y el registry queda documentalmente seedable. Toda implementación posterior continúa requiriendo autorización separada.
 
 **ESTADO:** `APPROVED — M2-0 CLOSED / REGISTRY APPROVED AND SEEDABLE`
+
+---
+
+## DEC-078 — Autorización exclusiva de M2-A/M2-1 PostgreSQL Persistence and Durable Recovery
+
+**FECHA:** 2026-08-26
+**TEMA:** Implementación de persistencia PostgreSQL, recuperación durable, registry seed y outbox de pruebas.
+
+**DECISIÓN:**
+
+- Se autoriza exclusivamente **M2-A/M2-1 — PostgreSQL Persistence and Durable Recovery**.
+- PostgreSQL objetivo: **18.6**.
+- Driver: `pg` de bajo nivel, con versión exacta fijada en lockfile.
+- No se autoriza ORM ni query builder de alto nivel.
+- Las migrations serán SQL forward-only, estrictamente ordenadas, con ledger y checksums; no habrá down migration automática.
+- Los owner tests deben usar PostgreSQL 18.6 real, sin mocks, PGlite, SQLite, repositorios fake, skips, todos o waivers.
+- `IQ-M2-011` queda **RESOLVED mediante DEC-078**:
+  - UUIDv7 se genera en PostgreSQL mediante `uuidv7()`, sin extensión;
+  - las PK físicas usan `DEFAULT uuidv7()` y validan `uuid_extract_version(id)=7`;
+  - Domain y Game Engine no importan ni conocen PostgreSQL;
+  - el adapter devuelve identidades generadas mediante `RETURNING`;
+  - version, uniqueness y orden temporal controlado requieren pruebas reales.
+- `IQ-M2-012` queda **RESOLVED mediante DEC-078**:
+  - M2-A no usa RLS;
+  - queda prohibido el acceso DB directo desde browser o cliente;
+  - se separan roles de mínimo privilegio para migration owner, application runtime y outbox publisher;
+  - se revocan privilegios `PUBLIC`;
+  - AuthZ y proyecciones fail-closed permanecen en application layer y las consultas son siempre game-scoped;
+  - cualquier RLS futuro requiere decisión expresa.
+- `IQ-M2-013` queda **RESOLVED FOR M2 mediante DEC-078**:
+  - tablas no particionadas, conservación íntegra, sin compaction, archival ni hard-delete;
+  - se instrumentan métricas, query counts y planes;
+  - cualquier particionado o tier futuro requiere evidencia y nueva aprobación.
+- M2-0 permanece **APPROVED AND CLOSED**.
+- DEC-078 autoriza implementación y pruebas, pero no constituye el cierre técnico final de M2-A/M2-1.
+- M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
+
+**JUSTIFICACIÓN:** M2-0 cerró el modelo físico de 87 tablas, el registry aprobado y los gates de integridad necesarios para implementar la primera persistencia productiva sin alterar reglas, package boundaries ni autoridades normativas.
+
+**IMPACTO:** Se habilitan exclusivamente migrations, adapters PostgreSQL, seed aprobado, Unit of Work durable, outbox de pruebas, recovery, reconciliación, backup/restore y sus tests dentro de M2-A. Realtime/WebSocket productivo y todos los bloques posteriores permanecen fuera de alcance.
+
+**ESTADO:** `IMPLEMENTED — M2-A/M2-1 PENDING EXTERNAL REVIEW / NOT FINAL CLOSE`

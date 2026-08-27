@@ -1,11 +1,11 @@
 # MALIGN-AI — M2 IMPLEMENTATION SPECIFICATION v0.1
 
-**Fecha:** 2026-08-25
-**Estado:** PLANNING GATE APPROVED AND CLOSED / M2-0 APPROVED AND CLOSED mediante DEC-077
-**Autoridad:** DEC-074 + DEC-075 + DEC-076 + DEC-077 — cierre M2-0 documental únicamente
-**Implementación M2:** **NOT AUTHORIZED**
+**Fecha:** 2026-08-27
+**Estado:** M2-0 APPROVED AND CLOSED / M2-A/M2-1 IMPLEMENTED — PENDING EXTERNAL REVIEW
+**Autoridad:** DEC-074…DEC-078; DEC-078 autoriza exclusivamente M2-A/M2-1
+**Implementación M2:** **M2-A/M2-1 IMPLEMENTED; M2-2…M2-7 NOT AUTHORIZED**
 
-> Este documento cataloga un plan test-first. DEC-077 cierra documentalmente M2-0 sin autorizar código, tests ejecutables, migrations, seeds, infraestructura, dependencias, proveedores, M2-1/M2-A ni M2-2…M2-7.
+> DEC-078 autorizó y materializó exclusivamente M2-A/M2-1. No constituye cierre final ni autoriza M2-2…M2-7, M2 global o M3.
 
 ## 1. Objetivo y checkpoint aprobado
 
@@ -71,7 +71,7 @@ Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, an
 | Bloque | Alcance | Dependencias/gates | Casos nuevos únicos | Estado |
 |---|---|---|---:|---|
 | M2-0 | Canonical Foundations Gate documental | Physical DB Spec, addendum M2, registry, Product Owner Review Matrix y hashes | 0 | APPROVED AND CLOSED mediante DEC-077 |
-| M2-1 | PostgreSQL Persistence and Durable Recovery | M2-0 aprobado; registry aprobado para seed | 22 | NOT AUTHORIZED |
+| M2-1 | PostgreSQL Persistence and Durable Recovery | M2-0 aprobado; registry aprobado para seed | 22 | IMPLEMENTED / PENDING EXTERNAL REVIEW mediante DEC-078 |
 | M2-2 | Productive Transport and Reconnect | M2-1; IQ-M2-008/009 | 8 | NOT AUTHORIZED |
 | M2-3 | Complete Scheduler and Remaining Core Rules | M2-1; contrato de registry suficiente | 39 | NOT AUTHORIZED |
 | M2-4 | Action/Starter Cards and Regime Abilities | M2-3; IQ-M2-010 resuelta | 45 | NOT AUTHORIZED |
@@ -107,13 +107,13 @@ Artifacts producidos:
 - blobs documentales aprobados expresamente;
 - ninguna selección silenciosa de provider/ORM/runtime.
 
-DEC-077 aprueba REG-CAND-001…004, el Physical DB Spec de 87 tablas, Registry Spec y Snapshot; cierra M20-R01…R10, resuelve `IQ-M2-010` y deja M2-0 **APPROVED AND CLOSED**. El snapshot conserva exactamente su proyección semántica de 264610 bytes / SHA-256 `8a46133ca70883df2d173fddd9c725cd0611b2be8311a5fe42057464415d6a13`; sólo cambian metadatos de gobernanza. `IQ-M2-008/009` e `IQ-M2-011…013` siguen OPEN. No se implementaron código, migrations, seeds ni tests ejecutables.
+En el cierre histórico de DEC-077, REG-CAND-001…004, el Physical DB Spec de 87 tablas, Registry Spec y Snapshot quedaron aprobados; M20-R01…R10 se cerraron e `IQ-M2-010` se resolvió. El snapshot conserva exactamente su proyección semántica de 264610 bytes / SHA-256 `8a46133ca70883df2d173fddd9c725cd0611b2be8311a5fe42057464415d6a13`. DEC-078 resolvió posteriormente IQ-M2-011…013 e implementó M2-A; IQ-M2-008/009 siguen OPEN.
 
 ## 7. M2-1 — PostgreSQL Persistence and Durable Recovery
 
 Incluye schema/migrations; registry seed sólo tras aprobación del registry; Unit of Work; transactions; durable idempotency; row lock + CAS; commit atómico de state/events/ledgers/trace/outbox; snapshots, replay y recovery; retention completa sin compaction/hard-delete.
 
-### Invariantes y DoD futuro
+### Invariantes y DoD ejecutado
 
 - una transaction por command;
 - lock de fila `Game` y CAS de `game_version` en `READ COMMITTED`;
@@ -204,7 +204,7 @@ DoD futuro: awards/outcome/final events/outbox atómicos e idempotentes; tiebrea
 | Riesgo | Mitigación | Bloque |
 |---|---|---|
 | schema cristaliza interpretación no aprobada | M2-0 cerrado mediante DEC-077; cambios futuros requieren nuevo gate | M2-1 |
-| seed sin autorización de implementación | snapshot aprobado `seedable=true`, pero seed/migration continúan NOT AUTHORIZED | M2-1/M2-4 |
+| seed con contenido no aprobado | verificación JCS fail-closed antes de write; snapshot DEC-077 | M2-1 |
 | doble gasto o sequence duplicada | row lock + CAS + fault injection | M2-1 |
 | commit no publicado o publicación duplicada | transactional outbox + at-least-once/dedup | M2-1/M2-2 |
 | replay diverge/consume RNG | reconciliation fail-closed | M2-1/M2-7 |
@@ -226,9 +226,9 @@ DoD futuro: awards/outcome/final events/outbox atómicos e idempotentes; tiebrea
 | IQ-M2-008 | OPEN | bloquea afirmar transporte productivo M2-2 |
 | IQ-M2-009 | OPEN | bloquea implementar transporte productivo M2-2 |
 | IQ-M2-010 | RESOLVED mediante DEC-077 | REG-CAND-001…004 aprobadas; no autoriza implementación |
-| IQ-M2-011 | OPEN | mecanismo UUIDv7 bloquea defaults/DDL exactos de M2-1 |
-| IQ-M2-012 | OPEN | RLS/application-role decision bloquea security claim productivo |
-| IQ-M2-013 | OPEN | partition/archive thresholds bloquean operating envelope, no el modelo |
+| IQ-M2-011 | RESOLVED mediante DEC-078 | PostgreSQL 18.6 `uuidv7()` sin extensión; defaults/checks/RETURNING implementados |
+| IQ-M2-012 | RESOLVED mediante DEC-078 | sin RLS en M2-A; tres roles de mínimo privilegio y `PUBLIC` revocado |
+| IQ-M2-013 | RESOLVED FOR M2 mediante DEC-078 | no partition/archive/compaction/hard-delete; planes y query counts instrumentados |
 
 No surgió una contradicción nueva entre reglas oficiales durante la reconciliación documental; `OPEN_QUESTIONS.md` permanece intacto.
 
@@ -248,4 +248,4 @@ M2 sólo podrá cerrarse tras nuevas autorizaciones si:
 
 ## 19. Gate de salida documental
 
-El planning gate queda **APPROVED AND CLOSED mediante DEC-076** y M2-0 queda **APPROVED AND CLOSED mediante DEC-077**. M20-R01…R10 están **CLOSED**, REG-CAND-001…004 **APPROVED** e IQ-M2-010 **RESOLVED**. M2-1/M2-A, M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**. No queda autorizada implementación ni preparación de implementación.
+El planning gate queda **APPROVED AND CLOSED mediante DEC-076** y M2-0 **APPROVED AND CLOSED mediante DEC-077**. M2-A/M2-1 queda **IMPLEMENTED / PENDING EXTERNAL REVIEW mediante DEC-078**, con 22/22 owner y suite 237/237. M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
