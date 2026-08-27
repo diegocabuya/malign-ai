@@ -1,0 +1,30 @@
+{
+  "formatVersion": 1,
+  "targetPostgreSQL": "18.6",
+  "migrations": [
+    {
+      "version": 1,
+      "name": "product_schema",
+      "file": "001_product_schema.sql",
+      "sha256": "99d32739d087493832d81895bff3866e745ed194d73b40b88d8d3c861527e29c"
+    },
+    {
+      "version": 2,
+      "name": "append_only_and_ordering",
+      "file": "002_append_only_and_ordering.sql",
+      "sha256": "c44205da0f094ccef73a5b686c98ca7412e7b14c7b30d8b5060bf1483383cff7"
+    },
+    {
+      "version": 3,
+      "name": "roles_and_privileges",
+      "file": "003_roles_and_privileges.sql",
+      "sha256": "bd1b90f14270555af9e55c3f5820a3fddf5ef693462371488ad047befdb20158"
+    },
+    {
+      "version": 4,
+      "name": "recovery_gate",
+      "file": "004_recovery_gate.sql",
+      "sha256": "0840334abb08eed4d95e006ae54e8cd2cb74dac92cac4415a1481fdc73aeee16"
+    }
+  ]
+}

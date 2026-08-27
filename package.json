@@ -4,14 +4,20 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.19.0",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:m2a": "vitest run packages/persistence/src/m2-a.owner.postgres.test.ts",
+    "db:migrate": "tsx packages/persistence/src/cli.ts migrate",
+    "db:seed": "tsx packages/persistence/src/cli.ts seed",
+    "db:verify": "tsx packages/persistence/src/cli.ts verify"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -19,6 +25,7 @@
     "@types/react": "19.2.18",
     "eslint": "10.9.0",
     "prettier": "3.9.6",
+    "tsx": "4.20.6",
     "typescript": "6.0.3",
     "typescript-eslint": "8.67.0",
     "vitest": "4.1.11"
