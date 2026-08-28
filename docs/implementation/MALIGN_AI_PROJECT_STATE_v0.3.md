@@ -118,7 +118,7 @@
 | M2-A correction gate | **22/22 owner PASS + 3/3 suites consolidadas de regresión PASS; suite M2-A 25/25 PASS** |
 | M2A-R11…R19 | **CORRECTION IMPLEMENTED / PENDING REVIEW; 9/9 hallazgos cubiertos** |
 | Suite acumulada tras la corrección M2-A | **240/240 PASS en 28 archivos, 0 skips, 0 todo, 0 waivers** |
-| Commit funcional de la corrección M2-A | `d33a4e2b6ee77daa0d51aafc5abf9a3417109b40` |
+| Commit funcional publicado de la corrección M2-A | `e44fa867f4a2f4fd42937c02c6fb37b11af061f0` |
 | IMPLEMENTATION_QUESTIONS | **IQ-M2-008/009 OPEN; IQ-M2-010…012 y 014/015 RESOLVED; IQ-M2-013 RESOLVED FOR M2** |
 | Decisions v0.3 | **DEC-079 APPROVED — IQ-M2-014/IQ-M2-015 RESOLVED; corrección implementada sin cierre final** |
 | M2-0 — Canonical Foundations Gate documental | **APPROVED AND CLOSED mediante DEC-077** |
@@ -235,7 +235,7 @@ M2-0 fue ejecutado sólo como gate documental. M20-R01…R04 separa AP balance+j
 
 DEC-077 aprueba el contenido candidato exacto del baseline `d7cd1b087bf1aa99a4d336c3d8b1d9345414c970` y ejecuta únicamente su promoción mecánica de metadatos de gobernanza. M20-R01…R10 quedan **CLOSED**; REG-CAND-001…004 quedan **APPROVED**; `IQ-M2-010` queda **RESOLVED**; y M2-0 queda **APPROVED AND CLOSED**. El snapshot final conserva sin cambio semántico **264610 bytes** de proyección y SHA-256 `8a46133ca70883df2d173fddd9c725cd0611b2be8311a5fe42057464415d6a13`; el JCS candidato aprobado es `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74` y el JCS final, tras la promoción de gobernanza, es `735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a`.
 
-En el cierre histórico de DEC-077, M2-A aún no estaba autorizado ni iniciado. DEC-078 lo autorizó posteriormente y DEC-079 resolvió exclusivamente IQ-M2-014/IQ-M2-015 para continuar M2A-R11…R19. La corrección quedó implementada en `d33a4e2b6ee77daa0d51aafc5abf9a3417109b40`, pero no está aprobada ni cierra M2-A/M2-1. M2-2…M2-7, M2 global y M3 continúan **NOT AUTHORIZED**.
+En el cierre histórico de DEC-077, M2-A aún no estaba autorizado ni iniciado. DEC-078 lo autorizó posteriormente y DEC-079 resolvió exclusivamente IQ-M2-014/IQ-M2-015 para continuar M2A-R11…R19. La corrección quedó implementada y publicada en `e44fa867f4a2f4fd42937c02c6fb37b11af061f0`, pero no está aprobada ni cierra M2-A/M2-1. M2-2…M2-7, M2 global y M3 continúan **NOT AUTHORIZED**.
 
 La baseline M0/M1 **215/215 PASS** fue reejecutada y preservada dentro de la suite final **240/240 PASS en 28 archivos, 0 skips, 0 todo y 0 waivers**. También finalizaron satisfactoriamente `pnpm install --frozen-lockfile`, `pnpm db:migrate`, `pnpm db:verify`, `pnpm test:m2a`, `pnpm typecheck`, `pnpm lint`, `pnpm test` y `pnpm build` contra PostgreSQL 18.6 real.
 
