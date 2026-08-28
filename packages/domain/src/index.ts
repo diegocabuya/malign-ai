@@ -31,3 +31,4 @@ export const VERSION_BASELINE = {
 export * from './m1-setup.js';
 export * from './base-2025.js';
 export * from './m1-adjudication.js';
+export * from './durable-transition.js';

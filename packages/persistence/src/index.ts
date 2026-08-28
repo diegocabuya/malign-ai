@@ -8,6 +8,7 @@ export * from './outbox.js';
 export * from './query-budgets.js';
 export * from './recovery.js';
 export * from './registry-seed.js';
+export * from './runtime-identity.js';
 export * from './test-fixture.js';
 export * from './unit-of-work.js';
 

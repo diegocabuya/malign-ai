@@ -23,12 +23,14 @@ interface MigrationManifest {
 interface ProductTableManifest {
   readonly formatVersion: number;
   readonly decision: string;
+  readonly sourceSpecification: Readonly<{ file: string; blobSha1: string }>;
   readonly productTableCount: number;
   readonly schema: string;
   readonly tables: readonly string[];
   readonly catalogSha256: string;
   readonly catalogCoverage: readonly string[];
   readonly requiredInvariants: readonly string[];
+  readonly expectedCatalog: PhysicalCatalog;
 }
 
 export interface MigrationExecutionAudit {
@@ -97,9 +99,15 @@ const ensureLedger = async (client: PoolClient): Promise<void> => {
 export const bootstrapPostgresClusterRoles = async (pool: Pool): Promise<ClusterBootstrapAudit> => {
   const client = await pool.connect();
   try {
+    const authority = await client.query<{ session_user: string; current_user: string; rolsuper: boolean }>(
+      `SELECT session_user,current_user,rolsuper FROM pg_roles WHERE rolname=session_user`,
+    );
+    const authorityRow = authority.rows[0];
+    if (!authorityRow || authorityRow.session_user !== authorityRow.current_user || !authorityRow.rolsuper) {
+      throw new PersistenceError('MIGRATION_AUTHORITY_INVALID', 'Cluster bootstrap requires a direct administrative principal');
+    }
     await client.query(`
       DO $body$
-      DECLARE member_name text;
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='malign_migration_owner') THEN
           CREATE ROLE malign_migration_owner NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
@@ -113,15 +121,6 @@ export const bootstrapPostgresClusterRoles = async (pool: Pool): Promise<Cluster
         ALTER ROLE malign_migration_owner NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
         ALTER ROLE malign_app_runtime NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
         ALTER ROLE malign_outbox_publisher NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
-        FOR member_name IN
-          SELECT member_role.rolname
-          FROM pg_auth_members membership
-          JOIN pg_roles granted_role ON granted_role.oid=membership.roleid
-          JOIN pg_roles member_role ON member_role.oid=membership.member
-          WHERE granted_role.rolname='malign_migration_owner' AND member_role.rolname<>session_user
-        LOOP
-          EXECUTE format('REVOKE malign_migration_owner FROM %I', member_name);
-        END LOOP;
         EXECUTE format('GRANT malign_migration_owner TO %I', session_user);
         EXECUTE format('GRANT CONNECT,CREATE ON DATABASE %I TO malign_migration_owner', current_database());
         EXECUTE format('REVOKE CREATE,TEMPORARY ON DATABASE %I FROM PUBLIC', current_database());
@@ -147,39 +146,50 @@ export const bootstrapPostgresClusterRoles = async (pool: Pool): Promise<Cluster
 
 export const migratePostgres = async (
   pool: Pool,
-  options: Readonly<{ targetVersion?: number; applicationBuild?: string }> = {},
+  options: Readonly<{ targetVersion?: number; applicationBuild?: string; administrativePool?: Pool }> = {},
 ): Promise<readonly number[]> => {
   const migrations = await validateMigrationManifest();
   const targetVersion = options.targetVersion ?? migrations.length;
   if (!Number.isInteger(targetVersion) || targetVersion < 0 || targetVersion > migrations.length) {
     throw new PersistenceError('MIGRATION_MANIFEST_INVALID', 'Invalid target migration version');
   }
-  const client = await pool.connect();
+  const administrativePool = options.administrativePool ?? pool;
   const applied: number[] = [];
   const audit: MigrationExecutionAudit[] = [];
   try {
-    await bootstrapPostgresClusterRoles(pool);
-    await client.query('BEGIN');
-    await client.query('SET LOCAL ROLE malign_migration_owner');
-    await ensureLedger(client);
-    await client.query('COMMIT');
-    const existing = await client.query<{ version: number; name: string; checksum: string }>(
-      'SELECT version, name, checksum FROM malign_meta.schema_migrations ORDER BY version',
-    );
-    for (const row of existing.rows) {
+    await bootstrapPostgresClusterRoles(administrativePool);
+    const migrator = await pool.connect();
+    let existing: { version: number; name: string; checksum: string }[];
+    try {
+      await migrator.query('BEGIN');
+      await migrator.query('SET LOCAL ROLE malign_migration_owner');
+      await ensureLedger(migrator);
+      existing = (await migrator.query<{ version: number; name: string; checksum: string }>(
+        'SELECT version, name, checksum FROM malign_meta.schema_migrations ORDER BY version',
+      )).rows;
+      await migrator.query('COMMIT');
+    } catch (error) {
+      await migrator.query('ROLLBACK');
+      throw error;
+    } finally {
+      migrator.release();
+    }
+    for (const row of existing) {
       const expected = migrations[row.version - 1];
       if (!expected || expected.name !== row.name || expected.sha256 !== row.checksum) {
         throw new PersistenceError('MIGRATION_CHECKSUM_MISMATCH', `Applied migration ${row.version} differs from manifest`);
       }
     }
     for (const migration of migrations) {
-      if (migration.version > targetVersion || existing.rows.some((row) => row.version === migration.version)) continue;
+      if (migration.version > targetVersion || existing.some((row) => row.version === migration.version)) continue;
       const sql = await readFile(resolve(migrationsRoot, migration.file), 'utf8');
-      await client.query('BEGIN');
+      const executionMode = migration.version === 3
+        ? 'ADMIN_BOOTSTRAP_EXCEPTION' as const
+        : 'MIGRATION_ROLE' as const;
+      const executionPool = executionMode === 'ADMIN_BOOTSTRAP_EXCEPTION' ? administrativePool : pool;
+      const client = await executionPool.connect();
       try {
-        const executionMode = migration.version === 3
-          ? 'ADMIN_BOOTSTRAP_EXCEPTION' as const
-          : 'MIGRATION_ROLE' as const;
+        await client.query('BEGIN');
         if (executionMode === 'MIGRATION_ROLE') {
           await client.query('SET LOCAL ROLE malign_migration_owner');
         }
@@ -215,13 +225,13 @@ export const migratePostgres = async (
       } catch (error) {
         await client.query('ROLLBACK');
         throw error;
+      } finally {
+        client.release();
       }
     }
     latestMigrationAudit = audit;
     return applied;
-  } finally {
-    client.release();
-  }
+  } finally { /* each authority uses and releases its own connection */ }
 };
 
 export interface PhysicalCatalog {
@@ -299,8 +309,9 @@ export const physicalCatalogSha256 = (catalog: PhysicalCatalog): string =>
 export const validateProductSchema = async (pool: Pool): Promise<void> => {
   const manifest = await loadProductTableManifest();
   if (
-    manifest.formatVersion !== 2 ||
+    manifest.formatVersion !== 3 ||
     manifest.decision !== 'DEC-078/DEC-079' ||
+    manifest.sourceSpecification.blobSha1 !== '13cd601b30db2db22be64c4fda5df94144dcf8d5' ||
     manifest.catalogCoverage.length < 8 ||
     manifest.requiredInvariants.length < 12
   ) {
@@ -313,7 +324,9 @@ export const validateProductSchema = async (pool: Pool): Promise<void> => {
   if (
     actual.length !== manifest.productTableCount ||
     JSON.stringify(actual) !== JSON.stringify(expected) ||
-    digest !== manifest.catalogSha256
+    digest !== manifest.catalogSha256 ||
+    physicalCatalogSha256(manifest.expectedCatalog) !== manifest.catalogSha256 ||
+    JSON.stringify(catalog) !== JSON.stringify(manifest.expectedCatalog)
   ) {
     throw new PersistenceError('SCHEMA_MANIFEST_MISMATCH', 'Product schema differs from the approved 87-table manifest', {
       expected: manifest.productTableCount,

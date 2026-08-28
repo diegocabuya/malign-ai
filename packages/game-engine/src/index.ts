@@ -5,3 +5,7 @@ export * from './setup-dispatcher.js';
 export * from './terminal-disposition.js';
 export * from './m1-adjudication.js';
 export * from './m2a-persistence-fixture.js';
+export {
+  buildDurableEngineTransition,
+  durableTransitionCompletenessFailures,
+} from '@malign-ai/domain';

@@ -3,6 +3,7 @@ export type PersistenceErrorCode =
   | 'MIGRATION_CHECKSUM_MISMATCH'
   | 'MIGRATION_MANIFEST_INVALID'
   | 'MIGRATION_AUTHORITY_INVALID'
+  | 'RUNTIME_AUTHORITY_INVALID'
   | 'SCHEMA_MANIFEST_MISMATCH'
   | 'REGISTRY_SNAPSHOT_REJECTED'
   | 'GAME_NOT_FOUND'
@@ -22,7 +23,8 @@ export type PersistenceErrorCode =
   | 'REPLAY_SCHEMA_UNSUPPORTED'
   | 'REPLAY_HASH_MISMATCH'
   | 'CONTINUATION_INVALID'
-  | 'ENGINE_TRANSITION_REQUIRED';
+  | 'ENGINE_TRANSITION_REQUIRED'
+  | 'ENGINE_TRANSITION_INCOMPLETE';
 
 export class PersistenceError extends Error {
   constructor(
@@ -46,9 +48,14 @@ export const safeDatabaseError = (error: unknown): PersistenceError => {
   if (constraint.includes('artifact_ordinal') || constraint.includes('sequence') || candidate.code === '23505') {
     return new PersistenceError('ORDERING_CONSTRAINT_VIOLATION', 'Durable sequence or ordinal is invalid');
   }
-  if (constraint.includes('nonnegative') || message.includes('violates check constraint')) {
-    return new PersistenceError('NEGATIVE_BALANCE', 'A durable balance cannot become negative');
+  if (constraint.includes('nonnegative') || /(?:balance|resources_cache|vp_cache|count).*check/u.test(constraint)) {
+    return new PersistenceError('NEGATIVE_BALANCE', 'A durable balance cannot become negative', {
+      databaseCode:candidate.code??'unknown',constraint:constraint||'unnamed-check',
+    });
   }
+  if(candidate.code==='23514')return new PersistenceError(
+    'REFERENCE_CONSTRAINT_VIOLATION','A durable value violates the physical contract',
+  );
   if (candidate.code === '23503') {
     return new PersistenceError(
       constraint.includes('_game_') || constraint.includes('cross_game')
@@ -57,5 +64,7 @@ export const safeDatabaseError = (error: unknown): PersistenceError => {
       'A durable reference is invalid',
     );
   }
-  return new PersistenceError('DATABASE_UNAVAILABLE', 'PostgreSQL operation failed');
+  return new PersistenceError('DATABASE_UNAVAILABLE', 'PostgreSQL operation failed', {
+    databaseCode:candidate.code??'unknown',constraint:constraint||'none',
+  });
 };

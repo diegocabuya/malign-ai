@@ -136,6 +136,25 @@ export const createDurableGameFixture = async (
     );
     const turnId = turn.rows[0]?.id;
     if (!turnId) throw new Error('Turn identity missing');
+    const authoritativeInitialState=initialStateFactory?.({
+      gameId,participantIds,externalUserRefsByParticipant,controllersByCountry,
+    })??initialState;
+    const initialHash = sha256CanonicalJson(authoritativeInitialState);
+    await client.query(
+      `UPDATE malign.games SET authoritative_state_json=$2::jsonb,gameplay_state_hash=decode($3,'hex') WHERE id=$1`,
+      [gameId,JSON.stringify(authoritativeInitialState),initialHash],
+    );
+    const genesisTrace = await client.query<{ id: string }>(
+      `INSERT INTO malign.adjudication_traces(game_id,game_event_sequence,artifact_ordinal,participant_id,
+         trace_type,pre_state_hash,post_state_hash,input_snapshot_json,rule_evaluation_json,
+         output_snapshot_json,trace_schema_id,trace_schema_version,correlation_id)
+       VALUES ($1,1,1,NULL,'M2A_FIXTURE_GENESIS',decode($2,'hex'),decode($2,'hex'),'{}',
+         '{"actorType":"SYSTEM","fixtureScope":"FUTURE_ONLY"}',$3::jsonb,
+         'malign.adjudication-trace','0.2',uuidv7()) RETURNING id`,
+      [gameId,initialHash,JSON.stringify(authoritativeInitialState)],
+    );
+    const genesisTraceId = genesisTrace.rows[0]?.id;
+    if (!genesisTraceId) throw new Error('Fixture genesis trace identity missing');
     for (const [index, participantId] of participantIds.entries()) {
       await client.query(
         `INSERT INTO malign.action_point_balances(
@@ -146,17 +165,18 @@ export const createDurableGameFixture = async (
       await client.query(
         `INSERT INTO malign.action_point_transactions(
            game_id,game_event_sequence,artifact_ordinal,turn_id,participant_id,sequence_number,
-           delta,reason_type,correlation_id,balance_after
-         ) VALUES ($1,1,$2,$3,$4,1,3,'TURN_ALLOCATION',uuidv7(),3)`,
-        [gameId,index+1,turnId,participantId],
+           delta,reason_type,correlation_id,adjudication_trace_id,balance_after
+         ) VALUES ($1,1,$2,$3,$4,1,3,'TURN_ALLOCATION',uuidv7(),$5,3)`,
+        [gameId,index+1,turnId,participantId,genesisTraceId],
       );
       await client.query(
         `INSERT INTO malign.resource_transactions(
-           game_id,game_event_sequence,artifact_ordinal,turn_id,participant_id,delta,reason_type,balance_after
-         ) SELECT $1,1,$2,$3,$4,c.starting_resource_default,'SCENARIO_SETUP',c.starting_resource_default
+           game_id,game_event_sequence,artifact_ordinal,turn_id,participant_id,delta,reason_type,
+           adjudication_trace_id,balance_after
+         ) SELECT $1,1,$2,$3,$4,c.starting_resource_default,'SCENARIO_SETUP',$5,c.starting_resource_default
              FROM malign.game_countries g JOIN malign.country_definitions c ON c.id=g.country_definition_id
             WHERE g.game_id=$1 AND g.controlling_participant_id=$4`,
-        [gameId,index+1,turnId,participantId],
+        [gameId,index+1,turnId,participantId,genesisTraceId],
       );
     }
     const pdDefinition = await client.query<{ id: string }>(
@@ -184,34 +204,31 @@ export const createDurableGameFixture = async (
         WHERE game_id=$1 AND controlling_participant_id=$2`,
       [gameId,actorId],
     );
-    const planned = await client.query<{ id: string }>(
-      `INSERT INTO malign.planned_actions(
-         game_id,turn_id,participant_id,sequence_within_player,action_type,ap_cost,
-         payload_json,payload_schema_id,payload_schema_version,state
-       ) VALUES ($1,$2,$3,1,'M2A_FIXTURE',1,'{}','malign.command','0.1','LOCKED') RETURNING id`,
-      [gameId, turnId, actorId],
-    );
+    const typedPlanColumns = (await client.query<{ present: boolean }>(
+      `SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='malign'
+        AND table_name='planned_actions' AND column_name='parameters_json') present`,
+    )).rows[0]?.present === true;
+    const planned = await client.query<{ id: string }>(typedPlanColumns
+      ? `INSERT INTO malign.planned_actions(game_id,turn_id,participant_id,sequence_within_player,
+           action_type,ap_cost,parameters_json,parameters_schema_id,parameters_schema_version,state,locked_at)
+         VALUES ($1,$2,$3,1,'M2A_FIXTURE',1,'{}','malign.command','0.1','LOCKED',clock_timestamp()) RETURNING id`
+      : `INSERT INTO malign.planned_actions(game_id,turn_id,participant_id,sequence_within_player,action_type,ap_cost,
+           payload_json,payload_schema_id,payload_schema_version,state)
+         VALUES ($1,$2,$3,1,'M2A_FIXTURE',1,'{}','malign.command','0.1','LOCKED') RETURNING id`,
+      [gameId, turnId, actorId]);
     const resolution = await client.query<{ id: string }>(
       `INSERT INTO malign.action_resolutions(
-         game_id,planned_action_id,initiative_position,resolution_status,started_at
-       ) VALUES ($1,$2,1,'ACTIVE',clock_timestamp()) RETURNING id`,
-      [gameId, planned.rows[0]?.id],
-    );
-    const authoritativeInitialState=initialStateFactory?.({
-      gameId,participantIds,externalUserRefsByParticipant,controllersByCountry,
-    })??initialState;
-    const initialHash = sha256CanonicalJson(authoritativeInitialState);
-    await client.query(
-      `UPDATE malign.games SET authoritative_state_json=$2::jsonb,gameplay_state_hash=decode($3,'hex') WHERE id=$1`,
-      [gameId,JSON.stringify(authoritativeInitialState),initialHash],
+         game_id,planned_action_id,initiative_position,resolution_status,adjudication_trace_id,started_at
+       ) VALUES ($1,$2,1,'ACTIVE',$3,clock_timestamp()) RETURNING id`,
+      [gameId, planned.rows[0]?.id,genesisTraceId],
     );
     await client.query(
       `INSERT INTO malign.game_events(
          game_id,sequence_number,turn_id,event_type,subject_type,subject_id,payload_json,
-         payload_schema_id,payload_schema_version,visibility_class,correlation_id,state_hash_after
+         payload_schema_id,payload_schema_version,visibility_class,adjudication_trace_id,correlation_id,state_hash_after
        ) VALUES ($1,1,$2,'SCENARIO_SETUP','GAME',$1,$3::jsonb,
-                 'malign.fixture-genesis','0.2','GAME',uuidv7(),decode($4,'hex'))`,
-      [gameId,turnId,JSON.stringify({source:'DEC-078/DEC-079',state:authoritativeInitialState}),initialHash],
+                 'malign.fixture-genesis','0.2','GAME',$4,uuidv7(),decode($5,'hex'))`,
+      [gameId,turnId,JSON.stringify({source:'DEC-078/DEC-079',state:authoritativeInitialState}),genesisTraceId,initialHash],
     );
     await client.query(
       `INSERT INTO malign.game_snapshots(

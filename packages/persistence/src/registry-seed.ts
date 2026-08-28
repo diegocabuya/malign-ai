@@ -2,7 +2,11 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import { sha256CanonicalJson } from '@malign-ai/shared';
-import { BASE_2025_COUNTRIES, BASE_2025_COUNTRY_SOURCE_REFERENCE } from '@malign-ai/domain';
+import {
+  BASE_2025_COUNTRIES,
+  BASE_2025_COUNTRY_SOURCE_REFERENCE,
+  BASE_2025_POPULATION_DEMOGRAPHICS,
+} from '@malign-ai/domain';
 import type { Pool, PoolClient } from 'pg';
 
 import { PersistenceError } from './errors.js';
@@ -182,6 +186,76 @@ const insertCatalog = async (client: PoolClient, snapshot: RegistrySnapshot): Pr
          starting_resource_default=EXCLUDED.starting_resource_default,
          turn_income_default=EXCLUDED.turn_income_default`,
       hasCountrySourceReference ? parameters : parameters.slice(0,7));
+  }
+
+  const ert = await client.query<{ id: string }>(
+    `INSERT INTO malign.ert_definitions(logical_id,name,ruleset_version_id,status)
+     VALUES ('ERT_BASE','Base 2025 exact ERT',$1,'ACTIVE')
+     ON CONFLICT (logical_id,ruleset_version_id) DO UPDATE SET name=EXCLUDED.name RETURNING id`,
+    [rulesetId],
+  );
+  if (!ert.rows[0]?.id) throw new Error('Seed ERT identity missing');
+  const scenario = await client.query<{ id: string }>(
+    `INSERT INTO malign.scenario_definitions(logical_id,canonical_name,scenario_version,narrative,
+       default_turn_limit,allows_instant_victory,ruleset_version_id,card_registry_version_id,status,source_reference)
+     VALUES ('BASE_2025','BASE_2025','0.1','Approved M1 base scenario',10,false,$1,$2,'ACTIVE',
+       'MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md')
+     ON CONFLICT (logical_id,scenario_version) DO UPDATE SET logical_id=EXCLUDED.logical_id RETURNING id`,
+    [rulesetId,registryId],
+  );
+  const scenarioId = scenario.rows[0]?.id;
+  if (!scenarioId) throw new Error('Seed scenario identity missing');
+  for (const country of BASE_2025_COUNTRIES) {
+    await client.query(
+      `INSERT INTO malign.scenario_country_configs(scenario_definition_id,country_definition_id,
+         starting_resources,turn_income,enabled)
+       SELECT $1,id,$3,$4,true FROM malign.country_definitions WHERE logical_id=$2 AND version='0.1'
+       ON CONFLICT (scenario_definition_id,country_definition_id) DO UPDATE SET
+         starting_resources=EXCLUDED.starting_resources,turn_income=EXCLUDED.turn_income,enabled=true`,
+      [scenarioId,country.id,country.startingResources,country.turnIncome],
+    );
+  }
+  const demographicIds = [...new Set(BASE_2025_POPULATION_DEMOGRAPHICS.flatMap((pd) => pd.demographicTokenIds))];
+  for (const logicalId of demographicIds) {
+    const separator = logicalId.indexOf(':');
+    const category = logicalId.slice(0,separator);
+    const value = logicalId.slice(separator+1);
+    await client.query(
+      `INSERT INTO malign.demographic_token_definitions(logical_id,ruleset_version_id,category,
+         canonical_value,display_label,status) VALUES ($1,$2,$3,$4,$4,'ACTIVE')
+       ON CONFLICT (logical_id,ruleset_version_id) DO UPDATE SET canonical_value=EXCLUDED.canonical_value`,
+      [logicalId,rulesetId,category,value],
+    );
+  }
+  for (const pd of BASE_2025_POPULATION_DEMOGRAPHICS) {
+    const definition = await client.query<{ id: string }>(
+      `INSERT INTO malign.scenario_pd_definitions(scenario_definition_id,logical_pd_id,
+         host_country_definition_id,local_index,gamebook_label,board_label,population_size)
+       SELECT $1,$2,id,$3,$4,$5,$6 FROM malign.country_definitions
+        WHERE logical_id=$7 AND version='0.1'
+       ON CONFLICT (scenario_definition_id,logical_pd_id) DO UPDATE SET board_label=EXCLUDED.board_label
+       RETURNING id`,
+      [scenarioId,pd.id,pd.localIndex,pd.gamebookLabel,pd.boardLabel,
+        pd.demographicTokenIds.find((value) => value.startsWith('SIZE:'))?.slice(5) ?? 'M',pd.hostCountryId],
+    );
+    const pdDefinitionId = definition.rows[0]?.id;
+    if (!pdDefinitionId) throw new Error(`Seed PD identity missing: ${pd.id}`);
+    for (const demographicId of pd.demographicTokenIds) {
+      await client.query(
+        `INSERT INTO malign.scenario_pd_demographics(scenario_pd_definition_id,demographic_token_definition_id)
+         SELECT $1,id FROM malign.demographic_token_definitions WHERE logical_id=$2 AND ruleset_version_id=$3
+         ON CONFLICT DO NOTHING`, [pdDefinitionId,demographicId,rulesetId]);
+    }
+    await client.query(
+      `INSERT INTO malign.scenario_initial_influences(scenario_pd_definition_id,influence_type,
+         attribution_country_definition_id,count,source_reference)
+       SELECT $1,$2,id,$3,'MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md'
+         FROM malign.country_definitions c WHERE logical_id=$4 AND version='0.1'
+          AND NOT EXISTS (SELECT 1 FROM malign.scenario_initial_influences i
+            WHERE i.scenario_pd_definition_id=$1 AND i.influence_type=$2
+              AND i.attribution_country_definition_id=c.id)`,
+      [pdDefinitionId,pd.initialInfluence.type,pd.initialInfluence.count,pd.initialInfluence.attributionCountryId],
+    );
   }
 
   for (const definition of snapshot.definitions) {

@@ -31,6 +31,12 @@
       "name": "contractual_integrity_and_privileges",
       "file": "005_contractual_integrity_and_privileges.sql",
       "sha256": "6d60164092fd8c72e8e2d3d3b2df988481a8017b7473ba05c3948642b95c1580"
+    },
+    {
+      "version": 6,
+      "name": "durable_parity_and_least_privilege",
+      "file": "006_durable_parity_and_least_privilege.sql",
+      "sha256": "1c46e60136fa2967714d52186e89af3564fca342b11269cf3c572e54914aa317"
     }
   ]
 }

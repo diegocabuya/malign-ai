@@ -69,6 +69,19 @@ export class InMemorySessionAuthority {
     };
   }
 
+  /** Re-establishes the application session seam from an already durable membership after restart. */
+  resolvePersistedMembership(authenticatedSessionId: string, gameId: string, state: SetupGameState): ActorResolution {
+    const binding = this.#bindings.get(authenticatedSessionId);
+    if (binding === undefined) return { ok: false, error: 'INVALID_ACTOR_CONTEXT' };
+    if (binding.gameId !== gameId || state.id !== gameId) return { ok: false, error: 'GAME_ID_MISMATCH' };
+    const participant = state.participants[binding.participantId];
+    if (participant === undefined || participant.userId !== binding.userId || participant.role !== binding.role) {
+      return { ok: false, error: 'NOT_AUTHORIZED' };
+    }
+    this.materializeMembership(authenticatedSessionId, gameId, binding.participantId);
+    return this.resolve(authenticatedSessionId, gameId, state);
+  }
+
   materializeMembership(authenticatedSessionId: string, gameId: string, participantId: string): void {
     const binding = this.#bindings.get(authenticatedSessionId);
     if (binding === undefined || binding.gameId !== gameId || binding.participantId !== participantId) {

@@ -2,6 +2,7 @@ import { sha256CanonicalJson } from '@malign-ai/shared';
 import type { Pool, PoolClient } from 'pg';
 
 import { PersistenceError } from './errors.js';
+import { assertLeastPrivilegeRuntimeIdentity } from './runtime-identity.js';
 
 export interface RecoveryBundle {
   readonly gameId: string;
@@ -61,14 +62,221 @@ const asRecord = (value: unknown): Readonly<Record<string, unknown>> | undefined
     ? value as Readonly<Record<string, unknown>>
     : undefined;
 
-const identityUnderApplicationRole = async (client: PoolClient): Promise<{ sessionUser: string; currentUser: 'malign_app_runtime' }> => {
-  const identity = await client.query<{ session_user: string; current_user: string }>('SELECT session_user,current_user');
-  const row = identity.rows[0];
-  if (!row || row.current_user !== 'malign_app_runtime') {
-    throw new PersistenceError('MIGRATION_AUTHORITY_INVALID', 'Recovery did not execute under application runtime authority');
-  }
-  return { sessionUser: row.session_user, currentUser: 'malign_app_runtime' };
+const identityUnderApplicationRole = (client: PoolClient) =>
+  assertLeastPrivilegeRuntimeIdentity(client, 'malign_app_runtime');
+
+const sortCanonical = <T>(values: readonly T[]): T[] =>
+  [...values].sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+
+const physicalCardZone = (zone: unknown): string =>
+  zone === 'OPERATIONS_DECK' ? 'DRAW_PILE' : String(zone);
+
+const recordKey = (value: unknown): string =>
+  typeof value === 'string' || typeof value === 'number' ? String(value) : '';
+
+const isCompleteSetupState = (value: Readonly<Record<string, unknown>>): boolean => {
+  const adjudication = asRecord(value['adjudication']);
+  return asRecord(value['participants']) !== undefined && asRecord(value['seats']) !== undefined &&
+    asRecord(value['countries']) !== undefined && asRecord(value['cards']) !== undefined &&
+    asRecord(value['actionPlanning']) !== undefined && adjudication !== undefined &&
+    Array.isArray(adjudication['influenceStacks']) && Array.isArray(adjudication['dieRolls']) &&
+    Array.isArray(value['events']);
 };
+
+const crossAuthorityFailures = async (
+  client: PoolClient,
+  gameId: string,
+  state: Readonly<Record<string, unknown>>,
+): Promise<readonly string[]> => {
+  if (!isCompleteSetupState(state)) return [];
+  const failures: string[] = [];
+  const participants = asRecord(state['participants']) ?? {};
+  const seats = asRecord(state['seats']) ?? {};
+  const countries = asRecord(state['countries']) ?? {};
+  const cards = asRecord(state['cards']) ?? {};
+  const plans = asRecord(state['actionPlanning']) ?? {};
+  const adjudication = asRecord(state['adjudication']) ?? {};
+  const expectedParticipants = Object.values(participants).map((entry) => {
+    const participant = asRecord(entry) ?? {};
+    return `${String(participant['userId'])}:${String(participant['role'])}`;
+  }).sort();
+  const physicalParticipants = await client.query<{ external_user_ref: string; role: string }>(
+    `SELECT external_user_ref,role FROM malign.game_participants WHERE game_id=$1 AND status='ACTIVE' ORDER BY external_user_ref,role`,
+    [gameId],
+  );
+  if (!Object.is(JSON.stringify(expectedParticipants), JSON.stringify(physicalParticipants.rows.map((row) => `${row.external_user_ref}:${row.role}`).sort()))) {
+    failures.push('normalized_participants');
+  }
+  const expectedSeats = Object.values(seats).map((entry) => {
+    const seat = asRecord(entry) ?? {};
+    const participant = asRecord(participants[String(seat['participantId'])]) ?? {};
+    return `${String(participant['userId'])}:${String(seat['countryId'])}:${String(seat['seatIndex'])}:${String(seat['clockwiseIndex'])}`;
+  }).sort();
+  const physicalSeats = await client.query<{ external_user_ref: string; logical_id: string; seat_index: number; clockwise_index: number }>(
+    `SELECT p.external_user_ref,c.logical_id,s.seat_index,s.clockwise_index
+       FROM malign.player_seats s JOIN malign.game_participants p ON p.id=s.participant_id
+       JOIN malign.country_definitions c ON c.id=s.country_definition_id
+      WHERE s.game_id=$1 ORDER BY p.external_user_ref`, [gameId]);
+  if (JSON.stringify(expectedSeats) !== JSON.stringify(physicalSeats.rows.map((row) => `${row.external_user_ref}:${row.logical_id}:${row.seat_index}:${row.clockwise_index}`).sort())) failures.push('normalized_seats');
+
+  const physicalGame = await client.query<{ phase: string | null; resources: Record<string, number>; vp: Record<string, number> }>(
+    `SELECT (SELECT phase_type FROM malign.phase_states WHERE game_id=$1 ORDER BY opened_at DESC NULLS LAST,id DESC LIMIT 1) phase,
+       COALESCE((SELECT jsonb_object_agg(c.logical_id,g.current_resources_cache) FROM malign.game_countries g
+         JOIN malign.country_definitions c ON c.id=g.country_definition_id WHERE g.game_id=$1),'{}') resources,
+       COALESCE((SELECT jsonb_object_agg(p.external_user_ref,g.current_vp_cache) FROM malign.game_countries g
+         JOIN malign.game_participants p ON p.id=g.controlling_participant_id WHERE g.game_id=$1),'{}') vp`, [gameId]);
+  const phase = physicalGame.rows[0]?.phase;
+  if (phase !== null && phase !== undefined && phase !== state['phase']) failures.push('normalized_phase');
+  const expectedResources = Object.fromEntries(Object.entries(countries).flatMap(([countryId, value]) => {
+    const country = asRecord(value);
+    return country?.['controllerParticipantId'] === undefined ? [] : [[countryId, Number(country['resources'])]];
+  }));
+  if (!equalJson(expectedResources, physicalGame.rows[0]?.resources ?? {})) failures.push('normalized_resources');
+  const vpByParticipant = asRecord(adjudication['vpByParticipant']) ?? {};
+  const expectedVp = Object.fromEntries(Object.entries(vpByParticipant).flatMap(([participantId, balance]) => {
+    if (seats[participantId] === undefined) return [];
+    const participant = asRecord(participants[participantId]) ?? {};
+    return [[String(participant['userId']), Number(balance)]];
+  }));
+  if (!equalJson(expectedVp, physicalGame.rows[0]?.vp ?? {})) failures.push('normalized_vp');
+
+  const expectedAp = Object.values(plans).map((entry) => {
+    const plan = asRecord(entry) ?? {};
+    const participant = asRecord(participants[String(plan['participantId'])]) ?? {};
+    return `${String(participant['userId'])}:${String(plan['apAllocated'])}:${String(plan['apAvailable'])}`;
+  }).sort();
+  const physicalAp = await client.query<{ external_user_ref: string; allocated: number; remaining: number }>(
+    `SELECT p.external_user_ref,b.allocated,b.remaining FROM malign.action_point_balances b
+       JOIN malign.game_participants p ON p.id=b.participant_id WHERE b.game_id=$1 ORDER BY p.external_user_ref`, [gameId]);
+  if (expectedAp.length > 0 && JSON.stringify(expectedAp) !== JSON.stringify(physicalAp.rows.map((row) => `${row.external_user_ref}:${row.allocated}:${row.remaining}`).sort())) failures.push('normalized_ap');
+
+  const expectedCards = sortCanonical(Object.values(cards).flatMap((entry) => {
+    const card = asRecord(entry);
+    if (card?.['controllerParticipantId'] === undefined) return [];
+    const participant = asRecord(participants[recordKey(card['controllerParticipantId'])]) ?? {};
+    return [{country:String(card['countryOwnerId']),serial:Number(card['serialWithinCountrySet']),
+      controller:String(participant['userId']),zone:physicalCardZone(card['zone']),
+      face:card['zone']==='HAND'?'FACE_UP':'FACE_DOWN',
+      position:card['zone']==='OPERATIONS_DECK'?Number(card['zonePosition']??0)+1:null}];
+  }));
+  const physicalCards = await client.query<{country:string;serial:number;controller:string;zone:string;face:string;position:number|null}>(
+    `SELECT c.logical_id country,t.serial_within_country_set serial,p.external_user_ref controller,
+            i.zone,i.face_state face,d.position
+       FROM malign.card_instances i JOIN malign.country_definitions c ON c.id=i.country_owner_definition_id
+       JOIN malign.country_card_serial_templates t ON t.id=i.serial_template_id
+       JOIN malign.game_participants p ON p.id=i.current_controller_participant_id
+       LEFT JOIN malign.deck_card_positions d ON d.card_instance_id=i.id
+      WHERE i.game_id=$1`,[gameId]);
+  if (!equalJson(expectedCards,sortCanonical(physicalCards.rows))) failures.push('normalized_cards');
+
+  const expectedPlans = sortCanonical(Object.values(plans).flatMap((entry) => {
+    const plan=asRecord(entry)??{};
+    const participant=asRecord(participants[String(plan['participantId'])])??{};
+    const slots=(plan['locked']===true?plan['lockedSlots']:plan['draftSlots']) as readonly unknown[]|undefined;
+    return (slots??[]).map((slotValue)=>{
+      const slot=asRecord(slotValue)??{};
+      return {participant:String(participant['userId']),sequence:Number(slot['sequenceIndex']),
+        actionType:String(slot['actionType']),apCost:Number(slot['apCost']),parameters:slot['actionPayload']??{},
+        state:slot['terminalOutcome']==='RESOLVED'?'RESOLVED':plan['locked']===true?'LOCKED':'DRAFT'};
+    });
+  }));
+  const physicalPlans=await client.query<{participant:string;sequence:number;actionType:string;apCost:number;parameters:unknown;state:string}>(
+    `SELECT p.external_user_ref participant,a.sequence_within_player sequence,a.action_type "actionType",
+            a.ap_cost "apCost",a.parameters_json parameters,a.state
+       FROM malign.planned_actions a JOIN malign.game_participants p ON p.id=a.participant_id
+      WHERE a.game_id=$1 AND a.state<>'SUPERSEDED'`,[gameId]);
+  if (!equalJson(expectedPlans,sortCanonical(physicalPlans.rows))) failures.push('normalized_plans');
+
+  const initiative=asRecord(state['initiative'])??{};
+  const expectedRolls=sortCanonical(((initiative['rolls'] as readonly unknown[]|undefined)??[]).map((entry)=>{
+    const roll=asRecord(entry)??{};
+    const participant=asRecord(participants[String(roll['participantId'])])??{};
+    return {participant:String(participant['userId']),attempt:Number(roll['attempt']),
+      rawValue:Number(roll['rawValue']),isTiebreak:Number(roll['attempt'])>1};
+  }));
+  const physicalRolls=await client.query<{participant:string;attempt:number;rawValue:number;isTiebreak:boolean}>(
+    `SELECT p.external_user_ref participant,i.attempt_number attempt,d.raw_value "rawValue",i.is_tiebreak "isTiebreak"
+       FROM malign.initiative_rolls i JOIN malign.game_participants p ON p.id=i.participant_id
+       JOIN malign.die_rolls d ON d.id=i.die_roll_id WHERE i.game_id=$1`,[gameId]);
+  if (!equalJson(expectedRolls,sortCanonical(physicalRolls.rows))) failures.push('normalized_initiative_rolls');
+  const expectedOrder=((initiative['orderParticipantIds'] as readonly unknown[]|undefined)??[]).map((participantId,index)=>({
+    participant:String((asRecord(participants[recordKey(participantId)])??{})['userId']),position:index+1,
+  }));
+  const physicalOrder=await client.query<{participant:string;position:number}>(
+    `SELECT p.external_user_ref participant,i.initiative_position position FROM malign.initiative_entries i
+       JOIN malign.game_participants p ON p.id=i.participant_id WHERE i.game_id=$1 ORDER BY i.initiative_position`,[gameId]);
+  if (!equalJson(expectedOrder,physicalOrder.rows)) failures.push('normalized_initiative_order');
+
+  const campaigns=asRecord(adjudication['campaigns'])??{};
+  const expectedCampaigns=sortCanonical(Object.values(campaigns).map((entry)=>{
+    const campaign=asRecord(entry)??{};
+    const participant=asRecord(participants[String(campaign['ownerParticipantId'])])??{};
+    return {owner:String(participant['userId']),row:String(campaign['row']),alignment:String(campaign['alignment']),
+      target:String(campaign['targetDtId']),activationCount:Number(campaign['activationCountThisTurn'])};
+  }));
+  const physicalCampaigns=await client.query<{owner:string;row:string;alignment:string;target:string;activationCount:number}>(
+    `SELECT p.external_user_ref owner,c.row,c.intent_alignment alignment,d.logical_id target,
+            c.activation_count_current_turn_cache "activationCount"
+       FROM malign.campaigns c JOIN malign.game_participants p ON p.id=c.owner_participant_id
+       JOIN malign.demographic_token_definitions d ON d.id=c.target_dt_id
+      WHERE c.game_id=$1 AND c.state='ACTIVE'`,[gameId]);
+  if (!equalJson(expectedCampaigns,sortCanonical(physicalCampaigns.rows))) failures.push('normalized_campaigns');
+  const expectedAssignments=sortCanonical(Object.values(campaigns).flatMap((entry)=>{
+    const campaign=asRecord(entry)??{};
+    const participant=asRecord(participants[String(campaign['ownerParticipantId'])])??{};
+    return ((campaign['assignments'] as readonly unknown[]|undefined)??[]).map((assignmentValue)=>{
+      const assignment=asRecord(assignmentValue)??{};
+      const card=asRecord(cards[String(assignment['cardInstanceId'])])??{};
+      return {owner:String(participant['userId']),row:String(campaign['row']),slot:String(assignment['slot']),
+        country:String(card['countryOwnerId']),serial:Number(card['serialWithinCountrySet'])};
+    });
+  }));
+  const physicalAssignments=await client.query<{owner:string;row:string;slot:string;country:string;serial:number}>(
+    `SELECT p.external_user_ref owner,c.row,a.slot_type slot,d.logical_id country,t.serial_within_country_set serial
+       FROM malign.campaign_card_assignments a JOIN malign.campaigns c ON c.id=a.campaign_id
+       JOIN malign.game_participants p ON p.id=c.owner_participant_id
+       JOIN malign.card_instances i ON i.id=a.card_instance_id
+       JOIN malign.country_definitions d ON d.id=i.country_owner_definition_id
+       JOIN malign.country_card_serial_templates t ON t.id=i.serial_template_id
+      WHERE a.game_id=$1 AND a.removed_turn_id IS NULL`,[gameId]);
+  if (!equalJson(expectedAssignments,sortCanonical(physicalAssignments.rows))) failures.push('normalized_campaign_assignments');
+
+  const populationDemographics=asRecord(state['populationDemographics'])??{};
+  const legitimacy=asRecord(adjudication['legitimacyByPd'])??{};
+  const expectedPd=sortCanonical(Object.values(populationDemographics).map((entry)=>{
+    const pd=asRecord(entry)??{};
+    const participantId=legitimacy[String(pd['id'])];
+    const participant=participantId===null||participantId===undefined?undefined:asRecord(participants[recordKey(participantId)]);
+    return {pd:String(pd['id']),host:String(pd['hostCountryId']),legitimacy:participant===undefined?null:String(participant['userId'])};
+  }));
+  const physicalPd=await client.query<{pd:string;host:string;legitimacy:string|null}>(
+    `SELECT d.logical_pd_id pd,c.logical_id host,p.external_user_ref legitimacy
+       FROM malign.population_demographic_states s JOIN malign.scenario_pd_definitions d ON d.id=s.scenario_pd_definition_id
+       JOIN malign.country_definitions c ON c.id=s.host_country_definition_id
+       LEFT JOIN malign.game_participants p ON p.id=s.current_legitimacy_participant_id WHERE s.game_id=$1`,[gameId]);
+  if (!equalJson(expectedPd,sortCanonical(physicalPd.rows))) failures.push('normalized_pd');
+  const expectedInfluence=sortCanonical(((adjudication['influenceStacks'] as readonly unknown[]|undefined)??[]).map((entry)=>{
+    const stack=asRecord(entry)??{};
+    return {pd:String(stack['pdId']),type:String(stack['type']),country:String(stack['attributionCountryId']),count:Number(stack['count'])};
+  }));
+  const physicalInfluence=await client.query<{pd:string;type:string;country:string;count:number}>(
+    `SELECT d.logical_pd_id pd,s.influence_type type,c.logical_id country,s.count
+       FROM malign.influence_stacks s JOIN malign.population_demographic_states p ON p.id=s.pd_state_id
+       JOIN malign.scenario_pd_definitions d ON d.id=p.scenario_pd_definition_id
+       JOIN malign.country_definitions c ON c.id=s.attribution_country_definition_id WHERE s.game_id=$1`,[gameId]);
+  if (!equalJson(expectedInfluence,sortCanonical(physicalInfluence.rows))) failures.push('normalized_influence');
+
+  const pending = asRecord(adjudication['pendingResolution']);
+  const durablePending = await client.query<{ pending: string; choices: string }>(
+    `SELECT (SELECT count(*) FROM malign.pending_resolutions WHERE game_id=$1 AND status='OPEN')::text pending,
+            (SELECT count(*) FROM malign.choice_requests WHERE game_id=$1 AND status='OPEN')::text choices`, [gameId]);
+  if ((pending === undefined ? 0 : 1) !== Number(durablePending.rows[0]?.pending ?? 0)) failures.push('normalized_continuations');
+  if ((pending?.['kind'] === 'CHOICE' ? 1 : 0) !== Number(durablePending.rows[0]?.choices ?? 0)) failures.push('normalized_choices');
+  return failures;
+};
+
+const equalJson = (left: unknown, right: unknown): boolean =>
+  sha256CanonicalJson(left) === sha256CanonicalJson(right);
 
 const replayWithClient = async (client: PoolClient, gameId: string): Promise<ReplayInternal> => {
   const identity = await identityUnderApplicationRole(client);
@@ -118,7 +326,8 @@ const replayWithClient = async (client: PoolClient, gameId: string): Promise<Rep
     }
     const stateAfter = asRecord(reducer['stateAfter']);
     if (!stateAfter || Number(result['gameVersionBefore']) !== expectedVersion ||
-        Number(result['gameVersionAfter']) !== expectedVersion + 1 || result['status'] !== 'RESOLVED') {
+        Number(result['gameVersionAfter']) !== expectedVersion + 1 ||
+        (result['status'] !== 'RESOLVED' && result['status'] !== 'REQUIRES_CHOICE')) {
       throw new PersistenceError('REPLAY_SCHEMA_UNSUPPORTED', 'Event reducer payload is invalid');
     }
     const digest = sha256CanonicalJson(stateAfter);
@@ -163,7 +372,9 @@ const replayWithClient = async (client: PoolClient, gameId: string): Promise<Rep
     eventTail:events.rows,continuation:continuations.rows[0]?.continuation_state_json??null,
     pins:{ruleset:game.ruleset_version_id,scenario:game.scenario_definition_id,
       registry:game.card_registry_version_id,engine:game.engine_contract_version_id,ert:game.ert_definition_id},
-    ...identity,game,
+    sessionUser: identity.sessionUser,
+    currentUser: 'malign_app_runtime',
+    game,
   };
 };
 
@@ -176,6 +387,7 @@ export const reconcileDurableGame = async (pool: Pool, gameId: string): Promise<
   try {
     await client.query('BEGIN ISOLATION LEVEL READ COMMITTED');
     await client.query('SET LOCAL ROLE malign_app_runtime');
+    await assertLeastPrivilegeRuntimeIdentity(client,'malign_app_runtime');
     await client.query('SELECT id FROM malign.games WHERE id=$1 FOR UPDATE',[gameId]);
     const failures: string[] = [];
     let replay: ReplayInternal | undefined;
@@ -233,6 +445,7 @@ export const reconcileDurableGame = async (pool: Pool, gameId: string): Promise<
             OR p.engine_contract_version_id<>g.engine_contract_version_id))::text bad_continuation_pins`,[gameId]);
     failures.push(...nonZero(integrity.rows[0]));
     if (replay) {
+      failures.push(...await crossAuthorityFailures(client, gameId, replay.state));
       const heads = await client.query<{event_head:string;outbox_head:string}>(
         `SELECT event_sequence_head::text event_head,outbox_sequence_head::text outbox_head FROM malign.games WHERE id=$1`,[gameId]);
       const maxima = await client.query<{event_head:string;outbox_head:string}>(
@@ -253,22 +466,29 @@ export const reconcileDurableGame = async (pool: Pool, gameId: string): Promise<
       }
     }
     if (failures.length>0) {
-      const participant = await client.query<{id:string}>(
-        `SELECT id FROM malign.game_participants WHERE game_id=$1 ORDER BY joined_at,id LIMIT 1`,[gameId]);
-      const participantId=participant.rows[0]?.id;
-      if (participantId) {
+      const diagnostic = await client.query<{ event_sequence_head: string; gameplay_state_hash: Buffer }>(
+        'SELECT event_sequence_head,gameplay_state_hash FROM malign.games WHERE id=$1', [gameId]);
+      const diagnosticRow = diagnostic.rows[0];
+      if (diagnosticRow !== undefined && Number(diagnosticRow.event_sequence_head) > 0) {
         await client.query(
-          `INSERT INTO malign.facilitator_decisions(game_id,participant_id,decision_type,target_entity_type,
-             target_entity_id,rationale,before_snapshot_json,snapshot_schema_id,snapshot_schema_version,
-             created_by_participant_id,noncanonical)
-           VALUES ($1,$2,'RECONCILIATION_DIAGNOSTIC','GAME',$1,'Fail-closed durable reconciliation mismatch',
-                   $3::jsonb,'malign.reconciliation-diagnostic','0.1',$2,false)`,
-          [gameId,participantId,JSON.stringify({families:[...new Set(failures)].sort()})]);
+          `INSERT INTO malign.adjudication_traces(game_id,game_event_sequence,artifact_ordinal,participant_id,
+             trace_type,pre_state_hash,post_state_hash,input_snapshot_json,rule_evaluation_json,
+             output_snapshot_json,trace_schema_id,trace_schema_version,correlation_id)
+           SELECT $1::uuid,$2::bigint,COALESCE(max(artifact_ordinal),0)+1,NULL,'RECONCILIATION_DIAGNOSTIC_SYSTEM',
+                  $3::bytea,$3::bytea,$4::jsonb,$5::jsonb,$6::jsonb,'malign.reconciliation-diagnostic','1.0',uuidv7()
+             FROM malign.adjudication_traces WHERE game_id=$1::uuid AND game_event_sequence=$2::bigint`,
+          [gameId,Number(diagnosticRow.event_sequence_head),diagnosticRow.gameplay_state_hash,
+            JSON.stringify({families:[...new Set(failures)].sort()}),
+            JSON.stringify({actorType:'SYSTEM',visibility:'FACILITATOR_ONLY',createsGameplayEvent:false}),
+            JSON.stringify({recoveryBlocked:true})]);
       }
       await client.query('UPDATE malign.games SET recovery_blocked=true WHERE id=$1',[gameId]);
       await client.query('COMMIT');
       mismatchCommitted=true;
-      throw new PersistenceError('RECONCILIATION_MISMATCH','Durable game reconciliation failed',{gameId});
+      throw new PersistenceError('RECONCILIATION_MISMATCH',`Durable game reconciliation failed (${[...new Set(failures)].sort().join(',')})`,{
+        gameId,
+        families:[...new Set(failures)].sort().join(','),
+      });
     }
     await client.query('COMMIT');
   } catch (error) {

@@ -2,6 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import type { Pool } from 'pg';
 
+import { assertLeastPrivilegeRuntimeIdentity } from './runtime-identity.js';
+
 export type OutboxAttemptEvent =
   | 'CLAIM'
   | 'SEND_STARTED'
@@ -56,6 +58,7 @@ export class PostgresOutboxPublisher {
     try {
       await client.query('BEGIN');
       await client.query('SET LOCAL ROLE malign_outbox_publisher');
+      await assertLeastPrivilegeRuntimeIdentity(client, 'malign_outbox_publisher');
       await client.query(`INSERT INTO malign.outbox_delivery_attempts(
          outbox_message_id,attempt_ordinal,stage_ordinal,event_type,occurred_at,
          claim_token_digest,error_code,correlation_id
@@ -76,6 +79,7 @@ export class PostgresOutboxPublisher {
     try {
       await client.query('BEGIN');
       await client.query('SET LOCAL ROLE malign_outbox_publisher');
+      await assertLeastPrivilegeRuntimeIdentity(client, 'malign_outbox_publisher');
       this.#metrics.claimQueries += 1;
       const candidate = await client.query<{
         id: string;
@@ -156,6 +160,7 @@ export class PostgresOutboxPublisher {
       try {
         await client.query('BEGIN');
         await client.query('SET LOCAL ROLE malign_outbox_publisher');
+        await assertLeastPrivilegeRuntimeIdentity(client, 'malign_outbox_publisher');
         await client.query(
           `INSERT INTO malign.outbox_delivery_attempts(
              outbox_message_id,attempt_ordinal,stage_ordinal,event_type,occurred_at,
@@ -191,6 +196,7 @@ export class PostgresOutboxPublisher {
     try {
       await client.query('BEGIN');
       await client.query('SET LOCAL ROLE malign_outbox_publisher');
+      await assertLeastPrivilegeRuntimeIdentity(client, 'malign_outbox_publisher');
       const updated = await client.query(
         `UPDATE malign.outbox_delivery_states
             SET delivery_status='ACKNOWLEDGED',acknowledged_at=clock_timestamp(),claim_expires_at=NULL,next_attempt_at=NULL
@@ -218,6 +224,7 @@ export class PostgresOutboxPublisher {
     try {
       await client.query('BEGIN');
       await client.query('SET LOCAL ROLE malign_outbox_publisher');
+      await assertLeastPrivilegeRuntimeIdentity(client, 'malign_outbox_publisher');
       const expired = await client.query<{
         outbox_message_id: string;
         last_attempt_ordinal: string;
