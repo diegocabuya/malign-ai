@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-27
-**Fase actual:** M1 CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 IMPLEMENTED / PENDING EXTERNAL REVIEW mediante DEC-078 — M2-2…M2-7, M2 global y M3 NOT AUTHORIZED
+**Fase actual:** M1 CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 CORRECTION IN PROGRESS / PENDING REVIEW mediante DEC-078/DEC-079 — M2-2…M2-7, M2 global y M3 NOT AUTHORIZED
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -114,12 +114,12 @@
 | Registry Snapshot v0.1 | **approved / SEEDABLE / 108 primary audit rows — JCS SHA-256 candidato aprobado `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74`; JCS SHA-256 final `735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a`; blob final `8d5c150bed742391555bc6bafe022f45baee0163`** |
 | Product Owner Review Matrix v0.1 | **APPROVED / 100/108/6/41/59/103 complete; primary audit 108/108 = 102 MATCH / 6 DIFFERENCE / 0 AMBIGUOUS — blob final `cefed690a7c2068f9fe868efaa3df4b2e504e508`** |
 | M2-0 Canonical Foundations Gate v0.1 | **APPROVED AND CLOSED mediante DEC-077 — blob final `93f3632f166d2b430784b1204e45f087bba75274`** |
-| M2 Implementation Spec v0.1 | **M2-A/M2-1 IMPLEMENTED / PENDING EXTERNAL REVIEW mediante DEC-078** |
+| M2 Implementation Spec v0.1 | **M2-A/M2-1 CORRECTION IN PROGRESS / PENDING REVIEW mediante DEC-078/DEC-079** |
 | M2 Test Gate v0.1 | **M2-A owner 22/22 PASS; suite 237/237 PASS** |
 | IMPLEMENTATION_QUESTIONS | **IQ-M2-008/009 OPEN; IQ-M2-010…012 RESOLVED; IQ-M2-013 RESOLVED FOR M2** |
-| Decisions v0.3 | **DEC-078 IMPLEMENTED — no cierre final de M2-A** |
+| Decisions v0.3 | **DEC-079 APPROVED — corrección M2-A continúa; sin cierre final** |
 | M2-0 — Canonical Foundations Gate documental | **APPROVED AND CLOSED mediante DEC-077** |
-| M2-A/M2-1 — PostgreSQL Persistence and Durable Recovery | **IMPLEMENTED / PENDING EXTERNAL REVIEW mediante DEC-078** |
+| M2-A/M2-1 — PostgreSQL Persistence and Durable Recovery | **CORRECTION IN PROGRESS / PENDING REVIEW mediante DEC-078/DEC-079** |
 | M2-2 — Productive Transport and Reconnect | **NOT AUTHORIZED** |
 | M2-3 — Complete Scheduler and Remaining Core Rules | **NOT AUTHORIZED** |
 | M2-4 — Action/Starter Cards and Regime Abilities | **NOT AUTHORIZED** |
@@ -149,8 +149,8 @@ El Product Owner mantiene aprobadas `ARC-01` a `ARC-12`. Las decisiones canónic
 
 | Componente | Estado |
 |---|---|
-| PostgreSQL 18.6, migrations y recovery M2-A | **IMPLEMENTED / PENDING EXTERNAL REVIEW** |
-| Transactional Outbox durable + publisher de pruebas M2-A | **IMPLEMENTED / PENDING EXTERNAL REVIEW — sin transporte productivo** |
+| PostgreSQL 18.6, migrations y recovery M2-A | **CORRECTION IN PROGRESS / PENDING REVIEW** |
+| Transactional Outbox durable + publisher de pruebas M2-A | **CORRECTION IN PROGRESS / PENDING REVIEW — sin transporte productivo** |
 | Realtime/WebSocket productivo | **NOT STARTED / NOT AUTHORIZED** |
 | Autenticación productiva | **NOT STARTED / NOT AUTHORIZED** |
 | UI final | **NOT STARTED / NOT AUTHORIZED** |
@@ -240,7 +240,7 @@ La suite **215/215 PASS en 27 archivos, 0 skips, 0 todo y 0 waivers** se conserv
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**, M2-0 queda **APPROVED AND CLOSED mediante DEC-077**, y M2-A/M2-1 queda **IMPLEMENTED / PENDING EXTERNAL REVIEW mediante DEC-078**. M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
+M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**, M2-0 queda **APPROVED AND CLOSED mediante DEC-077**, y M2-A/M2-1 queda **CORRECTION IN PROGRESS / PENDING REVIEW mediante DEC-078/DEC-079**. M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
 
 ## Continuidad documental
 

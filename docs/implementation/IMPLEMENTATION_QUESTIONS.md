@@ -166,3 +166,18 @@
 - **Resolution DEC-078:** durante M2 las tablas permanecen no particionadas, con conservación íntegra, sin compaction, archival ni hard-delete. Se instrumentan métricas, query counts y planes.
 - **Future boundary:** cualquier particionado, tier o política de archivo requiere evidencia y nueva aprobación.
 - **Status:** **RESOLVED FOR M2 mediante DEC-078**.
+
+## IQ-M2-014 — Canonical CountryDefinition mascot values — RESOLVED
+
+- **Primary normative source:** `Malign-Influence-Rulebook_ENGLISH.pdf`, section 13 “Countries and Characteristics”, pages 19–20.
+- **Official values:** `ARDEN=Tree`; `FLUMA=Tree and River`; `URSARIA=Bear`; `PRESQUE=Horse`; `DINESIA=Shark`.
+- **Classification:** official rule/gamebook data; these literals are neither interpretation nor proposal.
+- **Resolution DEC-079:** preserve `country_definitions.mascot` as `NOT NULL`, create no nullable migration, remove the `mascot=logical_id` placeholder and persist exactly the five official literals with the source reference above. Gamebooks, oracle, addenda and the approved registry remain unchanged.
+- **Status:** **RESOLVED mediante DEC-079**.
+
+## IQ-M2-015 — Published migration 003 versus migration-role-only execution — RESOLVED
+
+- **Resolution DEC-079:** migration `003` is an exceptional, separate, idempotent cluster-level administrative bootstrap because role creation, role membership, ownership and database grants require authority superior to the provisioned `NOLOGIN` migration owner.
+- **Execution contract:** the administrative bootstrap creates `malign_migration_owner`, `malign_app_runtime` and `malign_outbox_publisher` if absent, preserves all three as `NOLOGIN` and minimum privilege, grants only the authorized migrator membership needed for `SET ROLE malign_migration_owner`, and stores no credentials. Migrations `001` and `002` run under `SET ROLE malign_migration_owner`; `003` runs under bootstrap administrative authority without byte or checksum changes; `004` and `005+` run under `SET ROLE malign_migration_owner`.
+- **Verification contract:** audit expected `session_user/current_user` at every stage; application UoW runs as `malign_app_runtime`; publisher runs as `malign_outbox_publisher`; administrative credentials are never exposed to runtime, publisher, browser or gameplay.
+- **Status:** **RESOLVED mediante DEC-079**.

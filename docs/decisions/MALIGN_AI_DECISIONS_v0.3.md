@@ -1116,3 +1116,29 @@ DEC-075 autoriza exclusivamente documentación. No autoriza M2 ni ninguna subeta
 **IMPACTO:** Se habilitan exclusivamente migrations, adapters PostgreSQL, seed aprobado, Unit of Work durable, outbox de pruebas, recovery, reconciliación, backup/restore y sus tests dentro de M2-A. Realtime/WebSocket productivo y todos los bloques posteriores permanecen fuera de alcance.
 
 **ESTADO:** `IMPLEMENTED — M2-A/M2-1 PENDING EXTERNAL REVIEW / NOT FINAL CLOSE`
+
+---
+
+## DEC-079 — Resolución de IQ-M2-014/IQ-M2-015 y continuación de M2A-R11…R19
+
+**FECHA:** 2026-08-27
+**TEMA:** Fuente normativa primaria para mascots y bootstrap administrativo excepcional de PostgreSQL.
+
+**DECISIÓN:**
+
+- DEC-079 resuelve exclusivamente `IQ-M2-014` e `IQ-M2-015` y autoriza continuar la corrección `M2A-R11…R19` bajo DEC-078/DEC-079. No aprueba ni cierra M2-A.
+- `IQ-M2-014` queda **RESOLVED BY PRIMARY NORMATIVE SOURCE**. `Malign-Influence-Rulebook_ENGLISH.pdf`, sección 13 “Countries and Characteristics”, páginas 19–20, fija los datos oficiales: `ARDEN=Tree`, `FLUMA=Tree and River`, `URSARIA=Bear`, `PRESQUE=Horse` y `DINESIA=Shark`.
+- `country_definitions.mascot` permanece `NOT NULL`; no se autoriza migration nullable. Se elimina `mascot=logical_id`, se persisten exactamente los literales oficiales y se registra la source reference. Gamebooks, oracle, addenda y registry aprobado no cambian.
+- `IQ-M2-015` queda **RESOLVED BY ADMINISTRATIVE BOOTSTRAP EXCEPTION**. Un bootstrap cluster-level, administrativo, separado e idempotente crea si faltan `malign_migration_owner`, `malign_app_runtime` y `malign_outbox_publisher`, los conserva `NOLOGIN` y de mínimo privilegio, habilita únicamente al migrator autorizado para `SET ROLE malign_migration_owner` y no almacena credenciales.
+- Migrations `001` y `002` se ejecutan mediante `SET ROLE malign_migration_owner` después del bootstrap; migration `003` se ejecuta con autoridad administrativa de bootstrap, preservada byte-for-byte y con su checksum; migrations `004` y `005+` se ejecutan mediante `SET ROLE malign_migration_owner`.
+- Migration `005+` puede corregir de forma forward-only grants, ownership y `ALTER DEFAULT PRIVILEGES FOR ROLE malign_migration_owner` cuando sea necesario.
+- Se registran y prueban `session_user/current_user` esperados por etapa. El UoW se prueba bajo `malign_app_runtime` y el publisher bajo `malign_outbox_publisher`.
+- La credencial administrativa no puede estar disponible para application runtime, outbox publisher, browser o gameplay.
+- M2-A permanece **CORRECTION IN PROGRESS / PENDING REVIEW**.
+- M2-2…M2-7, M2 global, M3, WebSocket, AuthN productiva, UI, IA, hosting y proveedores permanecen **NOT AUTHORIZED / NOT STARTED**.
+
+**JUSTIFICACIÓN:** La fuente primaria aporta los cinco datos oficiales que faltaban y la excepción administrativa separa el bootstrap de cluster de las migrations de producto sin alterar migration `003` ni elevar los roles runtime.
+
+**IMPACTO:** Los dos bloqueos quedan resueltos y M2A-R11…R19 pueden continuar dentro del alcance ya autorizado; no hay aprobación técnica ni cierre de M2-A.
+
+**ESTADO:** `APPROVED — IQ-M2-014/IQ-M2-015 RESOLVED / M2-A CORRECTION CONTINUES`
