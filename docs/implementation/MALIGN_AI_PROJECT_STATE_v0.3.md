@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
-**Fecha:** 2026-08-27
-**Fase actual:** M1 CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 CORRECTION IMPLEMENTED / PENDING REVIEW mediante DEC-078/DEC-079 — M2-2…M2-7, M2 global y M3 NOT AUTHORIZED
+**Fecha:** 2026-08-28
+**Fase actual:** M1 CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 CORRECTION M2A-R20…R24 IMPLEMENTED / PENDING REVIEW mediante DEC-078/DEC-079 — M2-2…M2-7, M2 global y M3 NOT AUTHORIZED
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -114,15 +114,16 @@
 | Registry Snapshot v0.1 | **approved / SEEDABLE / 108 primary audit rows — JCS SHA-256 candidato aprobado `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74`; JCS SHA-256 final `735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a`; blob final `8d5c150bed742391555bc6bafe022f45baee0163`** |
 | Product Owner Review Matrix v0.1 | **APPROVED / 100/108/6/41/59/103 complete; primary audit 108/108 = 102 MATCH / 6 DIFFERENCE / 0 AMBIGUOUS — blob final `cefed690a7c2068f9fe868efaa3df4b2e504e508`** |
 | M2-0 Canonical Foundations Gate v0.1 | **APPROVED AND CLOSED mediante DEC-077 — blob final `93f3632f166d2b430784b1204e45f087bba75274`** |
-| M2 Implementation Spec v0.1 | **M2-A/M2-1 CORRECTION IMPLEMENTED / PENDING REVIEW mediante DEC-078/DEC-079** |
-| M2-A correction gate | **22/22 owner PASS + 3/3 suites consolidadas de regresión PASS; suite M2-A 25/25 PASS** |
+| M2 Implementation Spec v0.1 | **M2-A/M2-1 CORRECTION M2A-R20…R24 IMPLEMENTED / PENDING REVIEW mediante DEC-078/DEC-079** |
+| M2-A correction gate | **22/22 owner preservados + 14/14 regresiones asignadas preservadas + 6/6 regresiones M2A-R20…R24 PASS; suite M2-A 31/31 PASS** |
 | M2A-R11…R19 | **CORRECTION IMPLEMENTED / PENDING REVIEW; 9/9 hallazgos cubiertos** |
-| Suite acumulada tras la corrección M2-A | **240/240 PASS en 28 archivos, 0 skips, 0 todo, 0 waivers** |
-| Commit funcional publicado de la corrección M2-A | `e44fa867f4a2f4fd42937c02c6fb37b11af061f0` |
+| M2A-R20…R24 | **CORRECTION IMPLEMENTED / PENDING REVIEW; 5/5 hallazgos cubiertos** |
+| Suite acumulada tras la corrección M2-A | **246/246 PASS en 28 archivos, 0 skips, 0 todo, 0 waivers** |
+| Commit funcional publicado de la corrección M2A-R20…R24 | `bc186765da642363fb3fb1a73f217f3cbd19b1bd` |
 | IMPLEMENTATION_QUESTIONS | **IQ-M2-008/009 OPEN; IQ-M2-010…012 y 014/015 RESOLVED; IQ-M2-013 RESOLVED FOR M2** |
 | Decisions v0.3 | **DEC-079 APPROVED — IQ-M2-014/IQ-M2-015 RESOLVED; corrección implementada sin cierre final** |
 | M2-0 — Canonical Foundations Gate documental | **APPROVED AND CLOSED mediante DEC-077** |
-| M2-A/M2-1 — PostgreSQL Persistence and Durable Recovery | **CORRECTION IMPLEMENTED / PENDING REVIEW mediante DEC-078/DEC-079** |
+| M2-A/M2-1 — PostgreSQL Persistence and Durable Recovery | **CORRECTION M2A-R20…R24 IMPLEMENTED / PENDING REVIEW mediante DEC-078/DEC-079** |
 | M2-2 — Productive Transport and Reconnect | **NOT AUTHORIZED** |
 | M2-3 — Complete Scheduler and Remaining Core Rules | **NOT AUTHORIZED** |
 | M2-4 — Action/Starter Cards and Regime Abilities | **NOT AUTHORIZED** |
@@ -235,15 +236,15 @@ M2-0 fue ejecutado sólo como gate documental. M20-R01…R04 separa AP balance+j
 
 DEC-077 aprueba el contenido candidato exacto del baseline `d7cd1b087bf1aa99a4d336c3d8b1d9345414c970` y ejecuta únicamente su promoción mecánica de metadatos de gobernanza. M20-R01…R10 quedan **CLOSED**; REG-CAND-001…004 quedan **APPROVED**; `IQ-M2-010` queda **RESOLVED**; y M2-0 queda **APPROVED AND CLOSED**. El snapshot final conserva sin cambio semántico **264610 bytes** de proyección y SHA-256 `8a46133ca70883df2d173fddd9c725cd0611b2be8311a5fe42057464415d6a13`; el JCS candidato aprobado es `eb98696020d3694acd8a3374d27ec064ef6db16fd6ea083bb4eaeaac9b30ba74` y el JCS final, tras la promoción de gobernanza, es `735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a`.
 
-En el cierre histórico de DEC-077, M2-A aún no estaba autorizado ni iniciado. DEC-078 lo autorizó posteriormente y DEC-079 resolvió exclusivamente IQ-M2-014/IQ-M2-015 para continuar M2A-R11…R19. La corrección quedó implementada y publicada en `e44fa867f4a2f4fd42937c02c6fb37b11af061f0`, pero no está aprobada ni cierra M2-A/M2-1. M2-2…M2-7, M2 global y M3 continúan **NOT AUTHORIZED**.
+En el cierre histórico de DEC-077, M2-A aún no estaba autorizado ni iniciado. DEC-078 lo autorizó posteriormente y DEC-079 resolvió exclusivamente IQ-M2-014/IQ-M2-015 para continuar M2A-R11…R19. Esa corrección inicial quedó implementada y publicada en `e44fa867f4a2f4fd42937c02c6fb37b11af061f0`; la corrección posterior M2A-R20…R24 quedó implementada y publicada en `bc186765da642363fb3fb1a73f217f3cbd19b1bd`. Ninguna de ellas aprueba ni cierra M2-A/M2-1. M2-2…M2-7, M2 global y M3 continúan **NOT AUTHORIZED**.
 
-La baseline M0/M1 **215/215 PASS** fue reejecutada y preservada dentro de la suite final **240/240 PASS en 28 archivos, 0 skips, 0 todo y 0 waivers**. También finalizaron satisfactoriamente `pnpm install --frozen-lockfile`, `pnpm db:migrate`, `pnpm db:verify`, `pnpm test:m2a`, `pnpm typecheck`, `pnpm lint`, `pnpm test` y `pnpm build` contra PostgreSQL 18.6 real.
+La baseline M0/M1 **215/215 PASS**, los **22/22 owner M2-A** y las **14/14 regresiones asignadas previas** fueron preservados. Las seis regresiones ejecutables añadidas para M2A-R20…R24 reportan **6/6 PASS**; el gate M2-A queda en **31/31 PASS** y la suite acumulada en **246/246 PASS en 28 archivos, 0 skips, 0 todo y 0 waivers**. También finalizaron satisfactoriamente `pnpm install --frozen-lockfile`, `pnpm db:migrate`, `pnpm db:verify`, `pnpm test:m2a`, `pnpm typecheck`, `pnpm lint`, `pnpm test` y `pnpm build` contra PostgreSQL 18.6 real.
 
 ## Próximo gate
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**, M2-0 queda **APPROVED AND CLOSED mediante DEC-077**, y M2-A/M2-1 queda **CORRECTION IMPLEMENTED / PENDING REVIEW mediante DEC-078/DEC-079**. M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
+M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**, M2-0 queda **APPROVED AND CLOSED mediante DEC-077**, y M2-A/M2-1 queda **CORRECTION M2A-R20…R24 IMPLEMENTED / PENDING REVIEW mediante DEC-078/DEC-079**. M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
 
 ## Continuidad documental
 
@@ -251,10 +252,12 @@ Las especificaciones, decisiones y estados versionados bajo `docs/` son la fuent
 
 ## Implementación y corrección M2-A/M2-1 mediante DEC-078/DEC-079
 
-M2-A implementa PostgreSQL **18.6** con driver `pg` **8.23.0**, cinco migrations SQL forward-only, ledger técnico separado y manifest contractual completo de **87 tablas** con catalog SHA-256 `7f5ddece51524300579439a36b60f6fd57b73fd10b2c14ced1acbe88a31e0da6`. Las migrations `001…004` permanecen intactas y `005_contractual_integrity_and_privileges.sql` tiene SHA-256 `6d60164092fd8c72e8e2d3d3b2df988481a8017b7473ba05c3948642b95c1580`. El registry aprobado valida JCS SHA-256 `735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a`, siembra 100 definitions, 108 templates, 4 aliases, 59 effects y 103 operaciones, y materializa por Game 540 CardInstance —108 por país— incluidas 25 Starter.
+M2-A implementa PostgreSQL **18.6** con driver `pg` **8.23.0**, seis migrations SQL forward-only, ledger técnico separado y manifest contractual independiente y explícito de **87 tablas, 865 columnas, 1260 constraints, 210 índices, 25 triggers y 5 functions**, contrastado contra la Physical Database Spec blob `13cd601b30db2db22be64c4fda5df94144dcf8d5`, con catalog SHA-256 `da6388288fb273409fc52ed80645186e7f58c21a17af1351a82c7814e6c117a4`. Las migrations `001…005` permanecen intactas; `005_contractual_integrity_and_privileges.sql` conserva SHA-256 `6d60164092fd8c72e8e2d3d3b2df988481a8017b7473ba05c3948642b95c1580`; la nueva `006_durable_parity_and_least_privilege.sql` tiene SHA-256 `1c46e60136fa2967714d52186e89af3564fca342b11269cf3c572e54914aa317`. El registry aprobado valida JCS SHA-256 `735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a`, siembra 100 definitions, 108 templates, 4 aliases, 59 effects y 103 operaciones, y materializa por Game 540 CardInstance —108 por país— incluidas 25 Starter.
 
 DEC-079 conserva `country_definitions.mascot` `NOT NULL` y persiste los literales oficiales `ARDEN=Tree`, `FLUMA=Tree and River`, `URSARIA=Bear`, `PRESQUE=Horse` y `DINESIA=Shark`, referenciados a `Malign-Influence-Rulebook_ENGLISH.pdf`, sección 13 “Countries and Characteristics”, páginas 19–20. El bootstrap administrativo cluster-level crea roles `NOLOGIN` separados y limita `SET ROLE malign_migration_owner` al migrator; migrations 001/002/004/005 se ejecutan como migration owner y 003 conserva su checksum bajo la excepción administrativa. UoW/recovery usan `malign_app_runtime`; claim/delivery/ack/recovery del publisher usan `malign_outbox_publisher`.
 
-El Unit of Work usa `READ COMMITTED`, fast lookup de idempotencia, `SELECT ... FOR UPDATE`, recheck bajo lock, CAS de `game_version`, un único `pg` client, journals/traces/snapshot/outbox dentro de la misma transacción y publicación sólo post-commit. OutboxMessage es inmutable, DeliveryState mutable y DeliveryAttempt append-only; no se afirma exactly-once delivery. Recovery y reconciliation fallan cerrado y fijan `recovery_blocked` ante mismatch.
+El adapter PostgreSQL satisface el port M1 completo para lifecycle, setup, initiative, maintenance, action planning, interacción de adjudicación, proyecciones y initial sync/feed de aplicación, sin transporte productivo. El Engine produce una transición durable DB-free, tipada y versionada con before/after, eventos, traces, mutaciones por familia, ledgers, continuation, actoría y causalidad; el completeness guard rechaza antes de todo write cualquier transición incompleta o adulterada. El Unit of Work usa `READ COMMITTED`, fast lookup de idempotencia, `SELECT ... FOR UPDATE`, recheck bajo lock, CAS de `game_version`, un único `pg` client, persistencia normalizada/journals/event/trace/continuation/idempotencia/outbox en una transacción y publicación sólo post-commit.
 
-El owner gate M2-A reporta **22/22 PASS** y las tres suites consolidadas añadidas para R11/R12/R19 reportan **3/3 PASS**; M2A-R11…R19 quedan implementados y cubiertos como **9/9 hallazgos**, pendientes de revisión. El gate M2-A suma **25/25 PASS**; baseline M0/M1 **215/215 preservada**; suite acumulada **240/240 PASS en 28 archivos, 0 skips, 0 todo y 0 waivers**. DEC-078/DEC-079 no constituyen cierre final: M2-A/M2-1 permanece **CORRECTION IMPLEMENTED / PENDING REVIEW**. IQ-M2-014 e IQ-M2-015 quedan resueltas; no apareció una nueva `IMPLEMENTATION_QUESTION`. IQ-M2-008/009 permanecen OPEN y sólo bloquean M2-2.
+Recovery y reconciliation contrastan snapshot+tail y `authoritative_state_json` contra phase/initiative, AP/Resources/VP, cartas/zonas/mazo, plans, campaigns, PD/influence/legitimacy, choices/continuations y heads/pins normalizados. Una divergencia fija `recovery_blocked` y añade un trace diagnóstico F1-only con actoría `SYSTEM` y `participant_id=NULL`, sin gameplay event ni incremento de versión. Los roles de producto continúan `NOLOGIN`; los pools de prueba usan principals `LOGIN` efímeros, no administrativos, con exactamente una membership correspondiente, y UoW/recovery/publisher fallan cerrado ante una identidad incompatible. OutboxMessage es inmutable, DeliveryState mutable y DeliveryAttempt append-only; no se afirma exactly-once delivery.
+
+El owner gate M2-A conserva **22/22 PASS**, las **14/14 regresiones asignadas previas** permanecen verdes y las seis regresiones ejecutables M2A-R20…R24 reportan **6/6 PASS**: adapter PostgreSQL completo, completeness guard, adjudicación M1 real y reconciliación, divergencia normalizada, manifest independiente y principals/ACL reales. El gate M2-A suma **31/31 PASS**; baseline M0/M1 **215/215 preservada**; suite acumulada **246/246 PASS en 28 archivos, 0 skips, 0 todo y 0 waivers**. La corrección funcional publicada está fijada en `bc186765da642363fb3fb1a73f217f3cbd19b1bd`. DEC-078/DEC-079 no constituyen cierre final: M2-A/M2-1 permanece **CORRECTION M2A-R20…R24 IMPLEMENTED / PENDING REVIEW**. IQ-M2-014 e IQ-M2-015 quedan resueltas; no apareció una nueva `IMPLEMENTATION_QUESTION`. IQ-M2-008/009 permanecen OPEN y sólo bloquean M2-2.
