@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import { sha256CanonicalJson } from '@malign-ai/shared';
+import { BASE_2025_COUNTRIES, BASE_2025_COUNTRY_SOURCE_REFERENCE } from '@malign-ai/domain';
 import type { Pool, PoolClient } from 'pg';
 
 import { PersistenceError } from './errors.js';
@@ -143,15 +144,44 @@ const insertCatalog = async (client: PoolClient, snapshot: RegistrySnapshot): Pr
   const registryId = registry.rows[0]?.id;
   if (!rulesetId || !engineId || !registryId) throw new Error('Seed version identity missing');
 
-  for (const countryId of snapshot.country_ids) {
-    await client.query(
-      `INSERT INTO malign.country_definitions(
+  const countrySourceColumn = await client.query<{ present: boolean }>(
+    `SELECT EXISTS(SELECT 1 FROM information_schema.columns
+      WHERE table_schema='malign' AND table_name='country_definitions' AND column_name='source_reference') present`,
+  );
+  const hasCountrySourceReference = countrySourceColumn.rows[0]?.present === true;
+
+  const approvedCountryIds = new Set(snapshot.country_ids);
+  for (const country of BASE_2025_COUNTRIES) {
+    if (!approvedCountryIds.has(country.id)) {
+      throw new PersistenceError('REGISTRY_SNAPSHOT_REJECTED', `Approved registry is missing country ${country.id}`);
+    }
+    const parameters = [
+      country.id,country.canonicalName,country.regimeType,country.mascot,country.colorKey,
+      country.startingResources,country.turnIncome,BASE_2025_COUNTRY_SOURCE_REFERENCE,
+    ];
+    await client.query(hasCountrySourceReference
+      ? `INSERT INTO malign.country_definitions(
          logical_id, version, canonical_name, regime_type, mascot, color_key,
-         starting_resource_default, turn_income_default, status
-       ) VALUES ($1, '0.1', $1, 'BASE', $1, lower($1), 0, 0, 'ACTIVE')
-       ON CONFLICT (logical_id, version) DO NOTHING`,
-      [countryId],
-    );
+         starting_resource_default, turn_income_default, status, source_reference
+       ) VALUES ($1, '0.1', $2, $3, $4, $5, $6, $7, 'ACTIVE', $8)
+       ON CONFLICT (logical_id, version) DO UPDATE SET
+         canonical_name=EXCLUDED.canonical_name,
+         regime_type=EXCLUDED.regime_type,
+         mascot=EXCLUDED.mascot,
+         color_key=EXCLUDED.color_key,
+         starting_resource_default=EXCLUDED.starting_resource_default,
+         turn_income_default=EXCLUDED.turn_income_default,
+         source_reference=EXCLUDED.source_reference`
+      : `INSERT INTO malign.country_definitions(
+         logical_id,version,canonical_name,regime_type,mascot,color_key,
+         starting_resource_default,turn_income_default,status
+       ) VALUES ($1,'0.1',$2,$3,$4,$5,$6,$7,'ACTIVE')
+       ON CONFLICT (logical_id,version) DO UPDATE SET
+         canonical_name=EXCLUDED.canonical_name,regime_type=EXCLUDED.regime_type,
+         mascot=EXCLUDED.mascot,color_key=EXCLUDED.color_key,
+         starting_resource_default=EXCLUDED.starting_resource_default,
+         turn_income_default=EXCLUDED.turn_income_default`,
+      hasCountrySourceReference ? parameters : parameters.slice(0,7));
   }
 
   for (const definition of snapshot.definitions) {
@@ -274,6 +304,7 @@ export const seedApprovedRegistry = async (pool: Pool): Promise<RegistrySeedResu
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query('SET LOCAL ROLE malign_migration_owner');
     const result = await insertCatalog(client, snapshot);
     await client.query('COMMIT');
     return result;
@@ -293,6 +324,7 @@ export const materializeRegistryForGame = async (
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query('SET LOCAL ROLE malign_app_runtime');
     const game = await client.query<{ card_registry_version_id: string }>(
       'SELECT card_registry_version_id FROM malign.games WHERE id=$1 FOR UPDATE',
       [gameId],

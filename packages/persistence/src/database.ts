@@ -67,3 +67,24 @@ export const configForDatabase = (config: PostgresConfig, database: string): Pos
   }
   return next;
 };
+
+/** Executes a negative physical-contract probe and guarantees total rollback. */
+export const probeConstraintViolation = async (
+  pool: Pool,
+  sql: string,
+  parameters: readonly unknown[] = [],
+): Promise<ReturnType<typeof safeDatabaseError>> => {
+  const client=await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SET LOCAL ROLE malign_app_runtime');
+    try {
+      await client.query(sql,[...parameters]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      return safeDatabaseError(error);
+    }
+    await client.query('ROLLBACK');
+    throw new Error('Constraint probe unexpectedly succeeded');
+  } finally { client.release(); }
+};

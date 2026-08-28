@@ -21,10 +21,28 @@ export interface ClaimedOutboxMessage {
   readonly attemptOrdinal: number;
 }
 
+export interface OutboxPublisherMetrics {
+  readonly claimQueries: number;
+  readonly claimedMessages: number;
+  readonly deliveryAttempts: number;
+  readonly recoveredLeases: number;
+  readonly lastClaimLatencyMilliseconds: number;
+}
+
 const tokenDigest = (token: string): Buffer => createHash('sha256').update(token).digest();
 
 export class PostgresOutboxPublisher {
+  readonly #metrics = {
+    claimQueries: 0,
+    claimedMessages: 0,
+    deliveryAttempts: 0,
+    recoveredLeases: 0,
+    lastClaimLatencyMilliseconds: 0,
+  };
+
   constructor(private readonly pool: Pool) {}
+
+  metrics(): OutboxPublisherMetrics { return { ...this.#metrics }; }
 
   private async appendAttempt(
     messageId: string,
@@ -34,20 +52,31 @@ export class PostgresOutboxPublisher {
     claimToken: string,
     errorCode?: string,
   ): Promise<void> {
-    await this.pool.query(
-      `INSERT INTO malign.outbox_delivery_attempts(
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SET LOCAL ROLE malign_outbox_publisher');
+      await client.query(`INSERT INTO malign.outbox_delivery_attempts(
          outbox_message_id,attempt_ordinal,stage_ordinal,event_type,occurred_at,
          claim_token_digest,error_code,correlation_id
        ) VALUES ($1,$2,$3,$4,clock_timestamp(),$5,$6,uuidv7())`,
       [messageId, attemptOrdinal, stageOrdinal, eventType, tokenDigest(claimToken), errorCode ?? null],
-    );
+      );
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally { client.release(); }
   }
 
   async claimOne(leaseMilliseconds = 30_000, gameId?: string): Promise<ClaimedOutboxMessage | undefined> {
     const client = await this.pool.connect();
     const claimToken = randomUUID();
+    const startedAt = performance.now();
     try {
       await client.query('BEGIN');
+      await client.query('SET LOCAL ROLE malign_outbox_publisher');
+      this.#metrics.claimQueries += 1;
       const candidate = await client.query<{
         id: string;
         game_id: string;
@@ -62,6 +91,12 @@ export class PostgresOutboxPublisher {
           WHERE ((s.delivery_status IN ('PENDING','RETRY_SCHEDULED') AND (s.next_attempt_at IS NULL OR s.next_attempt_at<=clock_timestamp()))
              OR (s.delivery_status='CLAIMED' AND s.claim_expires_at<=clock_timestamp()))
             AND ($1::uuid IS NULL OR m.game_id=$1)
+            AND NOT EXISTS (
+              SELECT 1 FROM malign.outbox_messages earlier
+              JOIN malign.outbox_delivery_states earlier_state ON earlier_state.outbox_message_id=earlier.id
+              WHERE earlier.game_id=m.game_id AND earlier.outbox_sequence<m.outbox_sequence
+                AND earlier_state.delivery_status<>'ACKNOWLEDGED'
+            )
           ORDER BY m.game_id,m.outbox_sequence,m.id
           FOR UPDATE OF s SKIP LOCKED LIMIT 1`,
         [gameId ?? null],
@@ -69,6 +104,7 @@ export class PostgresOutboxPublisher {
       const row = candidate.rows[0];
       if (!row) {
         await client.query('COMMIT');
+        this.#metrics.lastClaimLatencyMilliseconds = performance.now()-startedAt;
         return undefined;
       }
       const attemptOrdinal = Number(row.last_attempt_ordinal) + 1;
@@ -87,6 +123,8 @@ export class PostgresOutboxPublisher {
         [row.id, attemptOrdinal, tokenDigest(claimToken)],
       );
       await client.query('COMMIT');
+      this.#metrics.claimedMessages += 1;
+      this.#metrics.lastClaimLatencyMilliseconds = performance.now()-startedAt;
       return {
         id: row.id,
         gameId: row.game_id,
@@ -108,6 +146,7 @@ export class PostgresOutboxPublisher {
     message: ClaimedOutboxMessage,
     sender: (message: ClaimedOutboxMessage) => Promise<string | undefined>,
   ): Promise<void> {
+    this.#metrics.deliveryAttempts += 1;
     await this.appendAttempt(message.id, message.attemptOrdinal, 2, 'SEND_STARTED', message.claimToken);
     try {
       await sender(message);
@@ -116,6 +155,7 @@ export class PostgresOutboxPublisher {
       const client = await this.pool.connect();
       try {
         await client.query('BEGIN');
+        await client.query('SET LOCAL ROLE malign_outbox_publisher');
         await client.query(
           `INSERT INTO malign.outbox_delivery_attempts(
              outbox_message_id,attempt_ordinal,stage_ordinal,event_type,occurred_at,
@@ -150,6 +190,7 @@ export class PostgresOutboxPublisher {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      await client.query('SET LOCAL ROLE malign_outbox_publisher');
       const updated = await client.query(
         `UPDATE malign.outbox_delivery_states
             SET delivery_status='ACKNOWLEDGED',acknowledged_at=clock_timestamp(),claim_expires_at=NULL,next_attempt_at=NULL
@@ -176,6 +217,7 @@ export class PostgresOutboxPublisher {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      await client.query('SET LOCAL ROLE malign_outbox_publisher');
       const expired = await client.query<{
         outbox_message_id: string;
         last_attempt_ordinal: string;
@@ -203,6 +245,7 @@ export class PostgresOutboxPublisher {
         );
       }
       await client.query('COMMIT');
+      this.#metrics.recoveredLeases += expired.rowCount ?? 0;
       return expired.rowCount ?? 0;
     } catch (error) {
       await client.query('ROLLBACK');

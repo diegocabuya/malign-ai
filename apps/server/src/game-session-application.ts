@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { InMemorySessionAuthority } from '@malign-ai/authz';
 import { engineErrorFor, type AnyEngineErrorCode, type EngineCommandResult } from '@malign-ai/contracts';
 import {
@@ -6,8 +7,10 @@ import {
   type SetupCommandType,
   SetupCommandDispatcher,
   InMemorySetupGameStore,
+  deterministicJsonSerialize,
   validateSetupCommandPayload,
 } from '@malign-ai/game-engine';
+import { PostgresDurableUnitOfWork, type AcceptedEngineResult } from '@malign-ai/persistence';
 import {
   buildM1AdjudicationProjection,
   buildM1RealtimeCursor,
@@ -19,7 +22,7 @@ import {
   type SetupGameProjection,
 } from '@malign-ai/projections';
 import type { ActorContext } from '@malign-ai/contracts';
-import type { SetupGameState } from '@malign-ai/domain';
+import type { SetupGameState, TransactionalRandomProvider } from '@malign-ai/domain';
 import {
   buildM1AuthorizedEventFeed,
   isM1RealtimeCursor,
@@ -72,6 +75,14 @@ export interface M1RealtimeSubscriptionResult {
   readonly subscription: M1RealtimeSubscriptionHandle;
 }
 
+type MaybePromise<T> = T | Promise<T>;
+
+/** Composition-root port shared by the in-memory and PostgreSQL authoritative adapters. */
+export interface GameSessionApplicationPort {
+  execute(authenticatedSessionId: string, input: SessionCommandInput): MaybePromise<EngineCommandResult>;
+  getGameProjection(authenticatedSessionId: string, gameId: string): MaybePromise<ProjectionQueryResult>;
+}
+
 export interface M1ReconnectResult extends M1InitialSync {
   readonly subscription: M1RealtimeSubscriptionHandle;
 }
@@ -89,7 +100,7 @@ const freeAuthorityFields = new Set(['actorId', 'participantId', 'permissions', 
 const payloadClaimsAuthority = (payload: unknown): boolean =>
   typeof payload === 'object' && payload !== null && Object.keys(payload).some((key) => freeAuthorityFields.has(key));
 
-export class InMemoryGameSessionApplication {
+export class InMemoryGameSessionApplication implements GameSessionApplicationPort {
   constructor(
     private readonly authority: InMemorySessionAuthority,
     private readonly store: InMemorySetupGameStore,
@@ -373,6 +384,114 @@ export class InMemoryGameSessionApplication {
 
   private reject(
     input: Pick<SessionCommandInput, 'commandId' | 'gameId'> | Pick<SessionM1InteractionInput, 'commandId' | 'gameId'>,
+    version: number,
+    code: AnyEngineErrorCode,
+  ): EngineCommandResult {
+    return {
+      commandId: input.commandId,
+      gameId: input.gameId,
+      status: 'REJECTED',
+      gameVersionBefore: version,
+      gameVersionAfter: version,
+      resultCode: code,
+      emittedEventRefs: [],
+      adjudicationTraceRefs: [],
+      error: engineErrorFor(code),
+      resolvedAt: this.now().toISOString(),
+    };
+  }
+}
+
+/** Durable composition adapter: authenticated boundary → authoritative Engine → PostgreSQL. */
+export class PostgresGameSessionApplication implements GameSessionApplicationPort {
+  constructor(
+    private readonly authority: InMemorySessionAuthority,
+    private readonly persistence: PostgresDurableUnitOfWork,
+    private readonly randomFactory: () => TransactionalRandomProvider,
+    private readonly now: () => Date,
+  ) {}
+
+  async execute(authenticatedSessionId: string, input: SessionCommandInput): Promise<EngineCommandResult> {
+    const scope = this.authority.verifyGameScope(authenticatedSessionId, input.gameId);
+    if (!scope.ok) return this.reject(input, 0, scope.error);
+    let state: SetupGameState;
+    try {
+      state = (await this.persistence.recover(input.gameId)).state as unknown as SetupGameState;
+    } catch (error) {
+      return this.reject(input, 0, (error as { code?: string }).code === 'GAME_NOT_FOUND' ? 'GAME_NOT_FOUND' : 'NOT_AUTHORIZED');
+    }
+    const resolution = this.authority.resolve(authenticatedSessionId, input.gameId, state);
+    if (!resolution.ok) return this.reject(input, state.version, resolution.error);
+    if (payloadClaimsAuthority(input.payload)) return this.reject(input, state.version, 'INVALID_ACTOR_CONTEXT');
+    const payloadError = validateSetupCommandPayload(input.commandType, input.payload);
+    if (payloadError !== undefined) return this.reject(input, state.version, payloadError);
+    const fingerprintSha256 = createHash('sha256').update(deterministicJsonSerialize({
+      commandType: input.commandType,
+      payloadSchemaVersion: input.payloadSchemaVersion,
+      payload: input.payload,
+    })).digest('hex');
+    try {
+      const committed = await this.persistence.loadCommittedEngineResult({
+        gameId: input.gameId,
+        actorId: resolution.actorContext.actorId,
+        idempotencyKey: input.idempotencyKey,
+        fingerprintSha256,
+      });
+      if (committed) return committed;
+    } catch (error) {
+      if ((error as { code?: string }).code === 'IDEMPOTENCY_CONFLICT') {
+        return this.reject(input, state.version, 'IDEMPOTENCY_KEY_REUSED');
+      }
+      throw error;
+    }
+    const store = new InMemorySetupGameStore([state]);
+    const dispatcher = new SetupCommandDispatcher(store, this.randomFactory(), this.now);
+    const result = dispatcher.dispatch({ ...input, actorContext: resolution.actorContext });
+    if (result.status !== 'RESOLVED') return result;
+    const after = store.snapshot(input.gameId);
+    if (!after) return this.reject(input, state.version, 'GAME_NOT_FOUND');
+    const physicalParticipantId = await this.persistence.resolvePhysicalParticipantId(
+      input.gameId,
+      resolution.actorContext.actorId,
+    );
+    if (!physicalParticipantId) return this.reject(input, state.version, 'NOT_AUTHORIZED');
+    try {
+      await this.persistence.persistAcceptedTransition({
+        gameId: input.gameId,
+        actorId: resolution.actorContext.actorId,
+        actorParticipantId: physicalParticipantId,
+        commandType: input.commandType,
+        idempotencyKey: input.idempotencyKey,
+        fingerprintSha256,
+        beforeState: state as unknown as Record<string, unknown>,
+        afterState: after as unknown as Record<string, unknown>,
+        engineResult: result as AcceptedEngineResult,
+      });
+      return result;
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code === 'GAME_VERSION_CONFLICT') return this.reject(input, state.version, 'STALE_STATE_VERSION');
+      if (code === 'CROSS_GAME_REFERENCE') return this.reject(input, state.version, 'NOT_AUTHORIZED');
+      throw error;
+    }
+  }
+
+  async getGameProjection(authenticatedSessionId: string, gameId: string): Promise<ProjectionQueryResult> {
+    const scope = this.authority.verifyGameScope(authenticatedSessionId, gameId);
+    if (!scope.ok) return { ok: false, error: engineErrorFor(scope.error) };
+    let state: SetupGameState;
+    try {
+      state = (await this.persistence.recover(gameId)).state as unknown as SetupGameState;
+    } catch {
+      return { ok: false, error: engineErrorFor('GAME_NOT_FOUND') };
+    }
+    const resolution = this.authority.resolve(authenticatedSessionId, gameId, state);
+    if (!resolution.ok) return { ok: false, error: engineErrorFor(resolution.error) };
+    return { ok: true, projection: buildSetupGameProjection(state, resolution.actorContext) };
+  }
+
+  private reject(
+    input: Pick<SessionCommandInput, 'commandId' | 'gameId'>,
     version: number,
     code: AnyEngineErrorCode,
   ): EngineCommandResult {

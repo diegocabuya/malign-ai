@@ -25,6 +25,12 @@
       "name": "recovery_gate",
       "file": "004_recovery_gate.sql",
       "sha256": "0840334abb08eed4d95e006ae54e8cd2cb74dac92cac4415a1481fdc73aeee16"
+    },
+    {
+      "version": 5,
+      "name": "contractual_integrity_and_privileges",
+      "file": "005_contractual_integrity_and_privileges.sql",
+      "sha256": "6d60164092fd8c72e8e2d3d3b2df988481a8017b7473ba05c3948642b95c1580"
     }
   ]
 }

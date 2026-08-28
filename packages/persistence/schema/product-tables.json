@@ -1,8 +1,35 @@
 {
-  "formatVersion": 1,
-  "decision": "DEC-078",
+  "formatVersion": 2,
+  "decision": "DEC-078/DEC-079",
   "schema": "malign",
   "productTableCount": 87,
+  "catalogSha256": "7f5ddece51524300579439a36b60f6fd57b73fd10b2c14ced1acbe88a31e0da6",
+  "catalogCoverage": [
+    "schema-owner-and-acl",
+    "table-owner-acl-and-rls",
+    "columns-order-types-nullability-defaults",
+    "primary-foreign-unique-and-check-constraints",
+    "indexes-and-partial-predicates",
+    "append-only-and-integrity-triggers",
+    "functions-owner-acl-and-definition",
+    "domains-and-domain-checks"
+  ],
+  "requiredInvariants": [
+    "uuidv7-primary-identities",
+    "cross-game-foreign-keys",
+    "single-zone-card-membership",
+    "immutable-version-pins",
+    "append-only-history",
+    "event-artifact-ordering",
+    "action-point-balance-and-journal",
+    "resource-balance-and-journal",
+    "victory-point-balance-and-journal",
+    "influence-and-legitimacy-history",
+    "typed-versioned-json",
+    "durable-idempotency-seal",
+    "outbox-message-state-attempt-model",
+    "least-privilege-ownership-and-acls"
+  ],
   "migrationLedger": "malign_meta.schema_migrations",
   "tables": [
     "schema_migrations",

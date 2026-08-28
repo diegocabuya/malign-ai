@@ -9,13 +9,25 @@ export const M1_0_BASELINE_VERSIONS = {
   fixtureSchemaVersion: '0.1',
 } as const;
 
+export const BASE_2025_COUNTRY_SOURCE_REFERENCE =
+  'Malign-Influence-Rulebook_ENGLISH.pdf, section 13 “Countries and Characteristics”, pages 19–20';
+
+/** Official BASE_2025 reference data. Mascots are fixed by DEC-079 from the primary Rulebook. */
 export const BASE_2025_COUNTRIES = [
-  { id: 'ARDEN', startingResources: 2, turnIncome: 2 },
-  { id: 'FLUMA', startingResources: 2, turnIncome: 1 },
-  { id: 'URSARIA', startingResources: 3, turnIncome: 2 },
-  { id: 'PRESQUE', startingResources: 3, turnIncome: 2 },
-  { id: 'DINESIA', startingResources: 4, turnIncome: 3 },
-] as const satisfies readonly { readonly id: CountryId; readonly startingResources: number; readonly turnIncome: number }[];
+  { id: 'ARDEN', canonicalName: 'Arden', regimeType: 'Democracia Bipartidista', mascot: 'Tree', colorKey: 'verde oscuro', startingResources: 2, turnIncome: 2 },
+  { id: 'FLUMA', canonicalName: 'Republic of Fluma', regimeType: 'Territorio Democrático', mascot: 'Tree and River', colorKey: 'verde oliva', startingResources: 2, turnIncome: 1 },
+  { id: 'URSARIA', canonicalName: 'Ursaria', regimeType: 'Autoritaria', mascot: 'Bear', colorKey: 'rojo', startingResources: 3, turnIncome: 2 },
+  { id: 'PRESQUE', canonicalName: 'Presque', regimeType: 'Democracia Multipartidista', mascot: 'Horse', colorKey: 'naranja', startingResources: 3, turnIncome: 2 },
+  { id: 'DINESIA', canonicalName: 'Dinesia', regimeType: 'Democracia Experimental', mascot: 'Shark', colorKey: 'morado', startingResources: 4, turnIncome: 3 },
+] as const satisfies readonly {
+  readonly id: CountryId;
+  readonly canonicalName: string;
+  readonly regimeType: string;
+  readonly mascot: string;
+  readonly colorKey: string;
+  readonly startingResources: number;
+  readonly turnIncome: number;
+}[];
 
 const base2025PopulationDemographicDefinitions = [
   { id: 'PRESQUE_PD_1', hostCountryId: 'PRESQUE', localIndex: 1, gamebookLabel: '1', boardLabel: '1*', demographicTokenIds: ['SIZE:S', 'PARTY:CLEAN_EARTH_PARTY', 'RACE:BLACK', 'RELIGION:CHRISTIAN', 'EDUCATION:ADVANCED'], initialInfluence: { type: 'RESILIENCY', count: 1, attributionCountryId: 'PRESQUE' } },

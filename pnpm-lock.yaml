@@ -50,6 +50,9 @@ importers:
       '@malign-ai/game-engine':
         specifier: workspace:*
         version: link:../../packages/game-engine
+      '@malign-ai/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
       '@malign-ai/projections':
         specifier: workspace:*
         version: link:../../packages/projections
@@ -121,6 +124,9 @@ importers:
         specifier: 8.23.0
         version: 8.23.0
     devDependencies:
+      '@malign-ai/game-engine':
+        specifier: workspace:*
+        version: link:../game-engine
       '@types/pg':
         specifier: 8.23.1
         version: 8.23.1

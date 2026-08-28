@@ -2,6 +2,7 @@ import type { GameId } from '@malign-ai/domain';
 
 export * from './database.js';
 export * from './errors.js';
+export * from './evidence.js';
 export * from './migrations.js';
 export * from './outbox.js';
 export * from './query-budgets.js';
