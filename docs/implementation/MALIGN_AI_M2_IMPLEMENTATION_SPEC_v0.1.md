@@ -1,11 +1,11 @@
 # MALIGN-AI — M2 IMPLEMENTATION SPECIFICATION v0.1
 
 **Fecha:** 2026-08-27
-**Estado:** M2-0 APPROVED AND CLOSED / M2-A/M2-1 IMPLEMENTED — PENDING EXTERNAL REVIEW
-**Autoridad:** DEC-074…DEC-078; DEC-078 autoriza exclusivamente M2-A/M2-1
-**Implementación M2:** **M2-A/M2-1 IMPLEMENTED; M2-2…M2-7 NOT AUTHORIZED**
+**Estado:** M2-0 APPROVED AND CLOSED / M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080
+**Autoridad:** DEC-074…DEC-080; DEC-080 cierra exclusivamente M2-A/M2-1
+**Implementación M2:** **M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED; M2-2…M2-7 NOT AUTHORIZED; M2 global NOT YET CLOSED; M3 NOT AUTHORIZED**
 
-> DEC-078 autorizó y materializó exclusivamente M2-A/M2-1. No constituye cierre final ni autoriza M2-2…M2-7, M2 global o M3.
+> DEC-078 autorizó y materializó exclusivamente M2-A/M2-1; DEC-080 aprobó su commit funcional final `85ec047726a68007fbcabf07c6b3fe1b911a3070` y cerró M2A-R01…R30. DEC-080 no autoriza M2-2…M2-7, M2 global o M3.
 
 ## 1. Objetivo y checkpoint aprobado
 
@@ -46,7 +46,7 @@ Ante contradicción se falla cerrado, se registra pregunta y no se inventa compo
 - Casos nuevos únicos M2: `153 + 32 = 185`.
 - Regresiones dirigidas M2: 86; ejecuciones dirigidas: `185 + 86 = 271`.
 - Suite mínima acumulada futura: `215 + 185 = 400`.
-- PostgreSQL, migrations, outbox, transporte productivo, AuthN productiva, reglas M2, UI final e IA no han iniciado.
+- PostgreSQL 18.6, migrations `001…006`, outbox durable y recovery de M2-A/M2-1 están implementados y aprobados mediante DEC-080. Permanecen no iniciados/no autorizados el transporte/WebSocket productivo, AuthN productiva, las reglas posteriores de M2-2…M2-7, UI final, IA/OpenAI/RAG, hosting y proveedores.
 
 Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, analítica/AAR avanzada, proveedores no aprobados y M3. Ninguna librería, cloud, ORM, AuthN provider o WebSocket provider queda seleccionada.
 
@@ -71,7 +71,7 @@ Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, an
 | Bloque | Alcance | Dependencias/gates | Casos nuevos únicos | Estado |
 |---|---|---|---:|---|
 | M2-0 | Canonical Foundations Gate documental | Physical DB Spec, addendum M2, registry, Product Owner Review Matrix y hashes | 0 | APPROVED AND CLOSED mediante DEC-077 |
-| M2-1 | PostgreSQL Persistence and Durable Recovery | M2-0 aprobado; registry aprobado para seed | 22 | IMPLEMENTED / PENDING EXTERNAL REVIEW mediante DEC-078 |
+| M2-1 | PostgreSQL Persistence and Durable Recovery | M2-0 aprobado; registry aprobado para seed | 22 | IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080 |
 | M2-2 | Productive Transport and Reconnect | M2-1; IQ-M2-008/009 | 8 | NOT AUTHORIZED |
 | M2-3 | Complete Scheduler and Remaining Core Rules | M2-1; contrato de registry suficiente | 39 | NOT AUTHORIZED |
 | M2-4 | Action/Starter Cards and Regime Abilities | M2-3; IQ-M2-010 resuelta | 45 | NOT AUTHORIZED |
@@ -126,6 +126,10 @@ Incluye schema/migrations; registry seed sólo tras aprobación del registry; Un
 - **22/22 nuevos únicos** y regresiones dirigidas verdes, más baseline completo 215/215.
 
 Reversión operativa: volver al adapter in-memory por el mismo port y restaurar backup ensayado; nunca borrar historia o ejecutar downgrade destructivo.
+
+### Cierre mediante DEC-080
+
+M2-A/M2-1 queda **IMPLEMENTED AND APPROVED / CLOSED** en el commit funcional final `85ec047726a68007fbcabf07c6b3fe1b911a3070`. M2A-R01…R30 están **CLOSED**. El owner nominal queda en **22/22 PASS**, el gate acumulado M2-A en **38/38 PASS**, las **14/14 regresiones asignadas previas** y la baseline M0/M1 **215/215** permanecen preservadas, y la suite final reporta **253/253 PASS en 28 archivos, 0 skips, 0 todo y 0 waivers**. Los gates se ejecutaron con PostgreSQL real **18.6**, migrations `001…006` y esquema físico **87/87 tablas**; Catalog SHA-256: `447d8e06e3030a2744135c56edca135a142b2fcc252e69dd377259fc81d8a465`.
 
 ## 8. M2-2 — Productive Transport and Reconnect
 
@@ -229,6 +233,8 @@ DoD futuro: awards/outcome/final events/outbox atómicos e idempotentes; tiebrea
 | IQ-M2-011 | RESOLVED mediante DEC-078 | PostgreSQL 18.6 `uuidv7()` sin extensión; defaults/checks/RETURNING implementados |
 | IQ-M2-012 | RESOLVED mediante DEC-078 | sin RLS en M2-A; tres roles de mínimo privilegio y `PUBLIC` revocado |
 | IQ-M2-013 | RESOLVED FOR M2 mediante DEC-078 | no partition/archive/compaction/hard-delete; planes y query counts instrumentados |
+| IQ-M2-014 | RESOLVED mediante DEC-079 | mascots oficiales persistidos como `NOT NULL` con referencia normativa primaria |
+| IQ-M2-015 | RESOLVED mediante DEC-079 | bootstrap administrativo separado e idempotente para roles y migrations |
 
 No surgió una contradicción nueva entre reglas oficiales durante la reconciliación documental; `OPEN_QUESTIONS.md` permanece intacto.
 
@@ -248,4 +254,4 @@ M2 sólo podrá cerrarse tras nuevas autorizaciones si:
 
 ## 19. Gate de salida documental
 
-El planning gate queda **APPROVED AND CLOSED mediante DEC-076** y M2-0 **APPROVED AND CLOSED mediante DEC-077**. M2-A/M2-1 queda **IMPLEMENTED / PENDING EXTERNAL REVIEW mediante DEC-078**, con 22/22 owner y suite 237/237. M2-2…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
+El planning gate queda **APPROVED AND CLOSED mediante DEC-076** y M2-0 **APPROVED AND CLOSED mediante DEC-077**. M2-A/M2-1 queda **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080**, con commit funcional final `85ec047726a68007fbcabf07c6b3fe1b911a3070`, M2A-R01…R30 **CLOSED**, owner nominal **22/22 PASS**, gate acumulado **38/38 PASS**, regresiones asignadas previas **14/14 preservadas**, baseline M0/M1 **215/215 preservada** y suite final **253/253 PASS en 28 archivos** sobre PostgreSQL 18.6, migrations `001…006`, esquema físico **87/87 tablas** y Catalog SHA-256 `447d8e06e3030a2744135c56edca135a142b2fcc252e69dd377259fc81d8a465`. IQ-M2-011…015 están **RESOLVED** según sus decisiones aplicables; IQ-M2-008/009 permanecen **OPEN exclusivamente para M2-2**. M2-2…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT YET CLOSED** y M3 **NOT AUTHORIZED**.

@@ -1,6 +1,8 @@
 # MALIGN-AI — M2-A PostgreSQL Persistence Runbook v0.1
 
-**Estado:** IMPLEMENTED / PENDING EXTERNAL REVIEW mediante DEC-078
+**Estado:** IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080
+
+**Commit funcional final:** `85ec047726a68007fbcabf07c6b3fe1b911a3070`
 
 **PostgreSQL:** 18.6
 
@@ -35,8 +37,10 @@ El manifest `packages/persistence/migrations/manifest.json` fija orden y SHA-256
 | 002 | `002_append_only_and_ordering.sql` | historia inmutable, idempotency seal, pins e índices keyset |
 | 003 | `003_roles_and_privileges.sql` | roles y revocaciones reproducibles |
 | 004 | `004_recovery_gate.sql` | upgrade N-1 y bloqueo fail-closed |
+| 005 | `005_contractual_integrity_and_privileges.sql` | integridad contractual, datos oficiales y privilegios forward-only |
+| 006 | `006_durable_parity_and_least_privilege.sql` | paridad durable, least-privilege y correcciones finales aprobadas |
 
-La validación exige versiones contiguas y checksum exacto. Cada migration nueva corre en su propia transacción; un fallo revierte esa unidad. Reaplicar el bootstrap no reescribe ni duplica. No existe down migration automática.
+La validación exige las migrations contiguas `001…006`, checksum exacto y esquema físico **87/87 tablas**. Cada migration nueva corre en su propia transacción; un fallo revierte esa unidad. Reaplicar el bootstrap no reescribe ni duplica. No existe down migration automática. Catalog SHA-256: `447d8e06e3030a2744135c56edca135a142b2fcc252e69dd377259fc81d8a465`; migration `006` final: `ca318dd0f56d4a9afe101b7a6ada76fcb61337f0327ff5dd05e73d854e71f06e`.
 
 ## Roles
 
@@ -90,4 +94,6 @@ Los seis fixtures estructurales cubren aggregate load, authorized projection, re
 | M2A-R09 | ACK, fail→retry y lease-expiry actualizan DeliveryState + attempts en transacciones atómicas. TX-007. |
 | M2A-R10 | Reconciliation amplía el fail-closed matrix a state, event ordering, ledgers, orphan trace, outbox state, legitimacy, snapshots y pins. TX-009. |
 
-Todos los hallazgos M2A-R01…R10 están corregidos dentro de M2-A. No se creó waiver ni `IMPLEMENTATION_QUESTION` nueva. IQ-M2-008/009 permanecen OPEN y bloquean exclusivamente M2-2.
+La tabla anterior conserva el detalle operativo original de M2A-R01…R10. Las correcciones posteriores completaron M2A-R11…R30; DEC-080 declara **M2A-R01…R30 CLOSED** y M2-A/M2-1 **IMPLEMENTED AND APPROVED / CLOSED**.
+
+El cierre final conserva owner nominal **22/22 PASS**, gate acumulado M2-A **38/38 PASS**, regresiones asignadas previas **14/14 preservadas**, baseline M0/M1 **215/215 preservada** y suite final **253/253 PASS en 28 archivos, 0 skips, 0 todo y 0 waivers** sobre PostgreSQL real **18.6**. IQ-M2-011…015 están **RESOLVED** según DEC-078/DEC-079; no queda ninguna `IMPLEMENTATION_QUESTION` pendiente para M2-A. IQ-M2-008/009 permanecen **OPEN exclusivamente para M2-2**. M2-2…M2-7 están **NOT AUTHORIZED**, M2 global **NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
