@@ -64,6 +64,19 @@ export interface SessionM1InteractionInput {
   readonly causationId?: string;
 }
 
+export type PostgresCreateGameInput = Omit<SessionCommandInput, 'gameId' | 'commandType'> & {
+  readonly commandType?: never;
+};
+
+/** Server-internal scheduler request; it has no session, payload or actor fields. */
+export interface InternalM1SchedulerInput {
+  readonly gameId: string;
+  readonly expectedGameVersion: number;
+  readonly commandId: string;
+  readonly idempotencyKey: string;
+  readonly correlationId?: string;
+}
+
 export type ProjectionQueryResult =
   | { readonly ok: true; readonly projection: SetupGameProjection }
   | { readonly ok: false; readonly error: ReturnType<typeof engineErrorFor> };
@@ -409,14 +422,37 @@ export class InMemoryGameSessionApplication implements GameSessionApplicationPor
 
 /** Durable composition adapter: authenticated boundary → authoritative Engine → PostgreSQL. */
 export class PostgresGameSessionApplication implements GameSessionApplicationPort {
+  private readonly random: TransactionalRandomProvider;
+
   constructor(
     private readonly authority: InMemorySessionAuthority,
     private readonly persistence: PostgresDurableUnitOfWork,
-    private readonly randomFactory: () => TransactionalRandomProvider,
+    randomFactory: () => TransactionalRandomProvider,
     private readonly now: () => Date,
-  ) {}
+  ) { this.random=randomFactory(); }
 
   async execute(authenticatedSessionId: string, input: SessionCommandInput): Promise<EngineCommandResult> {
+    if(input.commandType==='CREATE_GAME')return this.reject(input,0,'NOT_AUTHORIZED');
+    return this.executeCommand(authenticatedSessionId,input,false);
+  }
+
+  async createGame(
+    authenticatedSessionId:string,
+    input:PostgresCreateGameInput,
+  ):Promise<{readonly gameId:string;readonly result:EngineCommandResult}> {
+    const authorization=this.authority.authorizeAllocatedGameCreation(authenticatedSessionId);
+    if(!authorization.ok)return {gameId:'',result:this.reject({commandId:input.commandId,gameId:''},0,authorization.error)};
+    const gameId=await this.persistence.allocateGameId();
+    const resolution=this.authority.bindAllocatedGameForCreate(authenticatedSessionId,gameId);
+    if(!resolution.ok)return {gameId,result:this.reject({commandId:input.commandId,gameId},0,resolution.error)};
+    const result=await this.executeCommand(authenticatedSessionId,{...input,gameId,commandType:'CREATE_GAME'},true);
+    return {gameId,result};
+  }
+
+  private async executeCommand(
+    authenticatedSessionId:string,input:SessionCommandInput,allowAllocatedCreate:boolean,
+  ):Promise<EngineCommandResult> {
+    if(input.commandType==='CREATE_GAME'&&!allowAllocatedCreate)return this.reject(input,0,'NOT_AUTHORIZED');
     const scope = this.authority.verifyGameScope(authenticatedSessionId, input.gameId);
     if (!scope.ok) return this.reject(input, 0, scope.error);
     const state = input.commandType === 'CREATE_GAME' ? undefined : await this.recoverState(input.gameId);
@@ -446,7 +482,7 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
       throw error;
     }
     const store = new InMemorySetupGameStore(state === undefined ? [] : [state]);
-    const dispatcher = new SetupCommandDispatcher(store, this.randomFactory(), this.now);
+    const dispatcher = new SetupCommandDispatcher(store, this.random, this.now);
     const result = dispatcher.dispatch({ ...input, actorContext: resolution.actorContext });
     if (result.status !== 'RESOLVED') return result;
     const after = store.snapshot(input.gameId);
@@ -499,7 +535,7 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
       throw error;
     }
     const store = new InMemorySetupGameStore([state]);
-    const result = new M1AdjudicationEngine(store, this.randomFactory(), this.now)
+    const result = new M1AdjudicationEngine(store, this.random, this.now)
       .dispatchInteraction({ ...input, actorContext: resolution.actorContext });
     if (result.status === 'REJECTED') return result;
     const after = store.snapshot(input.gameId);
@@ -524,6 +560,56 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
       if (code === 'CROSS_GAME_REFERENCE') return this.reject(input, state.version, 'NOT_AUTHORIZED');
       throw error;
     }
+  }
+
+  /** Productive internal scheduler: recovery → Engine → durable CAS → RNG commit. */
+  async runM1SchedulerNext(input:InternalM1SchedulerInput):Promise<EngineCommandResult> {
+    const state=await this.recoverState(input.gameId);
+    if(state===undefined)return this.reject(input,0,'GAME_NOT_FOUND');
+    const fingerprintSha256=createHash('sha256').update(deterministicJsonSerialize({
+      commandType:'INTERNAL_RUN_M1_SCHEDULER',beforeVersion:input.expectedGameVersion,
+    })).digest('hex');
+    const committed=await this.persistence.loadCommittedEngineResult({
+      gameId:input.gameId,actorId:'M1_INTERNAL_SCHEDULER',idempotencyKey:input.idempotencyKey,fingerprintSha256,
+    });
+    if(committed)return committed;
+    const checkpoint=this.random.checkpoint();
+    const store=new InMemorySetupGameStore([state]);
+    try {
+      const result=new M1AdjudicationEngine(store,this.random,this.now,'APPLICATION').runNext(input);
+      if(result.status==='REJECTED') { this.random.restore(checkpoint); return result; }
+      const after=store.snapshot(input.gameId);
+      if(after===undefined) { this.random.restore(checkpoint); return this.reject(input,state.version,'GAME_NOT_FOUND'); }
+      await this.persistence.persistAcceptedTransition(buildDurableEngineTransition({
+        gameId:input.gameId,commandType:'INTERNAL_RUN_M1_SCHEDULER',idempotencyKey:input.idempotencyKey,
+        fingerprintSha256,actor:{actorId:'M1_INTERNAL_SCHEDULER',actorType:'SYSTEM',participantId:null,
+          authenticatedSessionId:'internal:m1-2'},
+        ...(input.correlationId===undefined?{}:{correlationId:input.correlationId}),
+        beforeState:state,afterState:after,engineResult:result as DurableAcceptedEngineResult,
+      }));
+      this.random.commit(checkpoint);
+      return result;
+    } catch(error) {
+      this.random.restore(checkpoint);
+      if((error as {code?:string}).code==='GAME_VERSION_CONFLICT')
+        return this.reject(input,state.version,'STALE_STATE_VERSION');
+      throw error;
+    }
+  }
+
+  async runM1SchedulerUntilBlocked(gameId:string):Promise<readonly EngineCommandResult[]> {
+    const results:EngineCommandResult[]=[];
+    for(let guard=0;guard<100;guard+=1) {
+      const state=await this.recoverState(gameId);
+      if(state===undefined||state.adjudication.scheduler.status==='COMPLETE'||
+          state.adjudication.pendingResolution!==undefined)return results;
+      const suffix=`${state.version}:${state.adjudication.scheduler.participantIndex}:${state.adjudication.scheduler.slotIndex}`;
+      const result=await this.runM1SchedulerNext({gameId,expectedGameVersion:state.version,
+        commandId:`m1-scheduler:${suffix}`,idempotencyKey:`m1-scheduler:${suffix}`});
+      results.push(result);
+      if(result.status!=='RESOLVED')return results;
+    }
+    throw new Error('M1 scheduler exceeded its deterministic guard');
   }
 
   async getGameProjection(authenticatedSessionId: string, gameId: string): Promise<ProjectionQueryResult> {

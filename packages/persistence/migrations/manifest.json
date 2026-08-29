@@ -36,7 +36,7 @@
       "version": 6,
       "name": "durable_parity_and_least_privilege",
       "file": "006_durable_parity_and_least_privilege.sql",
-      "sha256": "1c46e60136fa2967714d52186e89af3564fca342b11269cf3c572e54914aa317"
+      "sha256": "ca318dd0f56d4a9afe101b7a6ada76fcb61337f0327ff5dd05e73d854e71f06e"
     }
   ]
 }

@@ -59,6 +59,7 @@ export const safeDatabaseError = (error: unknown): PersistenceError => {
   if (candidate.code === '23503') {
     return new PersistenceError(
       constraint.includes('_game_') || constraint.includes('cross_game')
+        || constraint.endsWith('_trace_fk')
         ? 'CROSS_GAME_REFERENCE'
         : 'REFERENCE_CONSTRAINT_VIOLATION',
       'A durable reference is invalid',

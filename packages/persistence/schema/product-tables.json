@@ -3,7 +3,7 @@
   "decision": "DEC-078/DEC-079",
   "schema": "malign",
   "productTableCount": 87,
-  "catalogSha256": "da6388288fb273409fc52ed80645186e7f58c21a17af1351a82c7814e6c117a4",
+  "catalogSha256": "447d8e06e3030a2744135c56edca135a142b2fcc252e69dd377259fc81d8a465",
   "catalogCoverage": [
     "schema-owner-and-acl",
     "table-owner-acl-and-rls",
@@ -8053,7 +8053,7 @@
         "type": "f",
         "deferrable": false,
         "initially_deferred": false,
-        "definition": "FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id)"
+        "definition": "FOREIGN KEY (game_id, adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id, id)"
       },
       {
         "table_name": "action_point_transactions",
@@ -8189,7 +8189,7 @@
         "type": "f",
         "deferrable": false,
         "initially_deferred": false,
-        "definition": "FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id)"
+        "definition": "FOREIGN KEY (game_id, adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id, id)"
       },
       {
         "table_name": "adjudication_traces",
@@ -8246,6 +8246,14 @@
         "deferrable": false,
         "initially_deferred": false,
         "definition": "UNIQUE (game_id, game_event_sequence, artifact_ordinal)"
+      },
+      {
+        "table_name": "adjudication_traces",
+        "name": "adjudication_traces_game_id_id_key",
+        "type": "u",
+        "deferrable": false,
+        "initially_deferred": false,
+        "definition": "UNIQUE (game_id, id)"
       },
       {
         "table_name": "adjudication_traces",
@@ -8597,7 +8605,7 @@
         "type": "f",
         "deferrable": false,
         "initially_deferred": false,
-        "definition": "FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id)"
+        "definition": "FOREIGN KEY (game_id, adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id, id)"
       },
       {
         "table_name": "campaign_activations",
@@ -11157,7 +11165,7 @@
         "type": "f",
         "deferrable": false,
         "initially_deferred": false,
-        "definition": "FOREIGN KEY (full_context_trace_id) REFERENCES malign.adjudication_traces(id)"
+        "definition": "FOREIGN KEY (game_id, full_context_trace_id) REFERENCES malign.adjudication_traces(game_id, id)"
       },
       {
         "table_name": "game_countries",
@@ -11397,7 +11405,7 @@
         "type": "f",
         "deferrable": false,
         "initially_deferred": false,
-        "definition": "FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id)"
+        "definition": "FOREIGN KEY (game_id, adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id, id)"
       },
       {
         "table_name": "game_events",
@@ -12597,7 +12605,7 @@
         "type": "f",
         "deferrable": false,
         "initially_deferred": false,
-        "definition": "FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id)"
+        "definition": "FOREIGN KEY (game_id, adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id, id)"
       },
       {
         "table_name": "influence_resolutions",
@@ -12725,7 +12733,7 @@
         "type": "f",
         "deferrable": false,
         "initially_deferred": false,
-        "definition": "FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id)"
+        "definition": "FOREIGN KEY (game_id, adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id, id)"
       },
       {
         "table_name": "influence_stacks",
@@ -13293,7 +13301,7 @@
         "type": "f",
         "deferrable": false,
         "initially_deferred": false,
-        "definition": "FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id)"
+        "definition": "FOREIGN KEY (game_id, adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id, id)"
       },
       {
         "table_name": "modifier_applications",
@@ -13397,7 +13405,7 @@
         "type": "f",
         "deferrable": false,
         "initially_deferred": false,
-        "definition": "FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id)"
+        "definition": "FOREIGN KEY (game_id, adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id, id)"
       },
       {
         "table_name": "modifier_applications",
@@ -14997,7 +15005,7 @@
         "type": "f",
         "deferrable": false,
         "initially_deferred": false,
-        "definition": "FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id)"
+        "definition": "FOREIGN KEY (game_id, adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id, id)"
       },
       {
         "table_name": "reaction_windows",
@@ -15349,7 +15357,7 @@
         "type": "f",
         "deferrable": false,
         "initially_deferred": false,
-        "definition": "FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id)"
+        "definition": "FOREIGN KEY (game_id, adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id, id)"
       },
       {
         "table_name": "regime_ability_activations",
@@ -15749,7 +15757,7 @@
         "type": "f",
         "deferrable": false,
         "initially_deferred": false,
-        "definition": "FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id)"
+        "definition": "FOREIGN KEY (game_id, adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id, id)"
       },
       {
         "table_name": "resource_transactions",
@@ -17581,7 +17589,7 @@
         "type": "f",
         "deferrable": false,
         "initially_deferred": false,
-        "definition": "FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id)"
+        "definition": "FOREIGN KEY (game_id, adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id, id)"
       },
       {
         "table_name": "viralization_resolutions",
@@ -17829,7 +17837,7 @@
         "type": "f",
         "deferrable": false,
         "initially_deferred": false,
-        "definition": "FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id)"
+        "definition": "FOREIGN KEY (game_id, adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id, id)"
       }
     ],
     "indexes": [
@@ -17897,6 +17905,12 @@
         "table_name": "adjudication_traces",
         "name": "adjudication_traces_game_id_game_event_sequence_artifact_or_key",
         "definition": "CREATE UNIQUE INDEX adjudication_traces_game_id_game_event_sequence_artifact_or_key ON malign.adjudication_traces USING btree (game_id, game_event_sequence, artifact_ordinal)",
+        "predicate": ""
+      },
+      {
+        "table_name": "adjudication_traces",
+        "name": "adjudication_traces_game_id_id_key",
+        "definition": "CREATE UNIQUE INDEX adjudication_traces_game_id_id_key ON malign.adjudication_traces USING btree (game_id, id)",
         "predicate": ""
       },
       {

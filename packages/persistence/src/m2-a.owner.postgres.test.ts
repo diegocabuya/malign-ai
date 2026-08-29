@@ -1,12 +1,10 @@
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
-  InMemorySetupGameStore,
-  M1AdjudicationEngine,
   dispatchM2APersistenceFixture,
   type M2APersistenceFixtureCommand,
   type M2APersistenceFixtureOutcome,
@@ -18,7 +16,6 @@ import {
   M1_0_BASELINE_VERSIONS,
   buildDurableEngineTransition,
   durableTransitionCompletenessFailures,
-  type DurableAcceptedEngineResult,
   type SetupGameState,
   type TransactionalRandomProvider,
 } from '@malign-ai/domain';
@@ -26,6 +23,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { PostgresGameSessionApplication, type SessionCommandInput } from '../../../apps/server/src/game-session-application.js';
 import { InMemorySessionAuthority } from '../../authz/src/index.js';
+import { sha256CanonicalJson } from '@malign-ai/shared';
 import { PARTICIPANT_FIXTURE, STRATEGY_FIXTURE, trustedBindings } from '../../../tests/m1-0/test-fixtures.js';
 
 import {
@@ -58,6 +56,7 @@ import {
   postgresConfigFromEnvironment,
   readPhysicalCatalog,
   reconcileDurableGame,
+  recordFacilitatorOverride,
   recoverDurableGame,
   seedApprovedRegistry,
   validateMigrationManifest,
@@ -82,9 +81,6 @@ const appPool=createPostgresPool(configForPrincipal(databaseConfig,appPrincipal)
 const outboxPool=createPostgresPool(configForPrincipal(databaseConfig,outboxPrincipal));
 const fixedNow=()=>new Date('2026-01-01T00:00:00.000Z');
 const fingerprint=(value:unknown):string=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
-const newGameId=async():Promise<string>=>
-  (await pool.query<{id:string}>('SELECT uuidv7() id')).rows[0]?.id??'';
-
 const minimumRandomFactory = ():TransactionalRandomProvider => ({
   checkpoint:()=>({cursor:0}),restore:()=>undefined,commit:()=>undefined,
   integer:(minimum:number)=>minimum,
@@ -119,11 +115,20 @@ const canonicalM1RandomFactory=():TransactionalRandomProvider=>{
   };
 };
 
-const createRealM1ApplicationFixture=async(gameId:string)=>{
+const createRealM1ApplicationFixture=async()=>{
+  let gameId=`provisional:${randomUUID()}`;
   const authority=new InMemorySessionAuthority(trustedBindings(gameId));
   const unitOfWork=new PostgresDurableUnitOfWork(appPool);
   const app=new PostgresGameSessionApplication(authority,unitOfWork,canonicalM1RandomFactory,fixedNow);
-  let version=0;
+  const created=await app.createGame('session-f1',{
+    engineContractVersion:M1_0_BASELINE_VERSIONS.engineContractVersion,
+    commandId:randomUUID(),idempotencyKey:`m2a-real:CREATE_GAME:${randomUUID()}`,
+    expectedGameVersion:0,payloadSchemaVersion:M1_0_BASELINE_VERSIONS.fixtureSchemaVersion,
+    payload:{scenarioDefinitionId:'BASE_2025',...M1_0_BASELINE_VERSIONS,turnLimit:10,preferredDiceMode:'DIGITAL'},
+  });
+  if(created.result.status!=='RESOLVED')throw new Error(`Real PostgreSQL CREATE_GAME failed: ${created.result.resultCode}`);
+  gameId=created.gameId;
+  let version=created.result.gameVersionAfter;
   const execute=async(sessionId:string,commandType:SetupCommandType,payload:SetupCommandPayload)=>{
     const result=await app.execute(sessionId,{
       engineContractVersion:M1_0_BASELINE_VERSIONS.engineContractVersion,
@@ -135,9 +140,6 @@ const createRealM1ApplicationFixture=async(gameId:string)=>{
     version=result.gameVersionAfter;
     return result;
   };
-  await execute('session-f1','CREATE_GAME',{
-    scenarioDefinitionId:'BASE_2025',...M1_0_BASELINE_VERSIONS,turnLimit:10,preferredDiceMode:'DIGITAL',
-  });
   for(const player of PARTICIPANT_FIXTURE.participants.filter(({role})=>role==='PLAYER')) {
     await execute(player.authenticated_session_id,'JOIN_GAME_MEMBERSHIP',{});
   }
@@ -166,28 +168,17 @@ const createRealM1ApplicationFixture=async(gameId:string)=>{
     await execute(player.authenticated_session_id,'SET_INITIATIVE_MAINTENANCE',{discardCardInstanceIds:[]});
     await execute(player.authenticated_session_id,'LOCK_INITIATIVE_MAINTENANCE',{});
   }
-  return {app,authority,unitOfWork,execute,get version(){return version;}};
+  return {app,authority,unitOfWork,execute,gameId,get version(){return version;}};
 };
 
-const persistRealSchedulerStep=async(gameId:string,die=7)=>{
+const persistRealSchedulerStep=async(app:PostgresGameSessionApplication,gameId:string)=>{
   const before=(await recoverDurableGame(appPool,gameId)).state as unknown as SetupGameState;
-  const store=new InMemorySetupGameStore([before]);
-  const engine=new M1AdjudicationEngine(store,scriptedRandomFactory([die])(),fixedNow);
   const commandId=randomUUID();
   const idempotencyKey=`m2a-real:scheduler:${randomUUID()}`;
-  const result=engine.runNext({gameId,expectedGameVersion:before.version,commandId,idempotencyKey,
+  const result=await app.runM1SchedulerNext({gameId,expectedGameVersion:before.version,commandId,idempotencyKey,
     correlationId:`m2a-real-scheduler:${before.version}`});
   if(result.status==='REJECTED')throw new Error(`Real M1 scheduler rejected: ${result.resultCode}`);
-  const after=store.snapshot(gameId);
-  if(after===undefined)throw new Error('Real M1 scheduler after-state missing');
-  await new PostgresDurableUnitOfWork(appPool).persistAcceptedTransition(buildDurableEngineTransition({
-    gameId,commandType:'INTERNAL_RUN_M1_SCHEDULER',idempotencyKey,
-    fingerprintSha256:fingerprint({commandType:'INTERNAL_RUN_M1_SCHEDULER',beforeVersion:before.version}),
-    actor:{actorId:'M1_INTERNAL_SCHEDULER',actorType:'SYSTEM',participantId:null,
-      authenticatedSessionId:'internal:m1-2'},
-    correlationId:`m2a-real-scheduler:${before.version}`,beforeState:before,afterState:after,
-    engineResult:result as DurableAcceptedEngineResult,
-  }));
+  const after=(await recoverDurableGame(appPool,gameId)).state as unknown as SetupGameState;
   return {before,after,result};
 };
 
@@ -335,7 +326,7 @@ describe('M2-A PostgreSQL 18.6 corrected owner gate',()=>{
     expect(ledger.rows.every(row=>/^[a-f0-9]{64}$/.test(row.checksum))).toBe(true);
   });
 
-  it('GE-M2-DB-003 — N-1 upgrade preserves complete durable evidence',async()=>{
+  it('GE-M2-DB-003/M2A-R26 — real migration-005 upgrade backfills legacy NULL traces atomically',async()=>{
     const name=`malign_m2a_n1_${randomUUID().replaceAll('-','').slice(0,12)}`;
     await createDisposableDatabase(adminPool,name);
     const n1Admin=createPostgresPool(configForDatabase(adminConfig,name));
@@ -343,14 +334,51 @@ describe('M2-A PostgreSQL 18.6 corrected owner gate',()=>{
     const n1=createPostgresPool(configForPrincipal(configForDatabase(adminConfig,name),migratorPrincipal));
     const n1App=createPostgresPool(configForPrincipal(configForDatabase(adminConfig,name),appPrincipal));
     try {
-      await migratePostgres(n1,{targetVersion:4,applicationBuild:'n-1',administrativePool:n1Admin});
+      await migratePostgres(n1,{targetVersion:5,applicationBuild:'n-1',administrativePool:n1Admin});
       const fixture=await createDurableGameFixture(n1,'N-1 evidence');
       const prepared=await transitionFor(n1,fixture,{type:'RESOURCE_EFFECT',commandId:randomUUID(),reason:'TURN_INCOME',delta:2},'n1-income');
       await new PostgresDurableUnitOfWork(n1App).persistM2AFutureFixtureTransition(prepared.transition);
+      const legacy=await n1.query<{sequence:string;ordinal:number;balance:number}>(`SELECT game_event_sequence::text sequence,
+        COALESCE(max(artifact_ordinal),0)::int+1 ordinal,max(balance_after)::int+1 balance
+        FROM malign.resource_transactions WHERE game_id=$1 GROUP BY game_event_sequence ORDER BY game_event_sequence LIMIT 1`,
+      [fixture.gameId]);
+      const legacyRow=legacy.rows[0];if(legacyRow===undefined)throw new Error('Legacy resource evidence missing');
+      await n1.query(`UPDATE malign.game_countries SET current_resources_cache=$2 WHERE game_id=$1
+        AND controlling_participant_id=$3`,[fixture.gameId,legacyRow.balance,fixture.actorParticipantId]);
+      await n1.query(`INSERT INTO malign.resource_transactions(game_id,game_event_sequence,artifact_ordinal,turn_id,
+        participant_id,delta,reason_type,source_entity_type,source_entity_id,adjudication_trace_id,balance_after)
+        VALUES ($1,$2,$3,$4,$5,1,'TURN_INCOME','LEGACY_MIGRATION_005',uuidv7(),NULL,$6)`,
+      [fixture.gameId,legacyRow.sequence,legacyRow.ordinal,fixture.turnId,fixture.actorParticipantId,legacyRow.balance]);
+      expect(Number((await n1.query<{count:string}>(`SELECT count(*)::text count FROM malign.resource_transactions
+        WHERE game_id=$1 AND adjudication_trace_id IS NULL`,[fixture.gameId])).rows[0]?.count)).toBe(1);
       const before=await captureDurableEvidence(n1App,fixture.gameId,state=>({id:state['id'],version:state['version']}));
+
+      const migration006=readFileSync(join(process.cwd(),'packages/persistence/migrations/006_durable_parity_and_least_privilege.sql'),'utf8');
+      const rollbackClient=await n1.connect();
+      try {
+        await rollbackClient.query('BEGIN');await rollbackClient.query('SET LOCAL ROLE malign_migration_owner');
+        await expect(rollbackClient.query(`${migration006}\nSELECT 1/0;`)).rejects.toBeDefined();
+        await rollbackClient.query('ROLLBACK');
+      } finally {rollbackClient.release();}
+      expect(Number((await n1.query<{version:number}>('SELECT max(version)::int version FROM malign_meta.schema_migrations')).rows[0]?.version)).toBe(5);
+      expect(Number((await n1.query<{count:string}>(`SELECT count(*)::text count FROM information_schema.columns
+        WHERE table_schema='malign' AND table_name='planned_actions' AND column_name='parameters_json'`)).rows[0]?.count)).toBe(0);
+      expect((await n1.query<{enabled:string}>(`SELECT tgenabled enabled FROM pg_trigger
+        WHERE tgname='resource_transactions_append_only'`)).rows[0]?.enabled).toBe('O');
+
       await migratePostgres(n1,{applicationBuild:'n',administrativePool:n1Admin});
       const after=await captureDurableEvidence(n1App,fixture.gameId,state=>({id:state['id'],version:state['version']}));
-      expect(after).toEqual(before);
+      expect(after.state).toEqual(before.state);expect(after.gameplayHash).toBe(before.gameplayHash);
+      expect(after.events).toEqual(before.events);expect(after.resourceLedger).toEqual(before.resourceLedger);
+      expect(after.traces).toHaveLength(before.traces.length+1);
+      expect(after.traces.filter(row=>row['trace_type']!=='M2A_FORWARD_LINK_BACKFILL')).toEqual(before.traces);
+      expect(Number((await n1.query<{count:string}>(`SELECT count(*)::text count FROM malign.resource_transactions
+        WHERE game_id=$1 AND adjudication_trace_id IS NULL`,[fixture.gameId])).rows[0]?.count)).toBe(0);
+      expect(Number((await n1.query<{count:string}>(`SELECT count(*)::text count FROM malign.adjudication_traces
+        WHERE game_id=$1 AND trace_type='M2A_FORWARD_LINK_BACKFILL'`,[fixture.gameId])).rows[0]?.count)).toBe(1);
+      await expect(n1.query(`UPDATE malign.resource_transactions SET reason_type='FORBIDDEN'
+        WHERE game_id=$1`,[fixture.gameId])).rejects.toBeDefined();
+      await expect(n1.query('DELETE FROM malign.resource_transactions WHERE game_id=$1',[fixture.gameId])).rejects.toBeDefined();
     } finally {await Promise.all([n1.end(),n1App.end(),n1Admin.end()]);await dropDisposableDatabase(adminPool,name);}
   },120_000);
 
@@ -383,6 +411,35 @@ describe('M2-A PostgreSQL 18.6 corrected owner gate',()=>{
     expect(errors.map(error=>error.code)).toEqual(['SINGLE_ZONE_VIOLATION','ORDERING_CONSTRAINT_VIOLATION',
       'NEGATIVE_BALANCE','REFERENCE_CONSTRAINT_VIOLATION','CROSS_GAME_REFERENCE']);
     expect(await artifactCounts(pool,fixture.gameId)).toEqual(before);
+  },120_000);
+
+  it('M2A-R27 — every trace-bearing artifact enforces the composite Game scope',async()=>{
+    const expectedConstraints=[
+      'action_point_transactions_trace_fk','resource_transactions_trace_fk','influence_mutations_trace_fk',
+      'legitimacy_events_trace_fk','vp_transactions_trace_fk','action_resolutions_trace_fk',
+      'reaction_plays_trace_fk','campaign_activations_trace_fk','modifier_applications_trace_fk',
+      'influence_resolutions_trace_fk','viralization_resolutions_trace_fk',
+      'regime_ability_activations_trace_fk','game_events_trace_fk','facilitator_requests_trace_fk',
+    ].sort();
+    const constraints=await pool.query<{name:string;definition:string}>(`SELECT conname name,
+      pg_get_constraintdef(oid,true) definition FROM pg_constraint
+      WHERE connamespace='malign'::regnamespace AND conname=ANY($1::text[]) ORDER BY conname`,[expectedConstraints]);
+    expect(constraints.rows.map(({name})=>name)).toEqual(expectedConstraints);
+    expect(constraints.rows.every(({definition})=>
+      definition.includes('(game_id, adjudication_trace_id)')||definition.includes('(game_id, full_context_trace_id)'))).toBe(true);
+    const gameA=await createDurableGameFixture(pool,'Trace scope A');
+    const gameB=await createDurableGameFixture(pool,'Trace scope B');
+    const foreignTrace=(await pool.query<{id:string}>(`SELECT id FROM malign.adjudication_traces
+      WHERE game_id=$1 ORDER BY game_event_sequence,artifact_ordinal LIMIT 1`,[gameB.gameId])).rows[0]?.id;
+    const before=await artifactCounts(pool,gameA.gameId);
+    const error=await probeConstraintViolation(appPool,`INSERT INTO malign.game_events(game_id,sequence_number,
+      event_type,subject_type,subject_id,payload_json,payload_schema_id,payload_schema_version,
+      visibility_class,adjudication_trace_id,correlation_id,state_hash_after)
+      SELECT $1,event_sequence_head+1,'CROSS_GAME_TRACE','GAME',$1,'{}'::jsonb,'malign.fault','1.0',
+        'GAME',$2,uuidv7(),gameplay_state_hash FROM malign.games WHERE id=$1`,
+    [gameA.gameId,foreignTrace]);
+    expect(error.code).toBe('CROSS_GAME_REFERENCE');
+    expect(await artifactCounts(pool,gameA.gameId)).toEqual(before);
   },120_000);
 
   it('GE-M2-DB-005 — official country data, approved registry and 540-card materialization are idempotent',async()=>{
@@ -701,25 +758,32 @@ describe('M2-A PostgreSQL 18.6 corrected owner gate',()=>{
     }
   },180_000);
 
-  it('M2A-R11 — authenticated application executes Engine once and persists only accepted PostgreSQL transitions',async()=>{
-    const gameId=(await pool.query<{id:string}>('SELECT uuidv7() id')).rows[0]?.id??'';
+  it('M2A-R11/R29 — authenticated application allocates Game identity in PostgreSQL and persists accepted transitions',async()=>{
+    const provisionalGameId=`caller-selected:${randomUUID()}`;
     const authority=new InMemorySessionAuthority([
-      {authenticatedSessionId:'m2a-session-f1',userId:'m2a-facilitator',gameId,participantId:'F1',role:'FACILITATOR'},
-      {authenticatedSessionId:'m2a-session-p1',userId:'m2a-player-1',gameId,participantId:'P1',role:'PLAYER'},
+      {authenticatedSessionId:'m2a-session-f1',userId:'m2a-facilitator',gameId:provisionalGameId,participantId:'F1',role:'FACILITATOR'},
+      {authenticatedSessionId:'m2a-session-p1',userId:'m2a-player-1',gameId:provisionalGameId,participantId:'P1',role:'PLAYER'},
     ]);
     const app=new PostgresGameSessionApplication(
       authority,new PostgresDurableUnitOfWork(appPool),minimumRandomFactory,fixedNow,
     );
-    const create:SessionCommandInput={
+    const callerCreate:SessionCommandInput={
       engineContractVersion:M1_0_BASELINE_VERSIONS.engineContractVersion,
-      commandId:randomUUID(),idempotencyKey:'application-create',gameId,
+      commandId:randomUUID(),idempotencyKey:'caller-selected-create',gameId:provisionalGameId,
       expectedGameVersion:0,commandType:'CREATE_GAME',payloadSchemaVersion:M1_0_BASELINE_VERSIONS.fixtureSchemaVersion,
       payload:{scenarioDefinitionId:'BASE_2025',...M1_0_BASELINE_VERSIONS,turnLimit:10,preferredDiceMode:'DIGITAL'},
     };
-    const created=await app.execute('m2a-session-f1',create);
+    await expect(app.execute('m2a-session-f1',callerCreate)).resolves.toMatchObject({status:'REJECTED',resultCode:'NOT_AUTHORIZED'});
+    const createInput={engineContractVersion:callerCreate.engineContractVersion,commandId:callerCreate.commandId,
+      idempotencyKey:'application-create',expectedGameVersion:callerCreate.expectedGameVersion,
+      payloadSchemaVersion:callerCreate.payloadSchemaVersion,payload:callerCreate.payload};
+    const allocation=await app.createGame('m2a-session-f1',createInput);
+    const {gameId}=allocation;
+    const created=allocation.result;
+    expect(gameId).not.toBe(provisionalGameId);
+    expect((await pool.query<{version:number}>('SELECT uuid_extract_version($1::uuid)::int version',[gameId])).rows[0]?.version).toBe(7);
     expect(created).toMatchObject({status:'RESOLVED',resultCode:'GAME_CREATED',gameVersionBefore:0,gameVersionAfter:1});
-    expect(await app.execute('m2a-session-f1',create)).toEqual(created);
-    const joined=await app.execute('m2a-session-p1',{...create,commandId:randomUUID(),idempotencyKey:'application-join',
+    const joined=await app.execute('m2a-session-p1',{...callerCreate,gameId,commandId:randomUUID(),idempotencyKey:'application-join',
       expectedGameVersion:1,commandType:'JOIN_GAME_MEMBERSHIP',payload:{}});
     expect(joined).toMatchObject({status:'RESOLVED',resultCode:'PARTICIPANT_JOINED',gameVersionAfter:2});
     expect(await artifactCounts(pool,gameId)).toMatchObject({game_version:2,events:2,traces:2,idempotency:2,outbox:2});
@@ -727,9 +791,60 @@ describe('M2-A PostgreSQL 18.6 corrected owner gate',()=>{
     expect(projection.ok).toBe(true);
   });
 
+  it('M2A-R25 — productive scheduler restores RNG and publishes nothing before durable CAS commit',async()=>{
+    const fixture=await createRealM1ApplicationFixture();
+    const {gameId}=fixture;
+    const planning=(await fixture.unitOfWork.recover(gameId)).state as unknown as SetupGameState;
+    await fixture.execute('session-p1','SET_ACTION_PLAN',{actionSlots:realCampaignSlots(planning).slice(0,1)});
+    await fixture.execute('session-p1','LOCK_ACTION_PLAN',{});
+    for(const participantId of ['P2','P3','P4','P5']) {
+      await fixture.execute(`session-${participantId.toLowerCase()}`,'SET_ACTION_PLAN',{actionSlots:[]});
+      await fixture.execute(`session-${participantId.toLowerCase()}`,'LOCK_ACTION_PLAN',{});
+    }
+    let cursor=0;let restores=0;let commits=0;let checkpoints=0;
+    const auditedRandom:TransactionalRandomProvider={
+      checkpoint:()=>{checkpoints+=1;return {cursor};},
+      restore:checkpoint=>{restores+=1;cursor=checkpoint.cursor;},
+      commit:()=>{commits+=1;},
+      integer:(minimum)=>{cursor+=1;return minimum;},
+    };
+    const input={gameId,expectedGameVersion:fixture.version,commandId:randomUUID(),
+      idempotencyKey:`m2a-r25:${randomUUID()}`,correlationId:'m2a-r25-real-entrypoint'};
+    const before=await artifactCounts(pool,gameId);const notifications:string[]=[];
+    const casApplication=new PostgresGameSessionApplication(fixture.authority,
+      new PostgresDurableUnitOfWork(appPool,{forceCasMiss:true,postCommitObserver:()=>{notifications.push('committed');}}),
+      ()=>auditedRandom,fixedNow);
+    await expect(casApplication.runM1SchedulerNext(input)).resolves.toMatchObject({
+      status:'REJECTED',resultCode:'STALE_STATE_VERSION',gameVersionBefore:fixture.version,gameVersionAfter:fixture.version,
+    });
+    expect(await artifactCounts(pool,gameId)).toEqual(before);
+    expect({cursor,restores,commits,notifications}).toEqual({cursor:0,restores:1,commits:0,notifications:[]});
+
+    const exceptionApplication=new PostgresGameSessionApplication(fixture.authority,
+      new PostgresDurableUnitOfWork(appPool,{faultAt:'event',postCommitObserver:()=>{notifications.push('committed');}}),
+      ()=>auditedRandom,fixedNow);
+    await expect(exceptionApplication.runM1SchedulerNext(input)).rejects.toMatchObject({code:'TRANSACTION_WRITE_FAILED'});
+    expect(await artifactCounts(pool,gameId)).toEqual(before);
+    expect({cursor,restores,commits,notifications}).toEqual({cursor:0,restores:2,commits:0,notifications:[]});
+
+    const committedApplication=new PostgresGameSessionApplication(fixture.authority,
+      new PostgresDurableUnitOfWork(appPool,{postCommitObserver:()=>{notifications.push('committed');}}),
+      ()=>auditedRandom,fixedNow);
+    const committed=await committedApplication.runM1SchedulerNext(input);
+    expect(committed).toMatchObject({status:'RESOLVED',resultCode:'ACTION_SLOT_RESOLVED'});
+    expect({cursor,restores,commits,notifications}).toEqual({cursor:0,restores:2,commits:1,notifications:['committed']});
+    const after=await artifactCounts(pool,gameId);
+    expect(after.events).toBe((before.events??0)+1);expect(after.outbox).toBe((before.outbox??0)+1);
+    expect(await committedApplication.runM1SchedulerNext(input)).toEqual(committed);
+    expect(await artifactCounts(pool,gameId)).toEqual(after);
+    expect({cursor,restores,commits,checkpoints,notifications}).toEqual({
+      cursor:0,restores:2,commits:1,checkpoints:3,notifications:['committed'],
+    });
+  },180_000);
+
   it('M2A-R20 — PostgreSQL adapter persists CREATE/JOIN/START and locked AP planning across restart',async()=>{
-    const gameId=await newGameId();
-    const fixture=await createRealM1ApplicationFixture(gameId);
+    const fixture=await createRealM1ApplicationFixture();
+    const {gameId}=fixture;
     const planning=(await fixture.unitOfWork.recover(gameId)).state as unknown as SetupGameState;
     expect(planning.phase).toBe('ACTION_STAGE_PLAN');
     await fixture.execute('session-p1','SET_ACTION_PLAN',{actionSlots:realCampaignSlots(planning).slice(0,1)});
@@ -771,15 +886,16 @@ describe('M2-A PostgreSQL 18.6 corrected owner gate',()=>{
   },180_000);
 
   it('M2A-R21 — completeness guard rejects an adulterated M1 transition before every durable write',async()=>{
-    const gameId=await newGameId();
-    const authority=new InMemorySessionAuthority(trustedBindings(gameId));
+    const provisionalGameId=`provisional:${randomUUID()}`;
+    const authority=new InMemorySessionAuthority(trustedBindings(provisionalGameId));
     const unitOfWork=new PostgresDurableUnitOfWork(appPool);
     const app=new PostgresGameSessionApplication(authority,unitOfWork,minimumRandomFactory,fixedNow);
     const commandId=randomUUID();
-    await app.execute('session-f1',{engineContractVersion:M1_0_BASELINE_VERSIONS.engineContractVersion,
-      commandId,idempotencyKey:`guard-create:${randomUUID()}`,gameId,expectedGameVersion:0,
-      commandType:'CREATE_GAME',payloadSchemaVersion:M1_0_BASELINE_VERSIONS.fixtureSchemaVersion,
+    const created=await app.createGame('session-f1',{engineContractVersion:M1_0_BASELINE_VERSIONS.engineContractVersion,
+      commandId,idempotencyKey:`guard-create:${randomUUID()}`,expectedGameVersion:0,
+      payloadSchemaVersion:M1_0_BASELINE_VERSIONS.fixtureSchemaVersion,
       payload:{scenarioDefinitionId:'BASE_2025',...M1_0_BASELINE_VERSIONS,turnLimit:10,preferredDiceMode:'DIGITAL'}});
+    const {gameId}=created;
     const before=(await recoverDurableGame(appPool,gameId)).state as unknown as SetupGameState;
     const after=structuredClone(before);after.overlay='PAUSED';after.version+=1;
     const nextCommandId=randomUUID();
@@ -798,8 +914,8 @@ describe('M2-A PostgreSQL 18.6 corrected owner gate',()=>{
   });
 
   it('M2A-R21/R22 — real M1 campaign adjudication persists narrative, RNG, ledgers and normalized artifacts',async()=>{
-    const gameId=await newGameId();
-    const fixture=await createRealM1ApplicationFixture(gameId);
+    const fixture=await createRealM1ApplicationFixture();
+    const {gameId}=fixture;
     const planning=(await fixture.unitOfWork.recover(gameId)).state as unknown as SetupGameState;
     await fixture.execute('session-p1','SET_ACTION_PLAN',{actionSlots:realCampaignSlots(planning)});
     await fixture.execute('session-p1','LOCK_ACTION_PLAN',{});
@@ -807,9 +923,9 @@ describe('M2-A PostgreSQL 18.6 corrected owner gate',()=>{
       await fixture.execute(`session-${participantId.toLowerCase()}`,'SET_ACTION_PLAN',{actionSlots:[]});
       await fixture.execute(`session-${participantId.toLowerCase()}`,'LOCK_ACTION_PLAN',{});
     }
-    const constructed=await persistRealSchedulerStep(gameId);
+    const constructed=await persistRealSchedulerStep(fixture.app,gameId);
     expect(constructed.result).toMatchObject({status:'RESOLVED',resultCode:'ACTION_SLOT_RESOLVED'});
-    const requested=await persistRealSchedulerStep(gameId,7);
+    const requested=await persistRealSchedulerStep(fixture.app,gameId);
     expect(requested.result).toMatchObject({status:'REQUIRES_CHOICE',resultCode:'NARRATIVE_REQUIRED'});
     const pending=requested.after.adjudication.pendingResolution;
     if(pending?.kind!=='NARRATIVE')throw new Error('Real M1 narrative continuation missing');
@@ -842,8 +958,7 @@ describe('M2-A PostgreSQL 18.6 corrected owner gate',()=>{
   },180_000);
 
   it('M2A-R22 — normalized phase divergence blocks recovery with nullable SYSTEM diagnostic provenance',async()=>{
-    const gameId=await newGameId();
-    await createRealM1ApplicationFixture(gameId);
+    const {gameId}=await createRealM1ApplicationFixture();
     await pool.query(`UPDATE malign.phase_states SET phase_type='CORRUPTED_PHASE'
       WHERE id=(SELECT id FROM malign.phase_states WHERE game_id=$1 ORDER BY opened_at DESC NULLS LAST,id DESC LIMIT 1)`,[gameId]);
     const eventsBefore=(await artifactCounts(pool,gameId)).events;
@@ -852,6 +967,44 @@ describe('M2-A PostgreSQL 18.6 corrected owner gate',()=>{
     expect((await pool.query<{participant_id:string|null;trace_type:string}>(`SELECT participant_id,trace_type
       FROM malign.adjudication_traces WHERE game_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1`,[gameId])).rows[0])
       .toEqual({participant_id:null,trace_type:'RECONCILIATION_DIAGNOSTIC_SYSTEM'});
+  },180_000);
+
+  it('M2A-R28 — semantic continuation drift with a valid hash blocks recovery and deduplicates SYSTEM diagnostics',async()=>{
+    const fixture=await createRealM1ApplicationFixture();const {gameId}=fixture;
+    const planning=(await fixture.unitOfWork.recover(gameId)).state as unknown as SetupGameState;
+    await fixture.execute('session-p1','SET_ACTION_PLAN',{actionSlots:realCampaignSlots(planning)});
+    await fixture.execute('session-p1','LOCK_ACTION_PLAN',{});
+    for(const participantId of ['P2','P3','P4','P5']) {
+      await fixture.execute(`session-${participantId.toLowerCase()}`,'SET_ACTION_PLAN',{actionSlots:[]});
+      await fixture.execute(`session-${participantId.toLowerCase()}`,'LOCK_ACTION_PLAN',{});
+    }
+    await persistRealSchedulerStep(fixture.app,gameId);
+    await persistRealSchedulerStep(fixture.app,gameId);
+    const continuation=(await pool.query<{state:Record<string,unknown>}>(`SELECT continuation_state_json state
+      FROM malign.pending_resolutions WHERE game_id=$1 AND status='OPEN'`,[gameId])).rows[0]?.state;
+    if(continuation===undefined)throw new Error('R28 continuation missing');
+    const adulterated=structuredClone(continuation);
+    const continuationState=adulterated['continuation'] as Record<string,unknown>;
+    continuationState['resourceCost']=Number(continuationState['resourceCost'])+1;
+    await pool.query(`UPDATE malign.pending_resolutions SET continuation_state_json=$2::jsonb,
+      state_hash=decode($3,'hex') WHERE game_id=$1 AND status='OPEN'`,
+    [gameId,JSON.stringify(adulterated),sha256CanonicalJson(adulterated)]);
+    const before=(await pool.query<{game_version:string;hash:string;state:unknown;events:string}>(`SELECT
+      game_version::text,encode(gameplay_state_hash,'hex') hash,authoritative_state_json state,
+      (SELECT count(*)::text FROM malign.game_events WHERE game_id=$1) events FROM malign.games WHERE id=$1`,[gameId])).rows[0];
+    await expect(recoverDurableGame(appPool,gameId)).rejects.toMatchObject({code:'RECONCILIATION_MISMATCH'});
+    await expect(recoverDurableGame(appPool,gameId)).rejects.toMatchObject({code:'RECONCILIATION_MISMATCH'});
+    const after=(await pool.query<{game_version:string;hash:string;state:unknown;events:string}>(`SELECT
+      game_version::text,encode(gameplay_state_hash,'hex') hash,authoritative_state_json state,
+      (SELECT count(*)::text FROM malign.game_events WHERE game_id=$1) events FROM malign.games WHERE id=$1`,[gameId])).rows[0];
+    expect(after).toEqual(before);
+    const diagnostics=await pool.query<{participant_id:string|null;rules:unknown;output:unknown}>(`SELECT participant_id,
+      rule_evaluation_json rules,output_snapshot_json output FROM malign.adjudication_traces
+      WHERE game_id=$1 AND trace_type='RECONCILIATION_DIAGNOSTIC_SYSTEM'`,[gameId]);
+    expect(diagnostics.rows).toHaveLength(1);
+    expect(diagnostics.rows[0]).toMatchObject({participant_id:null,
+      rules:{actorType:'SYSTEM',visibility:'FACILITATOR_ONLY',createsGameplayEvent:false},
+      output:{recoveryBlocked:true}});
   },180_000);
 
   it('M2A-R23 — independent 87-table manifest detects required nullability drift',async()=>{
@@ -878,9 +1031,37 @@ describe('M2-A PostgreSQL 18.6 corrected owner gate',()=>{
     await expect(recoverDurableGame(adminDatabasePool,fixture.gameId)).rejects.toMatchObject({code:'RUNTIME_AUTHORITY_INVALID'});
     await expect(new PostgresOutboxPublisher(adminDatabasePool).claimOne(30_000,fixture.gameId))
       .rejects.toMatchObject({code:'RUNTIME_AUTHORITY_INVALID'});
+    await expect(new PostgresDurableUnitOfWork(adminDatabasePool).allocateGameId())
+      .rejects.toMatchObject({code:'RUNTIME_AUTHORITY_INVALID'});
+    await expect(materializeRegistryForGame(adminDatabasePool,fixture.gameId,fixture.controllersByCountry))
+      .rejects.toMatchObject({code:'RUNTIME_AUTHORITY_INVALID'});
+    await expect(recordFacilitatorOverride(adminDatabasePool,{gameId:fixture.gameId,
+      facilitatorParticipantId:fixture.actorParticipantId,targetCardInstanceId:randomUUID(),
+      reason:'Administrative identity must fail closed',noncanonical:true}))
+      .rejects.toMatchObject({code:'RUNTIME_AUTHORITY_INVALID'});
     await expect(appPool.query(`UPDATE malign.country_definitions SET mascot='FORBIDDEN' WHERE logical_id='ARDEN'`)).rejects.toBeDefined();
     await expect(outboxPool.query('SELECT authoritative_state_json FROM malign.games WHERE id=$1',[fixture.gameId])).rejects.toBeDefined();
   });
+
+  it('M2A-R29 — multiple product memberships and cross-game sessions fail closed',async()=>{
+    const principal=`malign_test_app_${randomUUID().replaceAll('-','').slice(0,10)}`;
+    await createEphemeralLoginPrincipal(adminPool,principal,'malign_app_runtime',databaseName);
+    await adminPool.query(`GRANT malign_outbox_publisher TO ${principal}`);
+    const multiplePool=createPostgresPool(configForPrincipal(databaseConfig,principal));
+    try {
+      await expect(new PostgresDurableUnitOfWork(multiplePool).allocateGameId())
+        .rejects.toMatchObject({code:'RUNTIME_AUTHORITY_INVALID'});
+    } finally {
+      await multiplePool.end();
+      await adminPool.query(`REVOKE CONNECT ON DATABASE ${databaseName} FROM ${principal}`);
+      await dropEphemeralLoginPrincipal(adminPool,principal);
+    }
+    const first=await createRealM1ApplicationFixture();
+    const second=await createRealM1ApplicationFixture();
+    await expect(first.app.getGameProjection('session-p1',second.gameId)).resolves.toMatchObject({
+      ok:false,error:{code:'GAME_ID_MISMATCH'},
+    });
+  },180_000);
 
   it('M2A-R19 — real roles enforce minimum privilege while allowed UoW and publisher operations succeed',async()=>{
     const fixture=await createDurableGameFixture(pool,'Least privilege');

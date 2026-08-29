@@ -10,6 +10,7 @@ import {
 import type { Pool, PoolClient } from 'pg';
 
 import { PersistenceError } from './errors.js';
+import { assertLeastPrivilegeRuntimeIdentity } from './runtime-identity.js';
 
 export const APPROVED_REGISTRY_JCS_SHA256 =
   '735fd01b65416bdeb1baaa596bb36ea0d0eef31cb1d1d9b7f4b2322c9c585e4a';
@@ -399,6 +400,7 @@ export const materializeRegistryForGame = async (
   try {
     await client.query('BEGIN');
     await client.query('SET LOCAL ROLE malign_app_runtime');
+    await assertLeastPrivilegeRuntimeIdentity(client,'malign_app_runtime');
     const game = await client.query<{ card_registry_version_id: string }>(
       'SELECT card_registry_version_id FROM malign.games WHERE id=$1 FOR UPDATE',
       [gameId],

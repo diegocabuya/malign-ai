@@ -538,6 +538,7 @@ export class M1AdjudicationEngine {
     private readonly store: InMemorySetupGameStore,
     private readonly random: TransactionalRandomProvider,
     private readonly now: () => Date,
+    private readonly randomTransactionOwner: 'ENGINE' | 'APPLICATION' = 'ENGINE',
   ) {}
 
   runNext(options: SchedulerRunOptions): EngineCommandResult {
@@ -591,6 +592,11 @@ export class M1AdjudicationEngine {
   private withTransactionalRandom(
     operation: (deferStableNotification: (notify: () => void) => void) => EngineCommandResult,
   ): EngineCommandResult {
+    if (this.randomTransactionOwner === 'APPLICATION') {
+      // The durable application boundary owns checkpoint/restore/commit so the
+      // RNG cannot become stable before PostgreSQL commits its CAS transaction.
+      return operation(() => undefined);
+    }
     const checkpoint = this.random.checkpoint();
     let notifyStableCommit: (() => void) | undefined;
     try {
@@ -1284,6 +1290,7 @@ export class M1AdjudicationEngine {
       choiceId: payload.choiceId,
       choiceVersion: payload.choiceVersion,
       selectionCount: payload.selectedOptionIds.length,
+      selectedOptionIdsJson: JSON.stringify([...payload.selectedOptionIds]),
       ownerParticipantId: workingPending.participantId,
     }, workingPending.causationId);
     const eventRefs = [...workingPending.continuation.eventRefsBeforeChoice, choiceEvent.id];

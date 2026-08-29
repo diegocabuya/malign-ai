@@ -37,6 +37,32 @@ export class InMemorySessionAuthority {
     return { ok: true, actorContext: this.contextFrom(binding, ['game:create', 'game:facilitate', 'game:project']) };
   }
 
+  authorizeAllocatedGameCreation(authenticatedSessionId: string): ActorResolution {
+    const binding = this.#bindings.get(authenticatedSessionId);
+    if (binding === undefined) return { ok: false, error: 'INVALID_ACTOR_CONTEXT' };
+    if (binding.role !== 'FACILITATOR' || binding.participantId !== 'F1') {
+      return { ok: false, error: 'NOT_AUTHORIZED' };
+    }
+    return { ok: true, actorContext: this.contextFrom(binding, ['game:create']) };
+  }
+
+  /** Binds a server-allocated PostgreSQL Game identity to the verified creator session. */
+  bindAllocatedGameForCreate(authenticatedSessionId: string, allocatedGameId: string): ActorResolution {
+    const binding = this.#bindings.get(authenticatedSessionId);
+    if (binding === undefined) return { ok: false, error: 'INVALID_ACTOR_CONTEXT' };
+    if (binding.role !== 'FACILITATOR' || binding.participantId !== 'F1') {
+      return { ok: false, error: 'NOT_AUTHORIZED' };
+    }
+    const provisionalGameId = binding.gameId;
+    for (const [sessionId, candidate] of this.#bindings) {
+      if (candidate.gameId === provisionalGameId) {
+        this.#bindings.set(sessionId, { ...candidate, gameId: allocatedGameId });
+      }
+    }
+    const allocatedBinding = this.#bindings.get(authenticatedSessionId)!;
+    return { ok: true, actorContext: this.contextFrom(allocatedBinding, ['game:create', 'game:facilitate', 'game:project']) };
+  }
+
   resolveForJoin(authenticatedSessionId: string, gameId: string, state: SetupGameState): ActorResolution {
     const binding = this.#bindings.get(authenticatedSessionId);
     if (binding === undefined) return { ok: false, error: 'INVALID_ACTOR_CONTEXT' };

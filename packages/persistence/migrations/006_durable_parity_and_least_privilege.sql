@@ -1,4 +1,5 @@
--- DEC-078/DEC-079 forward-only correction for M2A-R20…R24.
+-- DEC-078/DEC-079 forward-only correction, superseded before M2-A review
+-- to include M2A-R25…R29 while migrations 001…005 remain byte-identical.
 
 -- The approved Physical Database Spec uses typed plan targeting/parameters rather
 -- than the bootstrap-only generic payload columns.
@@ -41,6 +42,22 @@ CREATE INDEX planned_actions_scope_state_idx
 
 -- Every legacy event that owns a journal row receives one technical trace. This
 -- permits the AP trace column to become NOT NULL without rewriting migrations 001…005.
+DO $body$
+BEGIN
+  IF current_user <> 'malign_migration_owner' THEN
+    RAISE EXCEPTION 'M2A_MIGRATION_006_OWNER_REQUIRED';
+  END IF;
+END
+$body$;
+
+-- Transaction-local migration exception. PostgreSQL rolls every DISABLE back if
+-- migration 006 fails; the explicit ENABLE below restores normal operation on success.
+ALTER TABLE malign.action_point_transactions DISABLE TRIGGER action_point_transactions_append_only;
+ALTER TABLE malign.resource_transactions DISABLE TRIGGER resource_transactions_append_only;
+ALTER TABLE malign.influence_mutations DISABLE TRIGGER influence_mutations_append_only;
+ALTER TABLE malign.legitimacy_events DISABLE TRIGGER legitimacy_events_append_only;
+ALTER TABLE malign.vp_transactions DISABLE TRIGGER vp_transactions_append_only;
+
 WITH missing AS (
   SELECT DISTINCT journal.game_id,journal.game_event_sequence
     FROM (
@@ -99,37 +116,46 @@ UPDATE malign.vp_transactions journal
      ORDER BY trace.artifact_ordinal LIMIT 1)
  WHERE journal.adjudication_trace_id IS NULL;
 
+ALTER TABLE malign.action_point_transactions ENABLE TRIGGER action_point_transactions_append_only;
+ALTER TABLE malign.resource_transactions ENABLE TRIGGER resource_transactions_append_only;
+ALTER TABLE malign.influence_mutations ENABLE TRIGGER influence_mutations_append_only;
+ALTER TABLE malign.legitimacy_events ENABLE TRIGGER legitimacy_events_append_only;
+ALTER TABLE malign.vp_transactions ENABLE TRIGGER vp_transactions_append_only;
+
 ALTER TABLE malign.action_point_transactions
   ALTER COLUMN adjudication_trace_id SET NOT NULL;
 
+ALTER TABLE malign.adjudication_traces
+  ADD CONSTRAINT adjudication_traces_game_id_id_key UNIQUE (game_id,id);
+
 ALTER TABLE malign.action_point_transactions
-  ADD CONSTRAINT action_point_transactions_trace_fk FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id);
+  ADD CONSTRAINT action_point_transactions_trace_fk FOREIGN KEY (game_id,adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id,id);
 ALTER TABLE malign.resource_transactions
-  ADD CONSTRAINT resource_transactions_trace_fk FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id);
+  ADD CONSTRAINT resource_transactions_trace_fk FOREIGN KEY (game_id,adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id,id);
 ALTER TABLE malign.influence_mutations
-  ADD CONSTRAINT influence_mutations_trace_fk FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id);
+  ADD CONSTRAINT influence_mutations_trace_fk FOREIGN KEY (game_id,adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id,id);
 ALTER TABLE malign.legitimacy_events
-  ADD CONSTRAINT legitimacy_events_trace_fk FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id);
+  ADD CONSTRAINT legitimacy_events_trace_fk FOREIGN KEY (game_id,adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id,id);
 ALTER TABLE malign.vp_transactions
-  ADD CONSTRAINT vp_transactions_trace_fk FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id);
+  ADD CONSTRAINT vp_transactions_trace_fk FOREIGN KEY (game_id,adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id,id);
 ALTER TABLE malign.action_resolutions
-  ADD CONSTRAINT action_resolutions_trace_fk FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id);
+  ADD CONSTRAINT action_resolutions_trace_fk FOREIGN KEY (game_id,adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id,id);
 ALTER TABLE malign.reaction_plays
-  ADD CONSTRAINT reaction_plays_trace_fk FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id);
+  ADD CONSTRAINT reaction_plays_trace_fk FOREIGN KEY (game_id,adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id,id);
 ALTER TABLE malign.campaign_activations
-  ADD CONSTRAINT campaign_activations_trace_fk FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id);
+  ADD CONSTRAINT campaign_activations_trace_fk FOREIGN KEY (game_id,adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id,id);
 ALTER TABLE malign.modifier_applications
-  ADD CONSTRAINT modifier_applications_trace_fk FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id);
+  ADD CONSTRAINT modifier_applications_trace_fk FOREIGN KEY (game_id,adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id,id);
 ALTER TABLE malign.influence_resolutions
-  ADD CONSTRAINT influence_resolutions_trace_fk FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id);
+  ADD CONSTRAINT influence_resolutions_trace_fk FOREIGN KEY (game_id,adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id,id);
 ALTER TABLE malign.viralization_resolutions
-  ADD CONSTRAINT viralization_resolutions_trace_fk FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id);
+  ADD CONSTRAINT viralization_resolutions_trace_fk FOREIGN KEY (game_id,adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id,id);
 ALTER TABLE malign.regime_ability_activations
-  ADD CONSTRAINT regime_ability_activations_trace_fk FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id);
+  ADD CONSTRAINT regime_ability_activations_trace_fk FOREIGN KEY (game_id,adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id,id);
 ALTER TABLE malign.game_events
-  ADD CONSTRAINT game_events_trace_fk FOREIGN KEY (adjudication_trace_id) REFERENCES malign.adjudication_traces(id);
+  ADD CONSTRAINT game_events_trace_fk FOREIGN KEY (game_id,adjudication_trace_id) REFERENCES malign.adjudication_traces(game_id,id);
 ALTER TABLE malign.facilitator_requests
-  ADD CONSTRAINT facilitator_requests_trace_fk FOREIGN KEY (full_context_trace_id) REFERENCES malign.adjudication_traces(id);
+  ADD CONSTRAINT facilitator_requests_trace_fk FOREIGN KEY (game_id,full_context_trace_id) REFERENCES malign.adjudication_traces(game_id,id);
 
 CREATE INDEX action_point_transactions_trace_idx ON malign.action_point_transactions(adjudication_trace_id);
 CREATE INDEX resource_transactions_trace_idx ON malign.resource_transactions(adjudication_trace_id);

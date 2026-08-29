@@ -158,6 +158,8 @@ export interface DurableUnitOfWorkOptions {
   readonly clock?: TransactionalValueProvider<Date>;
   readonly postCommitObserver?: (result: DurableCommandResult) => void | Promise<void>;
   readonly faultAt?: M2AWriteBoundary;
+  /** Deterministic fault seam proving that a lost PostgreSQL CAS rolls back the transition. */
+  readonly forceCasMiss?: boolean;
 }
 
 const assertTransition = (transition: AcceptedEngineTransition): void => {
@@ -345,8 +347,14 @@ const synchronizeM1AdjudicationArtifacts = async (
   const existing=await client.query<{id:string}>(
     `SELECT id FROM malign.campaign_activations WHERE campaign_id=$1 AND turn_id=$2
       ORDER BY activation_ordinal DESC LIMIT 1`,[campaignId,context.turnId]);
-  const dieRollId=engineTrace===undefined?null:
-    dieRollIds.get(transition.afterState.adjudication.dieRolls.find(({rawValue})=>rawValue===engineTrace.rawRoll)?.id??'')??null;
+  const activationIdentity=engineTrace?.activationId??
+    (pending?.kind==='CHOICE'?pending.continuation.activationId:pending?.resolutionId);
+  const dieEvent=activationIdentity===undefined?undefined:transition.afterState.events.find((event)=>
+    event.eventType==='DIE_ROLLED'&&event.payload['activationId']===activationIdentity);
+  const logicalDieRollId=typeof dieEvent?.payload['dieRollId']==='string'?dieEvent.payload['dieRollId']:undefined;
+  const dieRollId=logicalDieRollId===undefined?null:dieRollIds.get(logicalDieRollId)??null;
+  if(engineTrace!==undefined&&dieRollId===null)
+    throw new PersistenceError('ENGINE_TRANSITION_INCOMPLETE','Campaign trace has no unambiguous RNG request identity');
   const values=[transition.gameId,context.turnId,participantId,campaignId,sourceResolutionId,ordinal,
     targetPdStateId,targetDtId,baseCv,effectiveCv,baseTier,resolutionTier,resourceCost,
     engineTrace?.modifiedRollRaw??null,engineTrace?.ertRoll??null,engineTrace?.ertResult??null,
@@ -387,6 +395,21 @@ export class PostgresDurableUnitOfWork {
   constructor(private readonly pool: Pool, private readonly options: DurableUnitOfWorkOptions = {}) {}
 
   recover(gameId:string):Promise<RecoveryBundle> { return recoverDurableGame(this.pool,gameId); }
+
+  /** Allocates the authoritative physical Game PK inside PostgreSQL 18.6. */
+  async allocateGameId(): Promise<string> {
+    const client=await this.pool.connect();
+    try {
+      await client.query('BEGIN READ ONLY');
+      await client.query('SET LOCAL ROLE malign_app_runtime');
+      await assertLeastPrivilegeRuntimeIdentity(client,'malign_app_runtime');
+      const id=(await client.query<{id:string}>('SELECT uuidv7()::text id')).rows[0]?.id;
+      if(id===undefined)throw new PersistenceError('DATABASE_UNAVAILABLE','PostgreSQL did not allocate a Game identity');
+      await client.query('COMMIT');
+      return id;
+    } catch(error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
+  }
 
   async resolvePhysicalParticipantId(gameId: string, externalUserRef: string): Promise<string | undefined> {
     const client=await this.pool.connect();
@@ -614,7 +637,8 @@ export class PostgresDurableUnitOfWork {
       await client.query(`INSERT INTO malign.outbox_delivery_states(outbox_message_id,delivery_status,next_attempt_at)
         VALUES ($1,'PENDING',$2)`,[outboxId,now]);fixtureFail('delivery_state');
       const cas=await client.query(`UPDATE malign.games SET game_version=$3,event_sequence_head=$4,
-        outbox_sequence_head=$5 WHERE id=$1 AND game_version=$2`,[transition.gameId,versionBefore,
+        outbox_sequence_head=$5 WHERE id=$1 AND game_version=$2`,[transition.gameId,
+        this.options.forceCasMiss?versionBefore+1:versionBefore,
         transition.engineResult.gameVersionAfter,sequence,outboxSequence]);
       if(cas.rowCount!==1)throw new PersistenceError('GAME_VERSION_CONFLICT','Fixture CAS lost');
       await client.query('COMMIT');committed=true;return result;
@@ -839,11 +863,14 @@ export class PostgresDurableUnitOfWork {
         client,transition,normalized,actionResolutions,dieRollIds,traceId,now,
       );
       if(transition.continuation.operation==='CLOSE') {
+        const resolvedChoiceEvent=transition.events.find(({eventType})=>eventType==='CHOICE_RESOLVED');
+        const selectedOptionIdsJson=resolvedChoiceEvent?.payload['selectedOptionIdsJson'];
+        const selectedOptionIds=typeof selectedOptionIdsJson==='string'?JSON.parse(selectedOptionIdsJson) as unknown:null;
         await client.query(`UPDATE malign.pending_resolutions SET status='CLOSED'
           WHERE game_id=$1 AND status='OPEN'`,[transition.gameId]);
         await client.query(`UPDATE malign.choice_requests SET status='RESOLVED',resolved_at=$2,
-          resolved_by_participant_id=$3 WHERE game_id=$1 AND status='OPEN'`,
-        [transition.gameId,now,actorParticipantId]);
+          resolved_by_participant_id=$3,selected_option_ids_json=$4::jsonb WHERE game_id=$1 AND status='OPEN'`,
+        [transition.gameId,now,actorParticipantId,JSON.stringify(Array.isArray(selectedOptionIds)?selectedOptionIds:null)]);
         await client.query(`UPDATE malign.narrative_requests SET status='RESOLVED',resolved_at=$2
           WHERE game_id=$1 AND status='OPEN'`,[transition.gameId,now]);
       } else if(transition.continuation.operation==='CREATE'||transition.continuation.operation==='UPDATE') {
@@ -950,7 +977,8 @@ export class PostgresDurableUnitOfWork {
 
       const cas = await client.query(`UPDATE malign.games SET game_version=$3,event_sequence_head=$4,
         outbox_sequence_head=$5 WHERE id=$1 AND game_version=$2`,
-      [transition.gameId,versionBefore,versionAfter,eventSequence,outboxSequence]);
+      [transition.gameId,this.options.forceCasMiss?versionBefore+1:versionBefore,
+        versionAfter,eventSequence,outboxSequence]);
       if (cas.rowCount !== 1) throw new PersistenceError('GAME_VERSION_CONFLICT', 'Game CAS lost');
       await client.query('COMMIT');
       committed = true;
