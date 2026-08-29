@@ -23,7 +23,11 @@ import {
   type SetupGameProjection,
 } from '@malign-ai/projections';
 import type { ActorContext } from '@malign-ai/contracts';
-import type { DurableAcceptedEngineResult, SetupGameState, TransactionalRandomProvider } from '@malign-ai/domain';
+import type {
+  DurableAcceptedEngineResult,
+  SetupGameState,
+  TransactionalRandomProvider,
+} from '@malign-ai/domain';
 import {
   buildM1AuthorizedEventFeed,
   isM1RealtimeCursor,
@@ -75,6 +79,19 @@ export interface InternalM1SchedulerInput {
   readonly commandId: string;
   readonly idempotencyKey: string;
   readonly correlationId?: string;
+}
+
+/** Server-only scheduler port; no browser session, ActorContext or caller authority crosses it. */
+export interface InternalM1SchedulerPort {
+  runM1SchedulerNext(input: InternalM1SchedulerInput): Promise<EngineCommandResult>;
+  runM1SchedulerUntilBlocked(gameId: string): Promise<readonly EngineCommandResult[]>;
+}
+
+export interface TransactionalApplicationClock {
+  checkpoint(): number;
+  now(): Date;
+  restore(checkpoint: number): void;
+  commit(checkpoint: number): void;
 }
 
 export type ProjectionQueryResult =
@@ -420,16 +437,49 @@ export class InMemoryGameSessionApplication implements GameSessionApplicationPor
   }
 }
 
+interface PreparedDurableOperation {
+  readonly ready: true;
+  readonly actor: {
+    readonly actorId: string;
+    readonly actorType: ActorContext['actorType'];
+    readonly participantId: string | null;
+    readonly authenticatedSessionId: string;
+  };
+  readonly commandType: string;
+  readonly beforeState: SetupGameState | null;
+  readonly execute: (
+    random: TransactionalRandomProvider,
+    now: () => Date,
+  ) => { readonly result: EngineCommandResult; readonly afterState?: SetupGameState };
+  readonly afterCommit?: () => void;
+}
+
+type DurableOperationPreparation =
+  | PreparedDurableOperation
+  | { readonly ready: false; readonly result: EngineCommandResult };
+
+interface DurableOperationInput {
+  readonly commandId: string;
+  readonly gameId: string;
+  readonly idempotencyKey: string;
+  readonly expectedGameVersion: number;
+  readonly correlationId?: string;
+  readonly causationId?: string;
+}
+
 /** Durable composition adapter: authenticated boundary → authoritative Engine → PostgreSQL. */
-export class PostgresGameSessionApplication implements GameSessionApplicationPort {
-  private readonly random: TransactionalRandomProvider;
+export class PostgresGameSessionApplication implements GameSessionApplicationPort, InternalM1SchedulerPort {
+  private readonly randomByGame = new Map<string, TransactionalRandomProvider>();
+  private readonly clockByGame = new Map<string, TransactionalApplicationClock>();
+  private readonly writerTailByGame = new Map<string, Promise<void>>();
 
   constructor(
     private readonly authority: InMemorySessionAuthority,
     private readonly persistence: PostgresDurableUnitOfWork,
-    randomFactory: () => TransactionalRandomProvider,
+    private readonly randomFactory: (gameId: string) => TransactionalRandomProvider,
     private readonly now: () => Date,
-  ) { this.random=randomFactory(); }
+    private readonly clockFactory?: (gameId: string) => TransactionalApplicationClock,
+  ) {}
 
   async execute(authenticatedSessionId: string, input: SessionCommandInput): Promise<EngineCommandResult> {
     if(input.commandType==='CREATE_GAME')return this.reject(input,0,'NOT_AUTHORIZED');
@@ -453,148 +503,94 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
     authenticatedSessionId:string,input:SessionCommandInput,allowAllocatedCreate:boolean,
   ):Promise<EngineCommandResult> {
     if(input.commandType==='CREATE_GAME'&&!allowAllocatedCreate)return this.reject(input,0,'NOT_AUTHORIZED');
-    const scope = this.authority.verifyGameScope(authenticatedSessionId, input.gameId);
-    if (!scope.ok) return this.reject(input, 0, scope.error);
-    const state = input.commandType === 'CREATE_GAME' ? undefined : await this.recoverState(input.gameId);
-    if (input.commandType !== 'CREATE_GAME' && state === undefined) return this.reject(input, 0, 'GAME_NOT_FOUND');
-    const resolution = input.commandType === 'CREATE_GAME'
-      ? this.authority.resolveForCreate(authenticatedSessionId, input.gameId)
-      : input.commandType === 'JOIN_GAME_MEMBERSHIP'
-        ? this.authority.resolveForJoin(authenticatedSessionId, input.gameId, state!)
-        : this.resolveDurableViewer(authenticatedSessionId, input.gameId, state!);
-    if (!resolution.ok) return this.reject(input, state?.version ?? 0, resolution.error);
-    if (payloadClaimsAuthority(input.payload)) return this.reject(input, state?.version ?? 0, 'INVALID_ACTOR_CONTEXT');
-    const payloadError = validateSetupCommandPayload(input.commandType, input.payload);
-    if (payloadError !== undefined) return this.reject(input, state?.version ?? 0, payloadError);
+    const boundActor = this.authority.resolveBoundActorId(authenticatedSessionId, input.gameId);
+    if (!boundActor.ok) return this.reject(input, 0, boundActor.error);
     const fingerprintSha256 = this.fingerprint(input);
-    try {
-      const committed = await this.persistence.loadCommittedEngineResult({
-        gameId: input.gameId,
-        actorId: resolution.actorContext.actorId,
-        idempotencyKey: input.idempotencyKey,
-        fingerprintSha256,
-      });
-      if (committed) return committed;
-    } catch (error) {
-      if ((error as { code?: string }).code === 'IDEMPOTENCY_CONFLICT') {
-        return this.reject(input, state?.version ?? 0, 'IDEMPOTENCY_KEY_REUSED');
-      }
-      throw error;
-    }
-    const store = new InMemorySetupGameStore(state === undefined ? [] : [state]);
-    const dispatcher = new SetupCommandDispatcher(store, this.random, this.now);
-    const result = dispatcher.dispatch({ ...input, actorContext: resolution.actorContext });
-    if (result.status !== 'RESOLVED') return result;
-    const after = store.snapshot(input.gameId);
-    if (!after) return this.reject(input, state?.version ?? 0, 'GAME_NOT_FOUND');
-    try {
-      await this.persistence.persistAcceptedTransition(buildDurableEngineTransition({
-        gameId: input.gameId,
-        commandType: input.commandType,
-        idempotencyKey: input.idempotencyKey,
-        fingerprintSha256,
-        actor: this.durableActor(resolution.actorContext),
-        ...(input.correlationId === undefined ? {} : { correlationId: input.correlationId }),
-        ...(input.causationId === undefined ? {} : { causationId: input.causationId }),
-        beforeState: state ?? null,
-        afterState: after,
-        engineResult: result as DurableAcceptedEngineResult,
-      }));
-      if (input.commandType === 'CREATE_GAME' || input.commandType === 'JOIN_GAME_MEMBERSHIP') {
-        const participantId = resolution.actorContext.participantId;
-        if (participantId !== undefined) this.authority.materializeMembership(authenticatedSessionId, input.gameId, participantId);
-      }
-      return result;
-    } catch (error) {
-      const code = (error as { code?: string }).code;
-      if (code === 'GAME_VERSION_CONFLICT') return this.reject(input, state?.version ?? 0, 'STALE_STATE_VERSION');
-      if (code === 'CROSS_GAME_REFERENCE') return this.reject(input, state?.version ?? 0, 'NOT_AUTHORIZED');
-      throw error;
-    }
+    return this.coordinateDurableOperation({
+      input,
+      actorId:boundActor.actorId,
+      fingerprintSha256,
+      prepare:(state):DurableOperationPreparation=>{
+        if(input.commandType!=='CREATE_GAME'&&state===undefined)
+          return {ready:false,result:this.reject(input,0,'GAME_NOT_FOUND')};
+        const resolution=input.commandType==='CREATE_GAME'
+          ?this.authority.resolveForCreate(authenticatedSessionId,input.gameId)
+          :input.commandType==='JOIN_GAME_MEMBERSHIP'
+            ?this.authority.resolveForJoin(authenticatedSessionId,input.gameId,state!)
+            :this.resolveDurableViewer(authenticatedSessionId,input.gameId,state!);
+        if(!resolution.ok)return {ready:false,result:this.reject(input,state?.version??0,resolution.error)};
+        if(payloadClaimsAuthority(input.payload))
+          return {ready:false,result:this.reject(input,state?.version??0,'INVALID_ACTOR_CONTEXT')};
+        const payloadError=validateSetupCommandPayload(input.commandType,input.payload);
+        if(payloadError!==undefined)return {ready:false,result:this.reject(input,state?.version??0,payloadError)};
+        return {
+          ready:true,
+          actor:this.durableActor(resolution.actorContext),
+          commandType:input.commandType,
+          beforeState:state??null,
+          execute:(random,now)=>{
+            const store=new InMemorySetupGameStore(state===undefined?[]:[state]);
+            const result=new SetupCommandDispatcher(store,random,now,'APPLICATION')
+              .dispatch({...input,actorContext:resolution.actorContext});
+            const afterState=store.snapshot(input.gameId);
+            return {result,...(afterState===undefined?{}:{afterState})};
+          },
+          afterCommit:()=>{
+            if(input.commandType==='CREATE_GAME'||input.commandType==='JOIN_GAME_MEMBERSHIP'){
+              const participantId=resolution.actorContext.participantId;
+              if(participantId!==undefined)
+                this.authority.materializeMembership(authenticatedSessionId,input.gameId,participantId);
+            }
+          },
+        };
+      },
+    });
   }
 
   async executeM1Interaction(authenticatedSessionId: string, input: SessionM1InteractionInput): Promise<EngineCommandResult> {
-    const scope = this.authority.verifyGameScope(authenticatedSessionId, input.gameId);
-    if (!scope.ok) return this.reject(input, 0, scope.error);
-    const state = await this.recoverState(input.gameId);
-    if (state === undefined) return this.reject(input, 0, 'GAME_NOT_FOUND');
-    const resolution = this.resolveDurableViewer(authenticatedSessionId, input.gameId, state);
-    if (!resolution.ok) return this.reject(input, state.version, resolution.error);
-    if (payloadClaimsAuthority(input.payload)) return this.reject(input, state.version, 'INVALID_ACTOR_CONTEXT');
+    const boundActor=this.authority.resolveBoundActorId(authenticatedSessionId,input.gameId);
+    if(!boundActor.ok)return this.reject(input,0,boundActor.error);
     const fingerprintSha256 = this.fingerprint(input);
-    try {
-      const committed = await this.persistence.loadCommittedEngineResult({
-        gameId: input.gameId,
-        actorId: resolution.actorContext.actorId,
-        idempotencyKey: input.idempotencyKey,
-        fingerprintSha256,
-      });
-      if (committed) return committed;
-    } catch (error) {
-      if ((error as { code?: string }).code === 'IDEMPOTENCY_CONFLICT') return this.reject(input, state.version, 'IDEMPOTENCY_KEY_REUSED');
-      throw error;
-    }
-    const store = new InMemorySetupGameStore([state]);
-    const result = new M1AdjudicationEngine(store, this.random, this.now)
-      .dispatchInteraction({ ...input, actorContext: resolution.actorContext });
-    if (result.status === 'REJECTED') return result;
-    const after = store.snapshot(input.gameId);
-    if (after === undefined) return this.reject(input, state.version, 'GAME_NOT_FOUND');
-    try {
-      await this.persistence.persistAcceptedTransition(buildDurableEngineTransition({
-        gameId: input.gameId,
-        commandType: input.commandType,
-        idempotencyKey: input.idempotencyKey,
-        fingerprintSha256,
-        actor: this.durableActor(resolution.actorContext),
-        ...(input.correlationId === undefined ? {} : { correlationId: input.correlationId }),
-        ...(input.causationId === undefined ? {} : { causationId: input.causationId }),
-        beforeState: state,
-        afterState: after,
-        engineResult: result as DurableAcceptedEngineResult,
-      }));
-      return result;
-    } catch (error) {
-      const code = (error as { code?: string }).code;
-      if (code === 'GAME_VERSION_CONFLICT') return this.reject(input, state.version, 'STALE_STATE_VERSION');
-      if (code === 'CROSS_GAME_REFERENCE') return this.reject(input, state.version, 'NOT_AUTHORIZED');
-      throw error;
-    }
+    return this.coordinateDurableOperation({
+      input,actorId:boundActor.actorId,fingerprintSha256,
+      prepare:(state):DurableOperationPreparation=>{
+        if(state===undefined)return {ready:false,result:this.reject(input,0,'GAME_NOT_FOUND')};
+        const resolution=this.resolveDurableViewer(authenticatedSessionId,input.gameId,state);
+        if(!resolution.ok)return {ready:false,result:this.reject(input,state.version,resolution.error)};
+        if(payloadClaimsAuthority(input.payload))
+          return {ready:false,result:this.reject(input,state.version,'INVALID_ACTOR_CONTEXT')};
+        return {ready:true,actor:this.durableActor(resolution.actorContext),commandType:input.commandType,
+          beforeState:state,execute:(random,now)=>{
+            const store=new InMemorySetupGameStore([state]);
+            const result=new M1AdjudicationEngine(store,random,now,'APPLICATION')
+              .dispatchInteraction({...input,actorContext:resolution.actorContext});
+            const afterState=store.snapshot(input.gameId);
+            return {result,...(afterState===undefined?{}:{afterState})};
+          }};
+      },
+    });
   }
 
   /** Productive internal scheduler: recovery → Engine → durable CAS → RNG commit. */
   async runM1SchedulerNext(input:InternalM1SchedulerInput):Promise<EngineCommandResult> {
-    const state=await this.recoverState(input.gameId);
-    if(state===undefined)return this.reject(input,0,'GAME_NOT_FOUND');
     const fingerprintSha256=createHash('sha256').update(deterministicJsonSerialize({
       commandType:'INTERNAL_RUN_M1_SCHEDULER',beforeVersion:input.expectedGameVersion,
     })).digest('hex');
-    const committed=await this.persistence.loadCommittedEngineResult({
-      gameId:input.gameId,actorId:'M1_INTERNAL_SCHEDULER',idempotencyKey:input.idempotencyKey,fingerprintSha256,
+    return this.coordinateDurableOperation({
+      input,actorId:'M1_INTERNAL_SCHEDULER',fingerprintSha256,
+      prepare:(state):DurableOperationPreparation=>{
+        if(state===undefined)return {ready:false,result:this.reject(input,0,'GAME_NOT_FOUND')};
+        return {ready:true,commandType:'INTERNAL_RUN_M1_SCHEDULER',beforeState:state,
+          actor:{actorId:'M1_INTERNAL_SCHEDULER',actorType:'SYSTEM',participantId:null,
+            authenticatedSessionId:'internal:m1-2'},
+          execute:(random,now)=>{
+            const store=new InMemorySetupGameStore([state]);
+            const result=new M1AdjudicationEngine(store,random,now,'APPLICATION').runNext(input);
+            const afterState=store.snapshot(input.gameId);
+            return {result,...(afterState===undefined?{}:{afterState})};
+          }};
+      },
     });
-    if(committed)return committed;
-    const checkpoint=this.random.checkpoint();
-    const store=new InMemorySetupGameStore([state]);
-    try {
-      const result=new M1AdjudicationEngine(store,this.random,this.now,'APPLICATION').runNext(input);
-      if(result.status==='REJECTED') { this.random.restore(checkpoint); return result; }
-      const after=store.snapshot(input.gameId);
-      if(after===undefined) { this.random.restore(checkpoint); return this.reject(input,state.version,'GAME_NOT_FOUND'); }
-      await this.persistence.persistAcceptedTransition(buildDurableEngineTransition({
-        gameId:input.gameId,commandType:'INTERNAL_RUN_M1_SCHEDULER',idempotencyKey:input.idempotencyKey,
-        fingerprintSha256,actor:{actorId:'M1_INTERNAL_SCHEDULER',actorType:'SYSTEM',participantId:null,
-          authenticatedSessionId:'internal:m1-2'},
-        ...(input.correlationId===undefined?{}:{correlationId:input.correlationId}),
-        beforeState:state,afterState:after,engineResult:result as DurableAcceptedEngineResult,
-      }));
-      this.random.commit(checkpoint);
-      return result;
-    } catch(error) {
-      this.random.restore(checkpoint);
-      if((error as {code?:string}).code==='GAME_VERSION_CONFLICT')
-        return this.reject(input,state.version,'STALE_STATE_VERSION');
-      throw error;
-    }
   }
 
   async runM1SchedulerUntilBlocked(gameId:string):Promise<readonly EngineCommandResult[]> {
@@ -610,6 +606,117 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
       if(result.status!=='RESOLVED')return results;
     }
     throw new Error('M1 scheduler exceeded its deterministic guard');
+  }
+
+  private async coordinateDurableOperation(options: {
+    readonly input: DurableOperationInput;
+    readonly actorId: string;
+    readonly fingerprintSha256: string;
+    readonly prepare: (state: SetupGameState | undefined) => DurableOperationPreparation;
+  }): Promise<EngineCommandResult> {
+    const {input}=options;
+    return this.withGameWriter(input.gameId,async()=>{
+      try {
+        const committed=await this.persistence.loadCommittedEngineResult({
+          gameId:input.gameId,actorId:options.actorId,idempotencyKey:input.idempotencyKey,
+          fingerprintSha256:options.fingerprintSha256,
+        });
+        if(committed)return committed;
+      } catch(error) {
+        if((error as {code?:string}).code==='IDEMPOTENCY_CONFLICT')
+          return this.reject(input,input.expectedGameVersion,'IDEMPOTENCY_KEY_REUSED');
+        throw error;
+      }
+
+      const state=await this.recoverState(input.gameId);
+      const preparation=options.prepare(state);
+      if(!preparation.ready)return preparation.result;
+
+      const random=this.randomForGame(input.gameId);
+      const clock=this.clockForGame(input.gameId);
+      const randomCheckpoint=random.checkpoint();
+      const clockCheckpoint=clock?.checkpoint();
+      let finalized=false;
+      let durableCommitted=false;
+      const restore=():void=>{
+        if(finalized)return;
+        random.restore(randomCheckpoint);
+        if(clock!==undefined&&clockCheckpoint!==undefined)clock.restore(clockCheckpoint);
+        finalized=true;
+      };
+      const commit=():void=>{
+        if(finalized)throw new Error('Application provider transaction was already finalized');
+        random.commit(randomCheckpoint);
+        if(clock!==undefined&&clockCheckpoint!==undefined)clock.commit(clockCheckpoint);
+        finalized=true;
+      };
+
+      try {
+        const execution=preparation.execute(random,clock===undefined?this.now:()=>clock.now());
+        if(execution.result.status==='REJECTED'){
+          restore();
+          return execution.result;
+        }
+        if(execution.afterState===undefined){
+          restore();
+          return this.reject(input,preparation.beforeState?.version??0,'GAME_NOT_FOUND');
+        }
+        const durableResult=await this.persistence.persistAcceptedTransition(buildDurableEngineTransition({
+          gameId:input.gameId,commandType:preparation.commandType,idempotencyKey:input.idempotencyKey,
+          fingerprintSha256:options.fingerprintSha256,actor:preparation.actor,
+          ...(input.correlationId===undefined?{}:{correlationId:input.correlationId}),
+          ...(input.causationId===undefined?{}:{causationId:input.causationId}),
+          beforeState:preparation.beforeState,afterState:execution.afterState,
+          engineResult:execution.result as DurableAcceptedEngineResult,
+        }),{deferPostCommitObserver:true});
+        if(durableResult.replayed){
+          restore();
+          return durableResult.engineResult;
+        }
+        durableCommitted=true;
+        commit();
+        await this.persistence.publishCommittedTransition(durableResult);
+        preparation.afterCommit?.();
+        return execution.result;
+      } catch(error) {
+        if(!durableCommitted)restore();
+        const code=(error as {code?:string}).code;
+        if(code==='GAME_VERSION_CONFLICT')
+          return this.reject(input,preparation.beforeState?.version??0,'STALE_STATE_VERSION');
+        if(code==='CROSS_GAME_REFERENCE')
+          return this.reject(input,preparation.beforeState?.version??0,'NOT_AUTHORIZED');
+        throw error;
+      }
+    });
+  }
+
+  private randomForGame(gameId:string):TransactionalRandomProvider {
+    const existing=this.randomByGame.get(gameId);
+    if(existing!==undefined)return existing;
+    const created=this.randomFactory(gameId);
+    this.randomByGame.set(gameId,created);
+    return created;
+  }
+
+  private clockForGame(gameId:string):TransactionalApplicationClock|undefined {
+    const existing=this.clockByGame.get(gameId);
+    if(existing!==undefined)return existing;
+    const created=this.clockFactory?.(gameId);
+    if(created!==undefined)this.clockByGame.set(gameId,created);
+    return created;
+  }
+
+  private async withGameWriter<T>(gameId:string,operation:()=>Promise<T>):Promise<T> {
+    const previous=this.writerTailByGame.get(gameId)??Promise.resolve();
+    let release!:()=>void;
+    const current=new Promise<void>((resolve)=>{release=resolve;});
+    this.writerTailByGame.set(gameId,current);
+    await previous;
+    try{return await operation();}
+    finally{
+      release();
+      if(this.writerTailByGame.get(gameId)===current)this.writerTailByGame.delete(gameId);
+    }
   }
 
   async getGameProjection(authenticatedSessionId: string, gameId: string): Promise<ProjectionQueryResult> {

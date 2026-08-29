@@ -115,11 +115,34 @@ const canonicalM1RandomFactory=():TransactionalRandomProvider=>{
   };
 };
 
-const createRealM1ApplicationFixture=async()=>{
+const auditedRandomProvider=(
+  select:(minimum:number,maximum:number,callIndex:number)=>number=(minimum)=>minimum,
+)=>{
+  const audit={cursor:0,checkpoints:0,restores:0,commits:0,calls:[] as {minimum:number;maximum:number}[]};
+  const provider:TransactionalRandomProvider={
+    checkpoint:()=>{audit.checkpoints+=1;return {cursor:audit.cursor};},
+    restore:checkpoint=>{audit.restores+=1;audit.cursor=checkpoint.cursor;},
+    commit:()=>{audit.commits+=1;},
+    integer:(minimum,maximum)=>{
+      const callIndex=audit.cursor;
+      audit.cursor+=1;
+      audit.calls.push({minimum,maximum});
+      return select(minimum,maximum,callIndex);
+    },
+  };
+  return {audit,provider};
+};
+
+const createRealM1ApplicationFixture=async(options:{
+  readonly randomFactory?:()=>TransactionalRandomProvider;
+  readonly stopAt?:'AFTER_START'|'BEFORE_INITIATIVE'|'READY';
+}={})=>{
   let gameId=`provisional:${randomUUID()}`;
   const authority=new InMemorySessionAuthority(trustedBindings(gameId));
   const unitOfWork=new PostgresDurableUnitOfWork(appPool);
-  const app=new PostgresGameSessionApplication(authority,unitOfWork,canonicalM1RandomFactory,fixedNow);
+  const app=new PostgresGameSessionApplication(
+    authority,unitOfWork,options.randomFactory??canonicalM1RandomFactory,fixedNow,
+  );
   const created=await app.createGame('session-f1',{
     engineContractVersion:M1_0_BASELINE_VERSIONS.engineContractVersion,
     commandId:randomUUID(),idempotencyKey:`m2a-real:CREATE_GAME:${randomUUID()}`,
@@ -140,6 +163,7 @@ const createRealM1ApplicationFixture=async()=>{
     version=result.gameVersionAfter;
     return result;
   };
+  const fixture=()=>({app,authority,unitOfWork,execute,gameId,get version(){return version;}});
   for(const player of PARTICIPANT_FIXTURE.participants.filter(({role})=>role==='PLAYER')) {
     await execute(player.authenticated_session_id,'JOIN_GAME_MEMBERSHIP',{});
   }
@@ -152,6 +176,7 @@ const createRealM1ApplicationFixture=async()=>{
     });
   }
   await execute('session-f1','START_GAME',{});
+  if(options.stopAt==='AFTER_START')return fixture();
   for(const player of PARTICIPANT_FIXTURE.participants.filter(({role})=>role==='PLAYER')) {
     if(player.country_id===undefined)throw new Error('Canonical country is missing');
     const canonicalDeck=[...STRATEGY_FIXTURE.operations_decks[player.country_id]];
@@ -163,12 +188,13 @@ const createRealM1ApplicationFixture=async()=>{
     });
     await execute(player.authenticated_session_id,'LOCK_STRATEGY',{});
   }
+  if(options.stopAt==='BEFORE_INITIATIVE')return fixture();
   await execute('session-p1','REQUEST_INITIATIVE_ROLL',{});
   for(const player of PARTICIPANT_FIXTURE.participants.filter(({role})=>role==='PLAYER')) {
     await execute(player.authenticated_session_id,'SET_INITIATIVE_MAINTENANCE',{discardCardInstanceIds:[]});
     await execute(player.authenticated_session_id,'LOCK_INITIATIVE_MAINTENANCE',{});
   }
-  return {app,authority,unitOfWork,execute,gameId,get version(){return version;}};
+  return fixture();
 };
 
 const persistRealSchedulerStep=async(app:PostgresGameSessionApplication,gameId:string)=>{
@@ -791,55 +817,186 @@ describe('M2-A PostgreSQL 18.6 corrected owner gate',()=>{
     expect(projection.ok).toBe(true);
   });
 
-  it('M2A-R25 — productive scheduler restores RNG and publishes nothing before durable CAS commit',async()=>{
+  it('M2A-R25/R30-C/D — campaign scheduler and M1 continuation commit real RNG only after PostgreSQL',async()=>{
     const fixture=await createRealM1ApplicationFixture();
     const {gameId}=fixture;
     const planning=(await fixture.unitOfWork.recover(gameId)).state as unknown as SetupGameState;
-    await fixture.execute('session-p1','SET_ACTION_PLAN',{actionSlots:realCampaignSlots(planning).slice(0,1)});
+    await fixture.execute('session-p1','SET_ACTION_PLAN',{actionSlots:realCampaignSlots(planning)});
     await fixture.execute('session-p1','LOCK_ACTION_PLAN',{});
     for(const participantId of ['P2','P3','P4','P5']) {
       await fixture.execute(`session-${participantId.toLowerCase()}`,'SET_ACTION_PLAN',{actionSlots:[]});
       await fixture.execute(`session-${participantId.toLowerCase()}`,'LOCK_ACTION_PLAN',{});
     }
-    let cursor=0;let restores=0;let commits=0;let checkpoints=0;
-    const auditedRandom:TransactionalRandomProvider={
-      checkpoint:()=>{checkpoints+=1;return {cursor};},
-      restore:checkpoint=>{restores+=1;cursor=checkpoint.cursor;},
-      commit:()=>{commits+=1;},
-      integer:(minimum)=>{cursor+=1;return minimum;},
+    await expect(persistRealSchedulerStep(fixture.app,gameId)).resolves.toMatchObject({
+      result:{status:'RESOLVED',resultCode:'ACTION_SLOT_RESOLVED'},
+    });
+    const requested=await persistRealSchedulerStep(fixture.app,gameId);
+    expect(requested.result).toMatchObject({status:'REQUIRES_CHOICE',resultCode:'NARRATIVE_REQUIRED'});
+    const pending=requested.after.adjudication.pendingResolution;
+    if(pending?.kind!=='NARRATIVE')throw new Error('M2A-R30 narrative continuation missing');
+
+    const {audit,provider}=auditedRandomProvider((minimum)=>minimum);
+    const clockAudit={cursor:0,checkpoints:0,restores:0,commits:0};
+    const transactionalClock={
+      checkpoint:()=>{clockAudit.checkpoints+=1;return clockAudit.cursor;},
+      restore:(checkpoint:number)=>{clockAudit.restores+=1;clockAudit.cursor=checkpoint;},
+      commit:()=>{clockAudit.commits+=1;},
+      now:()=>{const value=new Date(1_767_225_600_000+clockAudit.cursor);clockAudit.cursor+=1;return value;},
     };
-    const input={gameId,expectedGameVersion:fixture.version,commandId:randomUUID(),
-      idempotencyKey:`m2a-r25:${randomUUID()}`,correlationId:'m2a-r25-real-entrypoint'};
+    const input={engineContractVersion:M1_0_BASELINE_VERSIONS.engineContractVersion,
+      commandId:randomUUID(),idempotencyKey:`m2a-r30:${randomUUID()}`,gameId,
+      expectedGameVersion:requested.after.version,commandType:'SUBMIT_CAMPAIGN_NARRATIVE' as const,
+      payloadSchemaVersion:M1_0_BASELINE_VERSIONS.fixtureSchemaVersion,
+      payload:{campaignId:pending.campaignId,narrative:'RNG durable confirmado después del commit.'},
+      correlationId:'m2a-r30-real-continuation'};
     const before=await artifactCounts(pool,gameId);const notifications:string[]=[];
+    const observe=()=>{expect(audit.commits).toBe(1);expect(clockAudit.commits).toBe(1);notifications.push('committed');};
     const casApplication=new PostgresGameSessionApplication(fixture.authority,
       new PostgresDurableUnitOfWork(appPool,{forceCasMiss:true,postCommitObserver:()=>{notifications.push('committed');}}),
-      ()=>auditedRandom,fixedNow);
-    await expect(casApplication.runM1SchedulerNext(input)).resolves.toMatchObject({
-      status:'REJECTED',resultCode:'STALE_STATE_VERSION',gameVersionBefore:fixture.version,gameVersionAfter:fixture.version,
+      ()=>provider,fixedNow,()=>transactionalClock);
+    await expect(casApplication.executeM1Interaction('session-p1',input)).resolves.toMatchObject({
+      status:'REJECTED',resultCode:'STALE_STATE_VERSION',
     });
     expect(await artifactCounts(pool,gameId)).toEqual(before);
-    expect({cursor,restores,commits,notifications}).toEqual({cursor:0,restores:1,commits:0,notifications:[]});
+    expect({cursor:audit.cursor,restores:audit.restores,commits:audit.commits,notifications})
+      .toEqual({cursor:0,restores:1,commits:0,notifications:[]});
+    expect(clockAudit).toMatchObject({cursor:0,restores:1,commits:0});
 
     const exceptionApplication=new PostgresGameSessionApplication(fixture.authority,
       new PostgresDurableUnitOfWork(appPool,{faultAt:'event',postCommitObserver:()=>{notifications.push('committed');}}),
-      ()=>auditedRandom,fixedNow);
-    await expect(exceptionApplication.runM1SchedulerNext(input)).rejects.toMatchObject({code:'TRANSACTION_WRITE_FAILED'});
+      ()=>provider,fixedNow,()=>transactionalClock);
+    await expect(exceptionApplication.executeM1Interaction('session-p1',input))
+      .rejects.toMatchObject({code:'TRANSACTION_WRITE_FAILED'});
     expect(await artifactCounts(pool,gameId)).toEqual(before);
-    expect({cursor,restores,commits,notifications}).toEqual({cursor:0,restores:2,commits:0,notifications:[]});
+    expect({cursor:audit.cursor,restores:audit.restores,commits:audit.commits,notifications})
+      .toEqual({cursor:0,restores:2,commits:0,notifications:[]});
+    expect(clockAudit).toMatchObject({cursor:0,restores:2,commits:0});
 
     const committedApplication=new PostgresGameSessionApplication(fixture.authority,
-      new PostgresDurableUnitOfWork(appPool,{postCommitObserver:()=>{notifications.push('committed');}}),
-      ()=>auditedRandom,fixedNow);
-    const committed=await committedApplication.runM1SchedulerNext(input);
-    expect(committed).toMatchObject({status:'RESOLVED',resultCode:'ACTION_SLOT_RESOLVED'});
-    expect({cursor,restores,commits,notifications}).toEqual({cursor:0,restores:2,commits:1,notifications:['committed']});
+      new PostgresDurableUnitOfWork(appPool,{postCommitObserver:observe}),
+      ()=>provider,fixedNow,()=>transactionalClock);
+    const committed=await committedApplication.executeM1Interaction('session-p1',input);
+    expect(committed.status).not.toBe('REJECTED');
+    expect(audit.cursor).toBeGreaterThan(0);
+    expect(clockAudit.cursor).toBeGreaterThan(0);
+    expect(audit.calls.some(({minimum,maximum})=>minimum===1&&maximum===10)).toBe(true);
+    expect({restores:audit.restores,commits:audit.commits,notifications})
+      .toEqual({restores:2,commits:1,notifications:['committed']});
     const after=await artifactCounts(pool,gameId);
     expect(after.events).toBe((before.events??0)+1);expect(after.outbox).toBe((before.outbox??0)+1);
-    expect(await committedApplication.runM1SchedulerNext(input)).toEqual(committed);
+    const cursorAfterCommit=audit.cursor;const clockAfterCommit=clockAudit.cursor;
+    expect(await committedApplication.executeM1Interaction('session-p1',input)).toEqual(committed);
     expect(await artifactCounts(pool,gameId)).toEqual(after);
-    expect({cursor,restores,commits,checkpoints,notifications}).toEqual({
-      cursor:0,restores:2,commits:1,checkpoints:3,notifications:['committed'],
+    expect(audit.cursor).toBe(cursorAfterCommit);expect(clockAudit.cursor).toBe(clockAfterCommit);
+    expect({commits:audit.commits,checkpoints:audit.checkpoints,notifications})
+      .toEqual({commits:1,checkpoints:3,notifications:['committed']});
+  },180_000);
+
+  it('M2A-R30-B — Operations Deck shuffle restores on CAS/fault and commits once on durable success',async()=>{
+    const {audit,provider}=auditedRandomProvider((minimum)=>minimum);
+    const fixture=await createRealM1ApplicationFixture({randomFactory:()=>provider,stopAt:'AFTER_START'});
+    const {gameId}=fixture;
+    const state=(await fixture.unitOfWork.recover(gameId)).state as unknown as SetupGameState;
+    const deck=[...STRATEGY_FIXTURE.operations_decks.ARDEN];
+    await fixture.execute('session-p1','SUBMIT_OPERATIONS_DECK',{cardInstanceIds:deck});
+    const input:SessionCommandInput={engineContractVersion:M1_0_BASELINE_VERSIONS.engineContractVersion,
+      commandId:randomUUID(),idempotencyKey:`m2a-r30-deck:${randomUUID()}`,gameId,
+      expectedGameVersion:fixture.version,commandType:'LOCK_STRATEGY',
+      payloadSchemaVersion:M1_0_BASELINE_VERSIONS.fixtureSchemaVersion,payload:{}};
+    const cursorBefore=audit.cursor;const commitsBefore=audit.commits;
+    const artifactsBefore=await artifactCounts(pool,gameId);
+    const casApp=new PostgresGameSessionApplication(fixture.authority,
+      new PostgresDurableUnitOfWork(appPool,{forceCasMiss:true}),()=>provider,fixedNow);
+    await expect(casApp.execute('session-p1',input)).resolves.toMatchObject({status:'REJECTED',resultCode:'STALE_STATE_VERSION'});
+    expect(audit.cursor).toBe(cursorBefore);expect(audit.commits).toBe(commitsBefore);
+    const faultApp=new PostgresGameSessionApplication(fixture.authority,
+      new PostgresDurableUnitOfWork(appPool,{faultAt:'event'}),()=>provider,fixedNow);
+    await expect(faultApp.execute('session-p1',input)).rejects.toMatchObject({code:'TRANSACTION_WRITE_FAILED'});
+    expect(audit.cursor).toBe(cursorBefore);expect(await artifactCounts(pool,gameId)).toEqual(artifactsBefore);
+    const successApp=new PostgresGameSessionApplication(fixture.authority,
+      new PostgresDurableUnitOfWork(appPool),()=>provider,fixedNow);
+    const committed=await successApp.execute('session-p1',input);
+    expect(committed).toMatchObject({status:'RESOLVED',resultCode:'STRATEGY_LOCKED'});
+    expect(audit.cursor-cursorBefore).toBe(29);expect(audit.commits).toBe(commitsBefore+1);
+    const committedCursor=audit.cursor;
+    expect(await successApp.execute('session-p1',input)).toEqual(committed);
+    expect(audit.cursor).toBe(committedCursor);
+    expect(state.phase).toBe('STRATEGY_STAGE');
+  },180_000);
+
+  it('M2A-R30-A/E — initiative RNG is isolated by a same-Game single-writer coordinator',async()=>{
+    const initiative=[10,8,6,4,2];
+    const {audit,provider}=auditedRandomProvider((minimum,maximum,index)=>
+      minimum===1&&maximum===10?(initiative[index%initiative.length]??10):minimum);
+    const fixture=await createRealM1ApplicationFixture({randomFactory:()=>provider,stopAt:'BEFORE_INITIATIVE'});
+    const {gameId}=fixture;const cursorBefore=audit.cursor;const commitsBefore=audit.commits;
+    const base={engineContractVersion:M1_0_BASELINE_VERSIONS.engineContractVersion,gameId,
+      expectedGameVersion:fixture.version,commandType:'REQUEST_INITIATIVE_ROLL' as const,
+      payloadSchemaVersion:M1_0_BASELINE_VERSIONS.fixtureSchemaVersion,payload:{}};
+    const faultInput:SessionCommandInput={...base,commandId:randomUUID(),idempotencyKey:`m2a-r30-initiative-fault:${randomUUID()}`};
+    const before=await artifactCounts(pool,gameId);
+    const casApp=new PostgresGameSessionApplication(fixture.authority,
+      new PostgresDurableUnitOfWork(appPool,{forceCasMiss:true}),()=>provider,fixedNow);
+    await expect(casApp.execute('session-p1',faultInput)).resolves.toMatchObject({status:'REJECTED',resultCode:'STALE_STATE_VERSION'});
+    const faultApp=new PostgresGameSessionApplication(fixture.authority,
+      new PostgresDurableUnitOfWork(appPool,{faultAt:'event'}),()=>provider,fixedNow);
+    await expect(faultApp.execute('session-p1',faultInput)).rejects.toMatchObject({code:'TRANSACTION_WRITE_FAILED'});
+    expect(audit.cursor).toBe(cursorBefore);expect(audit.commits).toBe(commitsBefore);
+    expect(await artifactCounts(pool,gameId)).toEqual(before);
+
+    const app=new PostgresGameSessionApplication(fixture.authority,new PostgresDurableUnitOfWork(appPool),()=>provider,fixedNow);
+    const first:SessionCommandInput={...base,commandId:randomUUID(),idempotencyKey:`m2a-r30-initiative-a:${randomUUID()}`};
+    const second:SessionCommandInput={...base,commandId:randomUUID(),idempotencyKey:`m2a-r30-initiative-b:${randomUUID()}`};
+    const results=await Promise.all([app.execute('session-p1',first),app.execute('session-p1',second)]);
+    expect(results.filter(({status})=>status==='RESOLVED')).toHaveLength(1);
+    expect(results.filter(({resultCode})=>resultCode==='STALE_STATE_VERSION')).toHaveLength(1);
+    expect(audit.cursor-cursorBefore).toBe(5);expect(audit.commits).toBe(commitsBefore+1);
+    const after=await artifactCounts(pool,gameId);
+    expect(after.events).toBe((before.events??0)+1);expect(after.outbox).toBe((before.outbox??0)+1);
+  },180_000);
+
+  it('M2A-R30-F/G — Game A rollback cannot rewind Game B and replay creates no provider',async()=>{
+    const fixtureA=await createRealM1ApplicationFixture({stopAt:'BEFORE_INITIATIVE'});
+    const fixtureB=await createRealM1ApplicationFixture({stopAt:'BEFORE_INITIATIVE'});
+    const bindingsA=trustedBindings(fixtureA.gameId).map(binding=>({
+      ...binding,authenticatedSessionId:`a:${binding.authenticatedSessionId}`,
+    }));
+    const bindingsB=trustedBindings(fixtureB.gameId).map(binding=>({
+      ...binding,authenticatedSessionId:`b:${binding.authenticatedSessionId}`,
+    }));
+    const authority=new InMemorySessionAuthority([...bindingsA,...bindingsB]);
+    const failed=auditedRandomProvider((_minimum,maximum)=>maximum+1);
+    const committed=auditedRandomProvider((minimum,maximum,index)=>
+      minimum===1&&maximum===10?([10,8,6,4,2][index%5]??10):minimum);
+    const app=new PostgresGameSessionApplication(authority,new PostgresDurableUnitOfWork(appPool),
+      gameId=>gameId===fixtureA.gameId?failed.provider:committed.provider,fixedNow);
+    const makeInput=(gameId:string,key:string):SessionCommandInput=>({
+      engineContractVersion:M1_0_BASELINE_VERSIONS.engineContractVersion,commandId:randomUUID(),
+      idempotencyKey:key,gameId,expectedGameVersion:gameId===fixtureA.gameId?fixtureA.version:fixtureB.version,
+      commandType:'REQUEST_INITIATIVE_ROLL',payloadSchemaVersion:M1_0_BASELINE_VERSIONS.fixtureSchemaVersion,payload:{},
     });
+    const inputA=makeInput(fixtureA.gameId,`m2a-r30-game-a:${randomUUID()}`);
+    const inputB=makeInput(fixtureB.gameId,`m2a-r30-game-b:${randomUUID()}`);
+    const beforeA=await artifactCounts(pool,fixtureA.gameId);const beforeB=await artifactCounts(pool,fixtureB.gameId);
+    const [resultA,resultB]=await Promise.all([
+      app.execute('a:session-p1',inputA),app.execute('b:session-p1',inputB),
+    ]);
+    expect(resultA).toMatchObject({status:'REJECTED',resultCode:'RANDOM_PROVIDER_FAILURE'});
+    expect(resultB).toMatchObject({status:'RESOLVED',resultCode:'INITIATIVE_ORDER_SET'});
+    expect(failed.audit.cursor).toBe(0);expect(failed.audit.restores).toBe(1);
+    expect(committed.audit.cursor).toBe(5);expect(committed.audit.commits).toBe(1);
+    expect(await artifactCounts(pool,fixtureA.gameId)).toEqual(beforeA);
+    expect((await artifactCounts(pool,fixtureB.gameId)).events).toBe((beforeB.events??0)+1);
+
+    let replayProviderCreations=0;
+    const restarted=new PostgresGameSessionApplication(
+      new InMemorySessionAuthority(bindingsB),new PostgresDurableUnitOfWork(appPool),
+      ()=>{replayProviderCreations+=1;return auditedRandomProvider().provider;},fixedNow,
+    );
+    expect(await restarted.execute('b:session-p1',inputB)).toEqual(resultB);
+    expect(replayProviderCreations).toBe(0);
+    await expect(restarted.getGameProjection('b:session-p1',fixtureB.gameId)).resolves.toMatchObject({ok:true});
+    expect(replayProviderCreations).toBe(0);
   },180_000);
 
   it('M2A-R20 — PostgreSQL adapter persists CREATE/JOIN/START and locked AP planning across restart',async()=>{

@@ -9,6 +9,10 @@ export type GameScopeResolution =
   | { readonly ok: true }
   | { readonly ok: false; readonly error: 'INVALID_ACTOR_CONTEXT' | 'GAME_ID_MISMATCH' };
 
+export type BoundActorResolution =
+  | { readonly ok: true; readonly actorId: string }
+  | { readonly ok: false; readonly error: 'INVALID_ACTOR_CONTEXT' | 'GAME_ID_MISMATCH' };
+
 export class InMemorySessionAuthority {
   readonly #bindings = new Map<string, TrustedSessionBinding>();
   readonly #sessions = new Map<string, GameSession>();
@@ -27,6 +31,14 @@ export class InMemorySessionAuthority {
     if (binding === undefined) return { ok: false, error: 'INVALID_ACTOR_CONTEXT' };
     if (binding.gameId !== gameId) return { ok: false, error: 'GAME_ID_MISMATCH' };
     return { ok: true };
+  }
+
+  /** Trusted application-only identity seam used for a pre-recovery idempotency lookup. */
+  resolveBoundActorId(authenticatedSessionId: string, gameId: string): BoundActorResolution {
+    const binding = this.#bindings.get(authenticatedSessionId);
+    if (binding === undefined) return { ok: false, error: 'INVALID_ACTOR_CONTEXT' };
+    if (binding.gameId !== gameId) return { ok: false, error: 'GAME_ID_MISMATCH' };
+    return { ok: true, actorId: binding.userId };
   }
 
   resolveForCreate(authenticatedSessionId: string, gameId: string): ActorResolution {

@@ -162,6 +162,11 @@ export interface DurableUnitOfWorkOptions {
   readonly forceCasMiss?: boolean;
 }
 
+export interface DurablePersistOptions {
+  /** Application-owned RNG/Clock transactions publish only after provider commit. */
+  readonly deferPostCommitObserver?: boolean;
+}
+
 const assertTransition = (transition: AcceptedEngineTransition): void => {
   const failures = durableTransitionCompletenessFailures(transition);
   if (failures.length > 0) throw new PersistenceError(
@@ -650,7 +655,14 @@ export class PostgresDurableUnitOfWork {
     }finally{client.release();}
   }
 
-  async persistAcceptedTransition(transition: AcceptedEngineTransition): Promise<DurableCommandResult> {
+  async publishCommittedTransition(result: DurableCommandResult): Promise<void> {
+    try { await this.options.postCommitObserver?.(result); } catch { /* durable outbox owns retry */ }
+  }
+
+  async persistAcceptedTransition(
+    transition: AcceptedEngineTransition,
+    persistOptions: DurablePersistOptions = {},
+  ): Promise<DurableCommandResult> {
     assertTransition(transition);
     const rngCheckpoint = this.options.rng?.checkpoint();
     const clockCheckpoint = this.options.clock?.checkpoint();
@@ -982,7 +994,7 @@ export class PostgresDurableUnitOfWork {
       if (cas.rowCount !== 1) throw new PersistenceError('GAME_VERSION_CONFLICT', 'Game CAS lost');
       await client.query('COMMIT');
       committed = true;
-      try { await this.options.postCommitObserver?.(result); } catch { /* outbox owns retry */ }
+      if (!persistOptions.deferPostCommitObserver) await this.publishCommittedTransition(result);
       return result;
     } catch (error) {
       if (!committed) { try { await client.query('ROLLBACK'); } catch { /* already failed */ } }

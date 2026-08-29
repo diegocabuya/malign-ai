@@ -288,20 +288,20 @@ export class SetupCommandDispatcher {
     private readonly store: InMemorySetupGameStore,
     private readonly random: TransactionalRandomProvider,
     private readonly now: () => Date,
+    private readonly randomTransactionOwner: 'ENGINE' | 'APPLICATION' = 'ENGINE',
   ) {}
 
   dispatch(envelope: SetupEnvelope): EngineCommandResult {
+    if (this.randomTransactionOwner === 'APPLICATION') {
+      return this.dispatchWithoutProviderFinalization(envelope);
+    }
     const checkpoint = this.random.checkpoint();
     let notifyStableCommit: (() => void) | undefined;
     try {
-      const result = dispatchAtomicCommand({
+      const result = this.dispatchWithoutProviderFinalization(
         envelope,
-        store: this.store,
-        now: this.now,
-        validatePayload: ({ commandType, payload }) => validateSetupCommandPayload(commandType, payload),
-        prepare: (before, candidate) => this.prepare(before, candidate),
-        deferStableNotification: (notify) => { notifyStableCommit = notify; },
-      });
+        (notify) => { notifyStableCommit = notify; },
+      );
       if (result.status === 'RESOLVED') {
         this.random.commit(checkpoint);
         notifyStableCommit?.();
@@ -311,6 +311,20 @@ export class SetupCommandDispatcher {
       this.random.restore(checkpoint);
       throw error;
     }
+  }
+
+  private dispatchWithoutProviderFinalization(
+    envelope: SetupEnvelope,
+    deferStableNotification: (notify: () => void) => void = () => undefined,
+  ): EngineCommandResult {
+    return dispatchAtomicCommand({
+      envelope,
+      store: this.store,
+      now: this.now,
+      validatePayload: ({ commandType, payload }) => validateSetupCommandPayload(commandType, payload),
+      prepare: (before, candidate) => this.prepare(before, candidate),
+      deferStableNotification,
+    });
   }
 
   revealCurrentAction(options: {
