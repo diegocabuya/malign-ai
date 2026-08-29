@@ -1142,3 +1142,43 @@ DEC-075 autoriza exclusivamente documentación. No autoriza M2 ni ninguna subeta
 **IMPACTO:** Los dos bloqueos quedan resueltos y M2A-R11…R19 pueden continuar dentro del alcance ya autorizado; no hay aprobación técnica ni cierre de M2-A.
 
 **ESTADO:** `APPROVED — IQ-M2-014/IQ-M2-015 RESOLVED / M2-A CORRECTION CONTINUES`
+
+---
+
+## DEC-080 — Cierre de M2-A/M2-1 PostgreSQL Persistence and Durable Recovery
+
+**FECHA:** 2026-08-29
+**TEMA:** Aprobación técnica y cierre formal de M2-A/M2-1.
+
+**DECISIÓN:**
+
+- DEC-078 y las decisiones complementarias aplicables quedaron cumplidas.
+- M2-A, equivalente a M2-1 PostgreSQL Persistence and Durable Recovery, queda **IMPLEMENTED AND APPROVED**.
+- El commit funcional final aprobado es `85ec047726a68007fbcabf07c6b3fe1b911a3070`.
+- M2A-R01…R30 quedan **CLOSED** mediante la cadena funcional cuyo commit final es `85ec047726a68007fbcabf07c6b3fe1b911a3070`.
+- No se requieren nuevas correcciones de código para M2-A.
+- La implementación y sus gates usan PostgreSQL real **18.6**.
+- Owner nominal M2-A: **22/22 PASS**.
+- Gate acumulado M2-A: **38/38 PASS**.
+- Regresiones asignadas previas: **14/14 preservadas**.
+- Baseline M0/M1: **215/215 preservada**.
+- Suite final: **253/253 PASS en 28 archivos**.
+- Skips: **0**.
+- Todo: **0**.
+- Waivers: **0**.
+- Migrations `001…006` aplicadas y verificadas.
+- Esquema físico: **87/87 tablas**.
+- El manifest físico conserva **87 tablas, 865 columnas, 1261 constraints, 211 índices, 25 triggers y 5 funciones**.
+- Catalog SHA-256: `447d8e06e3030a2744135c56edca135a142b2fcc252e69dd377259fc81d8a465`.
+- Migration `006` final: `ca318dd0f56d4a9afe101b7a6ada76fcb61337f0327ff5dd05e73d854e71f06e`.
+- El hash anterior de migration `006`, `1c46e60136fa2967714d52186e89af3564fca342b11269cf3c572e54914aa317`, queda registrado únicamente como supersedido antes de la aprobación.
+- No queda ninguna `IMPLEMENTATION_QUESTION` pendiente para M2-A.
+- `IQ-M2-008` e `IQ-M2-009` permanecen **OPEN** y corresponden exclusivamente a M2-2.
+- DEC-080 cierra exclusivamente M2-A/M2-1.
+- DEC-080 **NO autoriza** M2-2…M2-7, M2 global ni M3.
+
+**JUSTIFICACIÓN:** La revisión técnica confirmó la persistencia y recuperación durable sobre PostgreSQL 18.6, el Unit of Work con row lock + CAS, la idempotencia, los journals y traces append-only, snapshots/replay/reconciliation, outbox durable, least-privilege, backup/restore, fault injection y la frontera transaccional application-wide de RNG/Clock, con la suite y los hashes declarados preservados.
+
+**IMPACTO:** M2-A/M2-1 queda formalmente cerrado. M2-2…M2-7, M2 global y M3 requieren autorización expresa independiente y permanecen fuera de alcance.
+
+**ESTADO:** `APPROVED — M2-A / M2-1 CLOSED`

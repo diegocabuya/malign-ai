@@ -1,6 +1,6 @@
 # MALIGN-AI
 
-MALIGN-AI is a fidelity-first, multiplayer web implementation of the Malign serious game. Milestones M0 and M1 are **IMPLEMENTED AND APPROVED**. M2-0 is **APPROVED AND CLOSED** and M2-A/M2-1 is **IMPLEMENTED / PENDING EXTERNAL REVIEW** under DEC-078. The current suite reports **237/237 PASS in 28 test files, 0 skips, 0 todo and 0 waivers**.
+MALIGN-AI is a fidelity-first, multiplayer web implementation of the Malign serious game. M0 is **IMPLEMENTED AND APPROVED**, M1 is **IMPLEMENTED AND APPROVED / CLOSED**, M2-0 is **APPROVED AND CLOSED**, and M2-A/M2-1 PostgreSQL Persistence and Durable Recovery is **IMPLEMENTED AND APPROVED under DEC-080**. The approved baseline reports **253/253 PASS in 28 test files, 0 skips, 0 todo and 0 waivers**.
 
 M0 comprises the approved repository bootstrap, pure Rule Kernel, command safety, and in-memory campaign slice. M1 adds:
 
@@ -17,9 +17,20 @@ M0 comprises the approved repository bootstrap, pure Rule Kernel, command safety
 
 Five players and one facilitator share a game session. The server is authoritative. The codebase is a TypeScript modular monolith with separate web and server applications, a framework-independent domain and Game Engine, server-side security projections, and persistence behind ports.
 
-The implemented baseline consists of a pure deterministic Rule Kernel, an authoritative Game Engine and application boundaries, plus PostgreSQL 18.6 persistence behind the existing ports. M2-A adds 87 product tables, forward-only migrations, an approved registry seed, a row-lock/CAS Unit of Work, append-only journals, snapshots/recovery/reconciliation and a durable test publisher. M1 realtime remains exclusively in-memory/test-only and does not constitute production WebSocket infrastructure.
+The implemented baseline consists of a pure deterministic Rule Kernel, an authoritative Game Engine and application boundaries, plus the approved M2-A persistence stack:
 
-M2-2…M2-7, M2 global, M3, production realtime/WebSocket, final UI, production authentication, AI/OpenAI/RAG and deferred rules are **NOT AUTHORIZED**. M2-A contains no socket or external delivery provider.
+- PostgreSQL 18.6 with 87 product tables and six forward-only SQL migrations;
+- the approved, versioned registry seed;
+- `READ COMMITTED` transactions with a locked Game row and explicit `game_version` CAS;
+- durable idempotency and atomic events, ledgers, adjudication traces, snapshots and replay;
+- versioned continuations, recovery and exact three-authority reconciliation;
+- a durable transactional outbox with separate message, delivery-state and attempt history;
+- backup/restore drills and fault-injection coverage;
+- separate, least-privilege PostgreSQL roles for migration ownership, application runtime and outbox publishing.
+
+M1 realtime remains exclusively in-memory/test-only and does not constitute production WebSocket infrastructure.
+
+The repository still does **not** contain production WebSocket/realtime, a cloud provider or hosting deployment, production AuthN, the final UI, or AI/OpenAI/RAG. M2-2…M2-7 are **NOT AUTHORIZED**, M2 global is **NOT YET CLOSED**, and M3 remains **NOT STARTED / NOT AUTHORIZED**. M2-A contains no socket or external delivery provider.
 
 > **LLM != Game Engine.** AI may eventually explain or suggest actions from an authorized projection, but it never adjudicates deterministic rules.
 
