@@ -1182,3 +1182,40 @@ DEC-075 autoriza exclusivamente documentación. No autoriza M2 ni ninguna subeta
 **IMPACTO:** M2-A/M2-1 queda formalmente cerrado. M2-2…M2-7, M2 global y M3 requieren autorización expresa independiente y permanecen fuera de alcance.
 
 **ESTADO:** `APPROVED — M2-A / M2-1 CLOSED`
+
+---
+
+## DEC-081 — Gate documental de decisión M2-2 Productive Transport and Reconnect
+
+**FECHA:** 2026-08-29
+**TEMA:** Resolución de IQ-M2-008/IQ-M2-009 y preparación de la especificación final M2-2 sin autorización de implementación.
+
+**DECISIÓN:**
+
+- `IQ-M2-008` queda **RESOLVED** mediante Auth0 como proveedor de referencia exclusivamente detrás de un port de application layer. Authorization Code con PKCE, sesión server-side/BFF, cookies `HttpOnly`/`Secure`/`SameSite`, tokens fuera de localStorage, refresh token sólo server-side con rotación y access token de API corto —default inicial 300 segundos configurable— constituyen el baseline de identidad.
+- El token se valida por issuer, audience, RS256/JWKS, `exp`, `nbf` cuando exista, `azp`/client binding y scopes. Sólo `sub` verificado vincula identidad externa. Membership, participant, seat, actor, game, roles y permisos proceden del estado PostgreSQL autoritativo, nunca del cliente o sólo del token.
+- Enrollment productivo será invitation-only/allowlisted. Email verificado no autoriza partidas. Back-channel logout no es dependencia baseline por depender del plan Enterprise; logout local invalida sesión, cierra sockets y limita acceso residual mediante token corto.
+- `IQ-M2-009` queda **RESOLVED** mediante protocolo propio versionado `malign.realtime.v1` sobre WSS, Node.js 24 LTS + `ws` detrás del port, WebSocket nativo en browser y servidor `noServer`/HTTP upgrade. No se adopta Socket.IO.
+- WebSocket autentica con primer frame `AUTHENTICATE` dentro de 5 segundos, sin token en URL/query/cookie de autoridad/subprotocolo, con Origin allowlist. AuthN se valida mediante port y la autorización interna mediante PostgreSQL; expiry exige token nuevo, reconnect y revalidación. Los rechazos opacos usan 1008.
+- Commands autoritativos continúan por HTTPS. WebSocket sólo transporta AuthN, subscriptions, sync, feed autorizado, ACK, resync y draining, con delivery at-least-once, ordering, dedup y cursor `game_version + sequence_number + projection/viewer binding`; nunca exactly-once delivery.
+- PostgreSQL 18 `LISTEN/NOTIFY` se usa sólo como wake-up hint efímero. Outbox, event log, snapshots y feed son autoridad durable; payloads contienen sólo identificadores opacos mínimos. El orden obligatorio es LISTEN → commit → consulta snapshot/feed → notificaciones → dedup.
+- Render queda como target productivo de referencia: Node.js 24, WSS, mínimo dos instancias stateless para production, publisher separado y PostgreSQL major 18 en misma región/red privada; baseline certificado 18.6. No se autoriza free-tier productivo.
+- Los defaults configurables iniciales son ping 30 s, terminación tras dos pong ausentes, inbound 64 KiB, backpressure 256 mensajes o 1 MiB, overload 1013, backoff full-jitter 500 ms…30 s y draining/SIGTERM. Deben validarse mediante fault/load tests antes de deploy.
+- La selección técnica no autoriza cuentas, contratación, planes, secrets, dependencias, infraestructura ni despliegue. La versión exacta de librerías y el plan comercial se fijan sólo tras autorización separada.
+- El gate futuro conserva 8 owners `GE-M2-RT-001…008`, 17 regresiones, 25 ejecuciones dirigidas, baseline previamente aprobada 253/253 y suite mínima futura 261 casos únicos, con 0 skips/todo/waivers.
+- M2-2 queda **DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED**.
+- M2-3…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
+
+**PTD APROBADAS:**
+
+- `PTD-M2-012`: Auth0 exclusivamente en application layer.
+- `PTD-M2-013`: autenticación WebSocket mediante primer frame y autorización PostgreSQL interna.
+- `PTD-M2-014`: Node.js 24 + `ws` + protocolo propio `malign.realtime.v1`.
+- `PTD-M2-015`: `LISTEN/NOTIFY` efímero; outbox/event log/feed como autoridad durable.
+- `PTD-M2-016`: Render como topología productiva de referencia y envelope operacional configurable.
+
+**JUSTIFICACIÓN:** Las fuentes oficiales vigentes de Auth0, `ws`, Render y PostgreSQL permiten cerrar las decisiones de identidad, protocolo, fan-out, hosting de referencia y operación sin adelantar implementación ni crear compromisos comerciales.
+
+**IMPACTO:** IQ-M2-008/IQ-M2-009 dejan de bloquear la preparación técnica. M2-2 queda listo para solicitar una autorización de implementación separada; ningún artifact ejecutable o de infraestructura queda autorizado.
+
+**ESTADO:** `APPROVED — M2-2 DECISION GATE ONLY`

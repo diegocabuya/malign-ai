@@ -92,19 +92,23 @@
 - **Impact:** M2-1 debe demostrar un solo commit, rollback completo e idempotencia durable; no se autoriza implementación.
 - **Status:** RESOLVED mediante DEC-075.
 
-## IQ-M2-008 — Production AuthN provider — OPEN
+## IQ-M2-008 — Production AuthN provider — RESOLVED
 
-- **Evidence:** DEC-075 fija el boundary application-side, pero no selecciona proveedor ni adapter productivo.
-- **Question:** qué proveedor AuthN y qué adapter verificable se usarán para construir identidad y `ActorContext` sin confiar en claims del cliente.
-- **Impact:** bloquea afirmar transporte productivo M2-2; no bloquea Engine ni persistencia.
-- **Status:** OPEN / PENDING RESOLUTION.
+- **Resolution DEC-081 / PTD-M2-012…013:** Auth0 queda como proveedor productivo de referencia detrás de un port exclusivo de application layer. El flujo será Authorization Code con PKCE y sesión BFF/server-side; cookies `HttpOnly`, `Secure` y `SameSite`; access token de Custom API corto —default inicial 300 segundos configurable— entregado por endpoint BFF protegido y conservado sólo en memoria; refresh token sólo server-side y con rotación si se usa.
+- **Validation:** issuer, audience, firma RS256/JWKS, `exp`, `nbf` cuando exista, `azp`/client binding y scopes. El único identificador externo vinculable es `sub` verificado.
+- **Authority boundary:** membership, `participantId`, seat, `actorType`, `gameId`, roles y permisos se resuelven desde PostgreSQL; jamás desde claims o autoridad aportada por el cliente. `game_participants.external_user_ref` puede conservar `sub` sin ampliar las 87 tablas.
+- **Enrollment/logout:** invitation-only/allowlisted; email verificado no autoriza partidas. Back-channel logout no es baseline por depender de Enterprise; baseline invalida sesión local, cierra sockets y limita acceso residual mediante expiración corta.
+- **Future boundary:** cuenta, tenant, plan, secrets, contratación, SDK y versión exacta requieren autorización posterior. Esta resolución no autoriza implementación M2-2.
+- **Status:** **RESOLVED mediante DEC-081**.
 
-## IQ-M2-009 — WebSocket runtime and operating envelope — OPEN
+## IQ-M2-009 — WebSocket runtime and operating envelope — RESOLVED
 
-- **Evidence:** DEC-075 aprueba la dirección del protocolo, no su librería/runtime ni entorno operativo.
-- **Question:** selección de librería/runtime y hosting; heartbeat; acknowledgements; retry/backpressure; límites, topology y observabilidad.
-- **Impact:** bloquea implementación productiva M2-2.
-- **Status:** OPEN / PENDING RESOLUTION.
+- **Resolution DEC-081 / PTD-M2-013…016:** protocolo propio `malign.realtime.v1` sobre WSS, Node.js 24 LTS y `ws` detrás del port de transporte; browser WebSocket nativo; servidor `noServer`/HTTP upgrade. Render queda como target productivo de referencia. PostgreSQL 18 `LISTEN/NOTIFY` es sólo wake-up efímero; outbox/event log/snapshots/feed son autoridad durable.
+- **Authentication:** primer frame `AUTHENTICATE` dentro de 5 segundos; sin token en URL/query/cookie de autoridad/subprotocolo; Origin allowlist; AuthN por port y membership/AuthZ PostgreSQL; expiry obliga token nuevo y reconnect; fallo opaco 1008.
+- **Envelope configurable:** ping 30 s, terminación tras dos pong ausentes, inbound 64 KiB, backpressure 256 mensajes o 1 MiB, overload 1013, backoff full-jitter 500 ms…30 s, draining/SIGTERM y recovery a cualquier nodo.
+- **Topology:** mínimo dos instancias stateless para production, publisher separado y PostgreSQL 18 en misma región/red privada; baseline certificado 18.6. No Redis/broker baseline.
+- **Future boundary:** versión exacta de `ws`, plan, región, costos, cuenta, secrets, infraestructura y deployment requieren autorización separada. Esta resolución no autoriza implementación M2-2.
+- **Status:** **RESOLVED mediante DEC-081**.
 
 ## IQ-M2-010 — Registry content and hash approval — RESOLVED
 

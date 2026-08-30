@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-29
-**Fase actual:** M0 IMPLEMENTED AND APPROVED — M1 IMPLEMENTED AND APPROVED / CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 IMPLEMENTED AND APPROVED mediante DEC-080 — M2-2…M2-7 NOT AUTHORIZED — M2 global NOT YET CLOSED — M3 NOT AUTHORIZED
+**Fase actual:** M0 IMPLEMENTED AND APPROVED — M1 IMPLEMENTED AND APPROVED / CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 IMPLEMENTED AND APPROVED mediante DEC-080 — M2-2 DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED mediante DEC-081 — M2-3…M2-7 NOT AUTHORIZED — M2 global NOT YET CLOSED — M3 NOT AUTHORIZED
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -91,8 +91,9 @@
 | Suite mínima futura propuesta | **400 = 215 baseline + 185 nuevos únicos** |
 | Suite aprobada de entrada | **215/215 PASS en 27 archivos, 0 skips, 0 todo, 0 waivers — baseline histórica, no reejecutada por este gate documental** |
 | PTD-M2-001…011 | **CLASSIFIED mediante DEC-075** |
+| PTD-M2-012…016 | **APPROVED mediante DEC-081 — decision gate only** |
 | IQ-M2-001…007 | **RESOLVED mediante DEC-075** |
-| IQ-M2-008/009 | **OPEN / PENDING RESOLUTION — sin cambios** |
+| IQ-M2-008/009 | **RESOLVED mediante DEC-081 — Auth0 application-side; WSS/Node.js 24/`ws`/Render; LISTEN/NOTIFY wake-up only** |
 | IQ-M2-010 | **RESOLVED mediante DEC-077; REG-CAND-001…004 APPROVED** |
 | IQ-M2-011 | **RESOLVED mediante DEC-078 — PostgreSQL 18.6 `uuidv7()` sin extensión** |
 | IQ-M2-012 | **RESOLVED mediante DEC-078 — sin RLS; roles separados y mínimo privilegio** |
@@ -122,11 +123,12 @@
 | Commit funcional de la corrección M2A-R25…R29 | `31d11bb6b6df04954f40b11f96b2107ae2f3f420` |
 | Commit funcional de la corrección M2A-R30 | `85ec047726a68007fbcabf07c6b3fe1b911a3070` |
 | Commit funcional final aprobado M2-A/M2-1 | `85ec047726a68007fbcabf07c6b3fe1b911a3070` |
-| IMPLEMENTATION_QUESTIONS | **IQ-M2-008/009 OPEN; IQ-M2-010…012 y 014/015 RESOLVED; IQ-M2-013 RESOLVED FOR M2** |
-| Decisions v0.3 | **DEC-080 APPROVED — M2-A/M2-1 CLOSED** |
+| IMPLEMENTATION_QUESTIONS | **IQ-M2-008…012 y 014/015 RESOLVED; IQ-M2-013 RESOLVED FOR M2** |
+| Decisions v0.3 | **DEC-081 APPROVED — M2-2 DECISION GATE ONLY** |
 | M2-0 — Canonical Foundations Gate documental | **APPROVED AND CLOSED mediante DEC-077** |
 | M2-A/M2-1 — PostgreSQL Persistence and Durable Recovery | **IMPLEMENTED AND APPROVED mediante DEC-080** |
-| M2-2 — Productive Transport and Reconnect | **NOT AUTHORIZED** |
+| M2-2 — Productive Transport and Reconnect | **DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED mediante DEC-081** |
+| M2-2 gate futuro | **8 owners + 17 regresiones = 25 ejecuciones dirigidas; baseline previa 253/253; mínimo futuro 261 casos únicos** |
 | M2-3 — Complete Scheduler and Remaining Core Rules | **NOT AUTHORIZED** |
 | M2-4 — Action/Starter Cards and Regime Abilities | **NOT AUTHORIZED** |
 | M2-5 — Reaction, Veto and Deterministic Narrative | **NOT AUTHORIZED** |
@@ -233,7 +235,7 @@ El Card Registry canónico aprobado registra **108 serial templates por country 
 
 M2G-R01…R05 quedan **CLOSED** mediante DEC-076: `GE-M2-EFX-001` conserva owner único M2-3 con aceptación incremental y regresiones M2-4/M2-5; el loser de `GE-M2-TX-003` queda sin mutación ni artifacts/consumos; `GE-M2-RX-001` usa idempotencia + CAS sin afirmar exactly-once delivery; `GE-M2-DB-005` fija cardinalidades explícitas; y `GE-M2-TX-008` traza replay a PTD-M2-004/008.
 
-`IQ-M2-001…007` quedan **RESOLVED mediante DEC-075**. `IQ-M2-008 — Production AuthN provider` e `IQ-M2-009 — WebSocket runtime and operating envelope` permanecen **OPEN / PENDING RESOLUTION** y corresponden exclusivamente a M2-2. `IQ-M2-010` queda **RESOLVED mediante DEC-077** con REG-CAND-001…004 aprobadas; `IQ-M2-011`, `IQ-M2-012` e `IQ-M2-013` quedan resueltas mediante DEC-078, e `IQ-M2-014/IQ-M2-015` mediante DEC-079. No queda ninguna `IMPLEMENTATION_QUESTION` pendiente para M2-A.
+`IQ-M2-001…007` quedan **RESOLVED mediante DEC-075**. `IQ-M2-008 — Production AuthN provider` e `IQ-M2-009 — WebSocket runtime and operating envelope` quedan **RESOLVED mediante DEC-081** para el decision gate M2-2. `IQ-M2-010` queda **RESOLVED mediante DEC-077** con REG-CAND-001…004 aprobadas; `IQ-M2-011`, `IQ-M2-012` e `IQ-M2-013` quedan resueltas mediante DEC-078, e `IQ-M2-014/IQ-M2-015` mediante DEC-079. No queda ninguna `IMPLEMENTATION_QUESTION` pendiente para M2-A o para el decision gate M2-2.
 
 M2-0 fue ejecutado sólo como gate documental. M20-R01…R04 separa AP balance+journal, fija el lifecycle durable de idempotencia, separa outbox message/state/attempt y crea la matriz humana exhaustiva. La fuente exacta `Cartas frente.pdf` pasó el preflight con SHA-256 `3301fd9e92e5d8a8df7a3efc1407434afe0395263a5d6c0e16e0e486faa35113`; se auditó externamente 108/108 y no se incorporó a Git. M20-R05 añade fast lookup + recheck obligatorio bajo Game lock; M20-R06 fija orden causal `(game_event_sequence, artifact_ordinal)` y rollback/CAS sin gaps; M20-R07 restaura los significados canónicos REG-CAND-001…004; M20-R08 completa 103/103 parámetros machine-readable; M20-R09 registra 59 literales y 41 ausencias por definition. M20-R10 corrige E021 conservando dos operaciones y 103 totales: cada otro jugador activo puede comprometer voluntariamente una única contribución de exactamente 1 recurso; el source-card player queda excluido; commit, rechazo sin mutación, deduplicación por participante, máximo, bonus +1 a `EFFECTIVE_CV`, atomicidad e idempotencia quedan explícitos. También aprueba `DP` → `PD` en serial 26 y `cubos de resistencia`/`DP` → blue `RESILIENCY`/`PD` en serial 28, sin alterar literales. La auditoría queda en 102 MATCH, 6 DIFFERENCE y 0 AMBIGUOUS. La Physical DB Spec permanece en **87 tablas**.
 
@@ -247,7 +249,7 @@ La baseline M0/M1 **215/215 PASS**, el owner nominal M2-A **22/22 PASS** y las *
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**, M2-0 queda **APPROVED AND CLOSED mediante DEC-077**, y M2-A/M2-1 queda **IMPLEMENTED AND APPROVED mediante DEC-080**. M2-2…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
+M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**, M2-0 queda **APPROVED AND CLOSED mediante DEC-077**, y M2-A/M2-1 queda **IMPLEMENTED AND APPROVED mediante DEC-080**. El decision gate M2-2 queda **APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED mediante DEC-081**. M2-3…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
 
 ## Continuidad documental
 
@@ -263,4 +265,8 @@ El adapter PostgreSQL satisface el port M1 completo para lifecycle, setup, initi
 
 Recovery y reconciliation contrastan snapshot+tail y `authoritative_state_json` contra valores semánticos completos de phase/initiative/scheduler, AP/Resources/VP/legitimacy y sus ledgers, cartas/zonas/mazo, plans, campaigns/activations, action resolutions, PD/influence/resolutions, dados e identidad RNG, narrative, choices/continuations, traces/causalidad y heads/pins normalizados. Una divergencia fija `recovery_blocked` y añade como máximo un trace diagnóstico serializable por digest, F1-only, con actoría `SYSTEM` y `participant_id=NULL`, sin gameplay event, cambio de estado ni incremento de versión. Todos los artifacts con trace usan FK compuesta `(game_id, trace_id)`. Los roles de producto continúan `NOLOGIN`; los pools de prueba usan principals `LOGIN` efímeros, no administrativos, con exactamente una membership correspondiente, y UoW/recovery/materialización/override/scheduler/publisher fallan cerrado ante una identidad incompatible. La PK física Game se asigna con PostgreSQL 18.6 `uuidv7()` y no puede ser elegida por el caller. OutboxMessage es inmutable, DeliveryState mutable y DeliveryAttempt append-only; no se afirma exactly-once delivery.
 
-El owner nominal M2-A conserva **22/22 PASS**, las **14/14 regresiones asignadas previas** permanecen verdes y el gate acumulado M2-A suma **38/38 PASS**; baseline M0/M1 **215/215 preservada**; suite final **253/253 PASS en 28 archivos, 0 skips, 0 todo y 0 waivers**. El commit funcional final queda fijado en `85ec047726a68007fbcabf07c6b3fe1b911a3070`. DEC-080 declara M2A-R01…R30 **CLOSED** y M2-A/M2-1 **IMPLEMENTED AND APPROVED**. No queda ninguna `IMPLEMENTATION_QUESTION` pendiente para M2-A; IQ-M2-008/009 permanecen OPEN exclusivamente para M2-2. DEC-080 no autoriza M2-2…M2-7, M2 global ni M3.
+El owner nominal M2-A conserva **22/22 PASS**, las **14/14 regresiones asignadas previas** permanecen verdes y el gate acumulado M2-A suma **38/38 PASS**; baseline M0/M1 **215/215 preservada**; suite final **253/253 PASS en 28 archivos, 0 skips, 0 todo y 0 waivers**. El commit funcional final queda fijado en `85ec047726a68007fbcabf07c6b3fe1b911a3070`. DEC-080 declara M2A-R01…R30 **CLOSED** y M2-A/M2-1 **IMPLEMENTED AND APPROVED**. DEC-081 resuelve posteriormente IQ-M2-008/009 y aprueba sólo el decision gate M2-2; no autoriza M2-2…M2-7, M2 global ni M3.
+
+## Gate documental M2-2 mediante DEC-081
+
+La especificación `MALIGN_AI_M2_2_PRODUCTIVE_TRANSPORT_AND_RECONNECT_SPEC_v0.1.md` registra fuentes oficiales consultadas el 2026-08-29, PTD-M2-012…016, Auth0 application-side, autenticación por primer frame, protocolo `malign.realtime.v1` sobre WSS con Node.js 24 + `ws`, fan-out multinodo con `LISTEN/NOTIFY` sólo como wake-up, Render como target de referencia y envelope operacional configurable. El gate futuro conserva **8 owners + 17 regresiones = 25 ejecuciones dirigidas**, baseline previamente aprobada **253/253** y suite mínima futura **261 casos únicos**, con 0 skips/todo/waivers. El estado es **DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED**.

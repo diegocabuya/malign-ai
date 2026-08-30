@@ -2,8 +2,8 @@
 
 **Fecha:** 2026-08-27
 **Estado:** M2-0 APPROVED AND CLOSED / M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080
-**Autoridad:** DEC-074…DEC-080; DEC-080 cierra exclusivamente M2-A/M2-1
-**Implementación M2:** **M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED; M2-2…M2-7 NOT AUTHORIZED; M2 global NOT YET CLOSED; M3 NOT AUTHORIZED**
+**Autoridad:** DEC-074…DEC-081; DEC-081 aprueba sólo el decision gate de M2-2
+**Implementación M2:** **M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED; M2-2 DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED; M2-3…M2-7 NOT AUTHORIZED; M2 global NOT YET CLOSED; M3 NOT AUTHORIZED**
 
 > DEC-078 autorizó y materializó exclusivamente M2-A/M2-1; DEC-080 aprobó su commit funcional final `85ec047726a68007fbcabf07c6b3fe1b911a3070` y cerró M2A-R01…R30. DEC-080 no autoriza M2-2…M2-7, M2 global o M3.
 
@@ -48,7 +48,7 @@ Ante contradicción se falla cerrado, se registra pregunta y no se inventa compo
 - Suite mínima acumulada futura: `215 + 185 = 400`.
 - PostgreSQL 18.6, migrations `001…006`, outbox durable y recovery de M2-A/M2-1 están implementados y aprobados mediante DEC-080. Permanecen no iniciados/no autorizados el transporte/WebSocket productivo, AuthN productiva, las reglas posteriores de M2-2…M2-7, UI final, IA/OpenAI/RAG, hosting y proveedores.
 
-Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, analítica/AAR avanzada, proveedores no aprobados y M3. Ninguna librería, cloud, ORM, AuthN provider o WebSocket provider queda seleccionada.
+Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, analítica/AAR avanzada, proveedores no aprobados y M3. DEC-081 selecciona sólo referencias técnicas para el gate M2-2 —Auth0, Node.js 24 + `ws`, Render y PostgreSQL `LISTEN/NOTIFY` como wake-up— sin autorizar librerías, cuentas, planes, secrets, infraestructura o despliegue.
 
 ## 4. Decisiones técnicas vigentes
 
@@ -72,7 +72,7 @@ Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, an
 |---|---|---|---:|---|
 | M2-0 | Canonical Foundations Gate documental | Physical DB Spec, addendum M2, registry, Product Owner Review Matrix y hashes | 0 | APPROVED AND CLOSED mediante DEC-077 |
 | M2-1 | PostgreSQL Persistence and Durable Recovery | M2-0 aprobado; registry aprobado para seed | 22 | IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080 |
-| M2-2 | Productive Transport and Reconnect | M2-1; IQ-M2-008/009 | 8 | NOT AUTHORIZED |
+| M2-2 | Productive Transport and Reconnect | M2-1 aprobado; IQ-M2-008/009 resueltas mediante DEC-081 | 8 | DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED |
 | M2-3 | Complete Scheduler and Remaining Core Rules | M2-1; contrato de registry suficiente | 39 | NOT AUTHORIZED |
 | M2-4 | Action/Starter Cards and Regime Abilities | M2-3; IQ-M2-010 resuelta | 45 | NOT AUTHORIZED |
 | M2-5 | Reaction, Veto and Deterministic Narrative | M2-3/M2-4; transport recovery para gate productivo | 23 | NOT AUTHORIZED |
@@ -107,7 +107,7 @@ Artifacts producidos:
 - blobs documentales aprobados expresamente;
 - ninguna selección silenciosa de provider/ORM/runtime.
 
-En el cierre histórico de DEC-077, REG-CAND-001…004, el Physical DB Spec de 87 tablas, Registry Spec y Snapshot quedaron aprobados; M20-R01…R10 se cerraron e `IQ-M2-010` se resolvió. El snapshot conserva exactamente su proyección semántica de 264610 bytes / SHA-256 `8a46133ca70883df2d173fddd9c725cd0611b2be8311a5fe42057464415d6a13`. DEC-078 resolvió posteriormente IQ-M2-011…013 e implementó M2-A; IQ-M2-008/009 siguen OPEN.
+En el cierre histórico de DEC-077, REG-CAND-001…004, el Physical DB Spec de 87 tablas, Registry Spec y Snapshot quedaron aprobados; M20-R01…R10 se cerraron e `IQ-M2-010` se resolvió. El snapshot conserva exactamente su proyección semántica de 264610 bytes / SHA-256 `8a46133ca70883df2d173fddd9c725cd0611b2be8311a5fe42057464415d6a13`. DEC-078 resolvió posteriormente IQ-M2-011…013 e implementó M2-A; IQ-M2-008/009 permanecían OPEN en ese momento y fueron resueltas posteriormente mediante DEC-081.
 
 ## 7. M2-1 — PostgreSQL Persistence and Durable Recovery
 
@@ -133,9 +133,11 @@ M2-A/M2-1 queda **IMPLEMENTED AND APPROVED / CLOSED** en el commit funcional fin
 
 ## 8. M2-2 — Productive Transport and Reconnect
 
-Incluye HTTP commands/queries; protocolo WebSocket propio y versionado; AuthN application-side; outbox publisher; delivery at-least-once; ordering, dedup y gaps; reconnect/recovery entre procesos o nodos.
+Incluye, sólo para una futura autorización: HTTP commands/queries; protocolo WebSocket propio y versionado; AuthN application-side; outbox publisher; delivery at-least-once; ordering, dedup y gaps; reconnect/recovery entre procesos o nodos.
 
-No puede denominarse plenamente productivo hasta aprobar proveedor AuthN (`IQ-M2-008`), librería/runtime, hosting y operating envelope (`IQ-M2-009`). El Engine no importa HTTP, WebSocket, SDK AuthN ni infraestructura.
+DEC-081 resuelve `IQ-M2-008/009` y aprueba PTD-M2-012…016: Auth0 detrás de port application-side; primer frame WebSocket y autoridad PostgreSQL interna; Node.js 24 + `ws` + `malign.realtime.v1`; `LISTEN/NOTIFY` sólo como wake-up; Render como target de referencia y envelope configurable. El Engine no importa HTTP, WebSocket, SDK AuthN ni infraestructura. Cuenta, plan, secrets, versiones exactas, infraestructura y despliegue requieren autorización posterior.
+
+Especificación final del decision gate: `MALIGN_AI_M2_2_PRODUCTIVE_TRANSPORT_AND_RECONNECT_SPEC_v0.1.md`. Estado: **DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED**.
 
 DoD futuro: handshake no confía en claims del cliente; cursor/projection ligados a viewer; initial sync sin ventana de pérdida; gap recovery desde feed autoritativo; privacy omissions distinguibles sin leakage; **8/8 nuevos únicos** y regresiones dirigidas, más baseline 215/215.
 
@@ -225,10 +227,10 @@ DoD futuro: awards/outcome/final events/outbox atómicos e idempotentes; tiebrea
 |---|---|---|
 | IQ-M2-001…002, 006…007 | RESOLVED | decisiones aplicables en futuros gates |
 | IQ-M2-003 | RESOLVED AS APPROACH | sustituida por approval de contenido/hash IQ-M2-010 |
-| IQ-M2-004 | RESOLVED AS BOUNDARY | provider pendiente en IQ-M2-008 |
-| IQ-M2-005 | RESOLVED AS CONTRACT DIRECTION | runtime/envelope pendiente en IQ-M2-009 |
-| IQ-M2-008 | OPEN | bloquea afirmar transporte productivo M2-2 |
-| IQ-M2-009 | OPEN | bloquea implementar transporte productivo M2-2 |
+| IQ-M2-004 | RESOLVED AS BOUNDARY | provider resuelto posteriormente en IQ-M2-008/DEC-081 |
+| IQ-M2-005 | RESOLVED AS CONTRACT DIRECTION | runtime/envelope resuelto posteriormente en IQ-M2-009/DEC-081 |
+| IQ-M2-008 | RESOLVED mediante DEC-081 | Auth0 application-side; identidad `sub` verificada y autoridad PostgreSQL interna |
+| IQ-M2-009 | RESOLVED mediante DEC-081 | WSS + Node.js 24/`ws` + protocolo propio + Render; LISTEN/NOTIFY sólo wake-up |
 | IQ-M2-010 | RESOLVED mediante DEC-077 | REG-CAND-001…004 aprobadas; no autoriza implementación |
 | IQ-M2-011 | RESOLVED mediante DEC-078 | PostgreSQL 18.6 `uuidv7()` sin extensión; defaults/checks/RETURNING implementados |
 | IQ-M2-012 | RESOLVED mediante DEC-078 | sin RLS en M2-A; tres roles de mínimo privilegio y `PUBLIC` revocado |
@@ -254,4 +256,4 @@ M2 sólo podrá cerrarse tras nuevas autorizaciones si:
 
 ## 19. Gate de salida documental
 
-El planning gate queda **APPROVED AND CLOSED mediante DEC-076** y M2-0 **APPROVED AND CLOSED mediante DEC-077**. M2-A/M2-1 queda **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080**, con commit funcional final `85ec047726a68007fbcabf07c6b3fe1b911a3070`, M2A-R01…R30 **CLOSED**, owner nominal **22/22 PASS**, gate acumulado **38/38 PASS**, regresiones asignadas previas **14/14 preservadas**, baseline M0/M1 **215/215 preservada** y suite final **253/253 PASS en 28 archivos** sobre PostgreSQL 18.6, migrations `001…006`, esquema físico **87/87 tablas** y Catalog SHA-256 `447d8e06e3030a2744135c56edca135a142b2fcc252e69dd377259fc81d8a465`. IQ-M2-011…015 están **RESOLVED** según sus decisiones aplicables; IQ-M2-008/009 permanecen **OPEN exclusivamente para M2-2**. M2-2…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
+El planning gate queda **APPROVED AND CLOSED mediante DEC-076** y M2-0 **APPROVED AND CLOSED mediante DEC-077**. M2-A/M2-1 queda **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080**, con commit funcional final `85ec047726a68007fbcabf07c6b3fe1b911a3070`, M2A-R01…R30 **CLOSED**, owner nominal **22/22 PASS**, gate acumulado **38/38 PASS**, regresiones asignadas previas **14/14 preservadas**, baseline M0/M1 **215/215 preservada** y suite final **253/253 PASS en 28 archivos** sobre PostgreSQL 18.6, migrations `001…006`, esquema físico **87/87 tablas** y Catalog SHA-256 `447d8e06e3030a2744135c56edca135a142b2fcc252e69dd377259fc81d8a465`. IQ-M2-008…015 están **RESOLVED** según sus decisiones aplicables. El decision gate M2-2 queda **APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED mediante DEC-081**, con 8 owners + 17 regresiones = 25 ejecuciones dirigidas, baseline previa 253/253 y suite mínima futura 261 casos únicos. M2-3…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT YET CLOSED** y M3 **NOT AUTHORIZED**.

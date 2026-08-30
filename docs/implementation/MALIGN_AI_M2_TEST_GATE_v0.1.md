@@ -2,10 +2,10 @@
 
 **Fecha:** 2026-08-27
 **Estado:** M2-0 APPROVED AND CLOSED / M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080
-**Autoridad:** DEC-074…DEC-080; DEC-080 cierra exclusivamente M2-A/M2-1
+**Autoridad:** DEC-074…DEC-081; DEC-081 aprueba sólo el decision gate de M2-2
 **Oracle:** `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_SPEC_v0.1.md`
 **Addenda:** M1 v0.1 preservado; M2 v0.1 aprobado como test acceptance baseline
-**Implementación M2:** **M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED; M2-2…M2-7 NOT AUTHORIZED; M2 global NOT YET CLOSED; M3 NOT AUTHORIZED**
+**Implementación M2:** **M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED; M2-2 DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED; M2-3…M2-7 NOT AUTHORIZED; M2 global NOT YET CLOSED; M3 NOT AUTHORIZED**
 
 > Históricamente, DEC-078 materializó exclusivamente los 22 owner asignados a M2-A/M2-1. DEC-080 aprobó y cerró posteriormente M2-A/M2-1. Los owners y conteos de M2-2…M2-7 permanecen futuros, sin alteración y no autorizados.
 
@@ -127,7 +127,9 @@ El oracle no contiene ID nominal de transporte productivo; M1 sólo cubre semán
 
 Riesgo trazado: authenticated boundary, privacy, cursor binding, initial-sync race, duplicate/out-of-order delivery y gap/reconnect recovery. La repetición de core concurrency respecto de M2-1 se justifica porque ahora cruza el boundary de transporte.
 
-Gate futuro: **25 ejecuciones dirigidas + baseline 215/215**; 8 casos nuevos; suite mínima acumulada 245. IQ-M2-008/009 deben resolverse antes de llamarlo productivo.
+Decision gate DEC-081: **APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED**. IQ-M2-008/009 quedan **RESOLVED**; PTD-M2-012…016 fijan Auth0 application-side, primer frame WebSocket y autoridad PostgreSQL, Node.js 24 + `ws` + `malign.realtime.v1`, `LISTEN/NOTIFY` sólo como wake-up y Render como target de referencia.
+
+Gate futuro de implementación: **8 owners + 17 regresiones = 25 ejecuciones dirigidas**; baseline aprobada previamente **253/253** —no reejecutada por DEC-081—; suite mínima acumulada futura **261 casos únicos**; 0 skips, 0 todo y 0 waivers. Las asignaciones de owners/regresiones de M2-2…M2-7 permanecen intactas.
 
 ## 7. M2-3 — Complete Scheduler and Remaining Core Rules
 
@@ -344,7 +346,7 @@ Cada fallo afirma ausencia de publish, mutación parcial, RNG adicional y leakag
 - los invariantes futuros de E021 prueban no contribución del source-card player, +1 `EFFECTIVE_CV` por contribuidor único, atomicidad ante rechazo/saldo insuficiente y retry idempotente sin doble débito/bonus;
 - auditoría primaria cubre `Cartas frente.pdf` 108/108 con SHA-256 `3301fd9e92e5d8a8df7a3efc1407434afe0395263a5d6c0e16e0e486faa35113`, 59 literales/41 ausencias por definition, 102 MATCH, 6 DIFFERENCE y 0 AMBIGUOUS; seriales 26/28 preservan sus literales y registran los bindings internos aprobados por M20-R10;
 - REG-07…10 PASS; REG-CAND-001…004 aprobadas mediante DEC-077;
-- IQ-M2-010…015 resueltas según sus decisiones aplicables; IQ-M2-008/009 permanecen OPEN exclusivamente para M2-2;
+- IQ-M2-008…015 resueltas según sus decisiones aplicables; DEC-081 no autoriza implementación M2-2;
 - baseline histórica 215/215 no reejecutada en M2-0;
 - ningún test, fixture o código creado por este gate.
 
@@ -356,4 +358,4 @@ FAIL ante ID/owner inválido, conteo irreconciliable, test suavizado, fixture qu
 
 ## 16. Estado
 
-El planning gate está **APPROVED AND CLOSED mediante DEC-076**, M2-0 **APPROVED AND CLOSED mediante DEC-077** y M2-A/M2-1 **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080**. El commit funcional final es `85ec047726a68007fbcabf07c6b3fe1b911a3070`; M20-R01…R10 y M2A-R01…R30 están **CLOSED**. El gate vigente M2-A es **38/38 PASS** y la suite final **253/253 PASS en 28 archivos**, con PostgreSQL 18.6, migrations `001…006`, esquema físico **87/87 tablas** y Catalog SHA-256 `447d8e06e3030a2744135c56edca135a142b2fcc252e69dd377259fc81d8a465`. IQ-M2-011…015 están **RESOLVED**; IQ-M2-008/009 permanecen **OPEN exclusivamente para M2-2**. M2-2…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
+El planning gate está **APPROVED AND CLOSED mediante DEC-076**, M2-0 **APPROVED AND CLOSED mediante DEC-077** y M2-A/M2-1 **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080**. El commit funcional final es `85ec047726a68007fbcabf07c6b3fe1b911a3070`; M20-R01…R10 y M2A-R01…R30 están **CLOSED**. El gate vigente M2-A es **38/38 PASS** y la suite final **253/253 PASS en 28 archivos**, con PostgreSQL 18.6, migrations `001…006`, esquema físico **87/87 tablas** y Catalog SHA-256 `447d8e06e3030a2744135c56edca135a142b2fcc252e69dd377259fc81d8a465`. DEC-081 resuelve IQ-M2-008/009 y deja M2-2 **DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED**. Su gate futuro conserva 8 owners + 17 regresiones = 25 ejecuciones, baseline previa 253/253 y mínimo futuro 261 casos únicos. M2-3…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
