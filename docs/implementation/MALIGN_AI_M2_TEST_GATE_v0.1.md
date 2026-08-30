@@ -2,10 +2,10 @@
 
 **Fecha:** 2026-08-27
 **Estado:** M2-0 APPROVED AND CLOSED / M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080
-**Autoridad:** DEC-074…DEC-081; DEC-081 aprueba sólo el decision gate de M2-2
+**Autoridad:** DEC-074…DEC-082 y corrección autorizada M22-R09…R14
 **Oracle:** `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_SPEC_v0.1.md`
 **Addenda:** M1 v0.1 preservado; M2 v0.1 aprobado como test acceptance baseline
-**Implementación M2:** **M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED; M2-2 DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED; M2-3…M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
+**Implementación M2:** **M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED; M2-2 CORRECTION IMPLEMENTED / PENDING REVIEW; M2-3…M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
 
 > Históricamente, DEC-078 materializó exclusivamente los 22 owner asignados a M2-A/M2-1. DEC-080 aprobó y cerró posteriormente M2-A/M2-1. Los owners y conteos de M2-2…M2-7 permanecen futuros, sin alteración y no autorizados.
 
@@ -112,6 +112,21 @@ Resultado histórico de DEC-078: **22/22 owner PASS**, **14/14 regresiones dirig
 Cierre posterior mediante DEC-080: M2-A/M2-1 queda **IMPLEMENTED AND APPROVED / CLOSED** en el commit funcional final `85ec047726a68007fbcabf07c6b3fe1b911a3070`; M2A-R01…R30 quedan **CLOSED**. Owner nominal: **22/22 PASS**; gate acumulado M2-A: **38/38 PASS**; regresiones asignadas previas: **14/14 preservadas**; baseline M0/M1: **215/215 preservada**; suite final: **253/253 PASS en 28 archivos, 0 skips, 0 todo y 0 waivers**. Los gates finales usan PostgreSQL real **18.6**, migrations `001…006`, esquema físico **87/87 tablas** y Catalog SHA-256 `447d8e06e3030a2744135c56edca135a142b2fcc252e69dd377259fc81d8a465`.
 
 ## 6. M2-2 — Productive Transport and Reconnect
+
+### Gate correctivo M22-R09…R14
+
+Resultado vigente de la corrección: **75/75 PASS** en el gate dirigido; suite acumulada **302/302 PASS en 34 archivos**, 0 skips, 0 todo y 0 waivers. M2-2 permanece `CORRECTION IMPLEMENTED / PENDING REVIEW`.
+
+| Hallazgo | Evidencia ejecutable obligatoria |
+|---|---|
+| M22-R09 | PostgreSQL 18.6; dos procesos Node, pools/application boundaries/puertos/sockets independientes; JWKS local; outbox y LISTEN/NOTIFY reales; pérdida, duplicado, desorden y carrera de activación |
+| M22-R10 | CREATE/JOIN productivos ausentes; preprovisionado válido; rechazo opaco sin enumeración |
+| M22-R11 | WSS directo; direct sin material/falsificación rechazado; trusted proxy validado por peer + HTTPS externo |
+| M22-R12 | BFF invalida antes de logout; digest-only NOTIFY cierra el mismo subject en otro nodo; duplicados inocuos |
+| M22-R13 | preflight de runtime/outbox/listener; principals intercambiados/admin/missing fallan antes de abrir puerto |
+| M22-R14 | cola por subscription; múltiples batches; ACK first/intermediate/final/stale; cursores inventados/foráneos rechazados; resync revalida membership |
+
+El gate real no puede satisfacerse con `FakePool`, dos objetos en un proceso o application singleton compartida. Los dobles permanecen únicamente como cobertura unitaria complementaria.
 
 ### 6.1 Oracle owner — 0
 

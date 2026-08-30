@@ -3,7 +3,7 @@
 **Fecha:** 2026-08-29
 **Estado:** IMPLEMENTED / PENDING REVIEW mediante DEC-082
 **Autoridad:** DEC-081; DEC-082; PTD-M2-012…016
-**Baseline preservada:** 253/253 PASS; suite actual 288/288 PASS en 32 archivos
+**Baseline preservada:** 253/253 PASS; suite actual 302/302 PASS en 34 archivos
 
 > DEC-082 autorizó y materializó exclusivamente M2-2. Este estado no constituye aprobación ni cierre técnico; no autoriza cuentas, secrets, infraestructura persistente, despliegue ni bloques posteriores.
 
@@ -240,8 +240,19 @@ Reconciliación del gate futuro: **8 owners + 17 regresiones = 25 ejecuciones di
 
 ## 15. Evidencia de implementación
 
-DEC-082 fijó `ws@8.21.3`, `@types/ws@8.18.1`, `jose@6.2.10` y `@auth0/nextjs-auth0@4.28.0`. El gate ejecuta 8/8 owners y 17/17 regresiones asignadas, preserva la baseline 253/253 y alcanza 288/288 casos en 32 archivos, con 0 skips, 0 todo y 0 waivers. Las pruebas complementarias usan JWT RS256/JWKS real local, HTTP/WSS real, nodos/adapters separados, PostgreSQL 18.6 y fallos reproducibles sin Auth0 ni Render reales.
+DEC-082 fijó `ws@8.21.3`, `@types/ws@8.18.1`, `jose@6.2.10` y `@auth0/nextjs-auth0@4.28.0`. Tras M22-R09…R14, el gate ejecuta 75/75 casos dirigidos, preserva la baseline 253/253 y alcanza 302/302 casos en 34 archivos, con 0 skips, 0 todo y 0 waivers. Las pruebas complementarias usan JWT RS256/JWKS real local, HTTP/WSS real, dos procesos Node y PostgreSQL 18.6 reales, más fallos reproducibles sin Auth0 ni Render reales.
 
-**Estado final:** `M2-2 IMPLEMENTED / PENDING REVIEW`.
+## 16. Corrección integral M22-R09…R14
+
+- **M22-R09:** gate obligatorio sobre PostgreSQL 18.6 con dos procesos Node, pools y application boundaries independientes, TCP/WebSocket reales, issuer JWKS efímero, outbox real y LISTEN/NOTIFY real. Los casos demuestran reconnect cruzado, post-commit, pérdida, duplicado, desorden, carrera subscribe/catch-up/live y aislamiento.
+- **M22-R10 / IQ-M2-016:** sólo Games/memberships preprovisionados. `CREATE_GAME` y `JOIN_GAME_MEMBERSHIP` están fuera del contrato productivo y fallan antes de resolver membership. Onboarding productivo queda diferido.
+- **M22-R11:** `direct` exige socket TLS y material local; headers proxy no lo eluden. `trusted_proxy` exige peer expresamente configurado y evidencia HTTPS externa exacta. `disabled` sólo sirve test/desarrollo autorizado.
+- **M22-R12:** logout BFF obtiene token server-side, invoca invalidación y sólo después elimina sesión local. La propagación usa digest SHA-256 opaco de issuer normalizado + subject; es distribuida, efímera, tolerante a duplicados y no constituye ledger durable. Expiración del token es backstop; backchannel logout durable queda fuera.
+- **M22-R13:** application, outbox y listener requieren URLs explícitas y pools independientes. Cada principal LOGIN posee exactamente una membership de producto; admin/migrator/roles intercambiados fallan antes de aceptar tráfico. Membership consulta dentro de transacción con `SET LOCAL ROLE malign_app_runtime`.
+- **M22-R14:** cada subscription posee cola serial, cursores monotónicos y checkpoints emitidos. ACK acepta cualquier checkpoint emitido/autorizado y ACK stale aplicado; rechaza futuro, inventado, extranjero o no emitido. Batches intermedios no contienen proyección; sólo el final contiene una proyección coherente. Resync acepta únicamente cursor inicial/emitido/acknowledged y revalida membership.
+
+No se añadieron dependencias, migrations, tablas, roles, reglas o despliegue. M22-R01…R08 permanecen vigentes.
+
+**Estado final:** `M2-2 CORRECTION IMPLEMENTED / PENDING REVIEW`.
 
 M2-3…M2-7 permanecen **NOT AUTHORIZED**; M2 global **NOT YET CLOSED**; M3 **NOT AUTHORIZED**.

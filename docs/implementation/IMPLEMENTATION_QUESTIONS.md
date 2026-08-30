@@ -185,3 +185,10 @@
 - **Execution contract:** the administrative bootstrap creates `malign_migration_owner`, `malign_app_runtime` and `malign_outbox_publisher` if absent, preserves all three as `NOLOGIN` and minimum privilege, grants only the authorized migrator membership needed for `SET ROLE malign_migration_owner`, and stores no credentials. Migrations `001` and `002` run under `SET ROLE malign_migration_owner`; `003` runs under bootstrap administrative authority without byte or checksum changes; `004` and `005+` run under `SET ROLE malign_migration_owner`.
 - **Verification contract:** audit expected `session_user/current_user` at every stage; application UoW runs as `malign_app_runtime`; publisher runs as `malign_outbox_publisher`; administrative credentials are never exposed to runtime, publisher, browser or gameplay.
 - **Status:** **RESOLVED mediante DEC-079**.
+
+## IQ-M2-016 — Productive onboarding scope for M2-2 — RESOLVED
+
+- **Evidence:** la revisión del baseline `dfac53588463e319da27c8404f835fa1f897771b` identificó que el contrato HTTP productivo todavía incluía `JOIN_GAME_MEMBERSHIP`, aunque M2-2 no define invitation provisioning, enrollment productivo ni autoridad para crear partidas desde el transporte público.
+- **Resolution approved by Product Owner:** M2-2 opera exclusivamente sobre Games y memberships previamente provisionados mediante el seam administrativo aprobado. `CREATE_GAME` y `JOIN_GAME_MEMBERSHIP` no están disponibles en HTTP/HTTPS productivo y se rechazan antes de lookup de membership con `COMMAND_NOT_AVAILABLE_ON_PRODUCTIVE_TRANSPORT`. Los seams internos de M2-A se preservan.
+- **Deferred boundary:** onboarding, invitations y aprovisionamiento productivo requieren un gate separado; esta resolución no los autoriza.
+- **Status:** **RESOLVED mediante la autorización de corrección M22-R09…R14**.

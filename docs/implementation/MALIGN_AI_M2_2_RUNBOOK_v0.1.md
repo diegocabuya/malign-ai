@@ -1,6 +1,6 @@
 # MALIGN-AI — M2-2 Productive Transport Runbook v0.1
 
-**Estado:** IMPLEMENTED / PENDING REVIEW mediante DEC-082
+**Estado:** CORRECTION IMPLEMENTED / PENDING REVIEW mediante DEC-082 y M22-R09…R14
 **Baseline:** `1569b0b634d63be0c7aee011b44353fd6df317ca`
 **PostgreSQL:** 18.6; migrations 001…006; 87/87 tablas
 
@@ -26,8 +26,11 @@ No se instalaron Socket.IO, framework HTTP, ORM, Redis/broker, addon opcional de
 | `MALIGN_LISTENER_DATABASE_URL` | conexión LISTEN dedicada |
 | `MALIGN_ALLOWED_ORIGINS` | allowlist exacta, separada por comas |
 | `MALIGN_NODE_ID` | identidad estructurada del nodo |
+| `MALIGN_TLS_MODE` | `direct`, `trusted_proxy` o `disabled` sólo para test/desarrollo |
+| `MALIGN_TRUSTED_PROXY_ADDRESSES` | peers exactos autorizados para terminación TLS en edge |
 | `MALIGN_REALTIME_FEED_BATCH_SIZE` | default 100 |
 | `MALIGN_REALTIME_CATCHUP_MS` | default 5000 ms |
+| `MALIGN_OUTBOX_POLL_MS` | default 100 ms |
 | `MALIGN_SHUTDOWN_GRACE_MS` | default 10000 ms |
 | `MALIGN_TLS_KEY_PATH`, `MALIGN_TLS_CERT_PATH` | TLS local/directo; obligatorios en `NODE_ENV=production` |
 | `AUTH0_ISSUER_BASE_URL`, `AUTH0_AUDIENCE`, `AUTH0_CLIENT_ID` | binding JWT exacto |
@@ -36,6 +39,10 @@ No se instalaron Socket.IO, framework HTTP, ORM, Redis/broker, addon opcional de
 | `AUTH0_CLOCK_TOLERANCE_SECONDS` | default 2; máximo 5 |
 
 AuthN se construye de forma lazy en el BFF para que `pnpm build` no haga discovery. Un request productivo sin configuración falla cerrado. El access token aparece sólo en el header HTTPS o primer frame WSS, nunca en URL, log, métrica o error.
+
+El transporte requiere Games y memberships previamente provisionados. `CREATE_GAME` y `JOIN_GAME_MEMBERSHIP` no están disponibles productivamente; onboarding queda diferido. No existe fallback desde las tres URLs PostgreSQL explícitas hacia `DATABASE_URL`, `MALIGN_TEST_DATABASE_URL` o credenciales administrativas.
+
+En `direct`, clave/certificado local y socket TLS son obligatorios. En `trusted_proxy`, el socket debe provenir de un peer allowlisted y declarar exactamente HTTPS externo; headers de un origen no confiable no tienen autoridad. `disabled` falla cerrado en producción.
 
 ## Flujo operativo
 
@@ -48,6 +55,7 @@ AuthN se construye de forma lazy en el BFF para que `pnpm build` no haga discove
 7. Commit PostgreSQL crea outbox; publisher confirma delivery y emite `NOTIFY` opaco post-commit.
 8. Cada nodo relee feed/proyección durable. Browser aplica at-least-once, deduplica y ACK sólo el cursor emitido contiguo.
 9. Gap explícito produce `GAP_DETECTED` seguido por feed/proyección autorizados. Reconnect revalida token, sesión y membership en cualquier nodo.
+10. Logout BFF invoca invalidación server-side antes de borrar la sesión local. PostgreSQL propaga sólo un digest SHA-256 opaco; la revocación es distribuida pero efímera, con expiración del token como backstop.
 
 ## Límites y seguridad
 
@@ -84,4 +92,4 @@ pnpm build
 pnpm audit --prod
 ```
 
-Estado esperado: 8/8 owner, 17/17 regresiones asignadas, 27/27 complementarias y suite 288/288 en 32 archivos; 0 skips, 0 todo y 0 waivers. M2-2 no está aprobado/cerrado. M2-3…M2-7 no están autorizados.
+Estado verificado tras M22-R09…R14: 8/8 owner, 17/17 regresiones asignadas, 50/50 complementarias/regresiones ejecutables del gate M2-2 y gate dirigido 75/75; suite 302/302 en 34 archivos; 0 skips, 0 todo y 0 waivers. M2-2 no está aprobado/cerrado. M2-3…M2-7 no están autorizados.

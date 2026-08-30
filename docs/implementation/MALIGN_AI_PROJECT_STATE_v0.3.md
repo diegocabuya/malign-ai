@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-29
-**Fase actual:** M0 IMPLEMENTED AND APPROVED — M1 IMPLEMENTED AND APPROVED / CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 IMPLEMENTED AND APPROVED mediante DEC-080 — M2-2 IMPLEMENTED / PENDING REVIEW mediante DEC-082 — M2-3…M2-7 NOT AUTHORIZED — M2 global NOT YET CLOSED — M3 NOT AUTHORIZED
+**Fase actual:** M0 IMPLEMENTED AND APPROVED — M1 IMPLEMENTED AND APPROVED / CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 IMPLEMENTED AND APPROVED mediante DEC-080 — M2-2 CORRECTION IMPLEMENTED / PENDING REVIEW — M2-3…M2-7 NOT AUTHORIZED — M2 global NOT YET CLOSED — M3 NOT AUTHORIZED
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -103,6 +103,7 @@
 | IQ-M2-011 | **RESOLVED mediante DEC-078 — PostgreSQL 18.6 `uuidv7()` sin extensión** |
 | IQ-M2-012 | **RESOLVED mediante DEC-078 — sin RLS; roles separados y mínimo privilegio** |
 | IQ-M2-013 | **RESOLVED FOR M2 mediante DEC-078 — no partition/archive/compaction/hard-delete** |
+| IQ-M2-016 | **RESOLVED — M2-2 sólo admite Games/memberships preprovisionados; onboarding productivo diferido** |
 | M20-R01 — AP balance/journal | **CLOSED mediante DEC-077** |
 | M20-R02 — durable idempotency lifecycle | **CLOSED mediante DEC-077** |
 | M20-R03 — outbox attempt history | **CLOSED mediante DEC-077** |
@@ -132,11 +133,12 @@
 | Decisions v0.3 | **DEC-082 APPROVED — M2-2 IMPLEMENTATION AUTHORIZATION ONLY** |
 | M2-0 — Canonical Foundations Gate documental | **APPROVED AND CLOSED mediante DEC-077** |
 | M2-A/M2-1 — PostgreSQL Persistence and Durable Recovery | **IMPLEMENTED AND APPROVED mediante DEC-080** |
-| M2-2 — Productive Transport and Reconnect | **IMPLEMENTED / PENDING REVIEW mediante DEC-082; no aprobado ni cerrado** |
-| M2-2 gate ejecutado | **8/8 owners PASS + 17/17 regresiones asignadas PASS + 27 complementarias PASS** |
-| Suite acumulada tras M2-2 | **288/288 PASS en 32 archivos, 0 skips, 0 todo, 0 waivers** |
+| M2-2 — Productive Transport and Reconnect | **CORRECTION IMPLEMENTED / PENDING REVIEW; no aprobado ni cerrado** |
+| M2-2 gate ejecutado | **75/75 PASS: 8/8 owners + 17/17 regresiones asignadas + 50 complementarias/regresiones ejecutables** |
+| Suite acumulada tras M2-2 | **302/302 PASS en 34 archivos, 0 skips, 0 todo, 0 waivers** |
 | Dependencias M2-2 | **`ws@8.21.3`, `@types/ws@8.18.1`, `jose@6.2.10`, `@auth0/nextjs-auth0@4.28.0`** |
 | M22-R01…R08 | **CORREGIDOS en la autoauditoría; M2-2 continúa PENDING REVIEW** |
+| M22-R09…R14 | **IMPLEMENTADOS / PENDING REVIEW; evidencia PostgreSQL/multiproceso real, onboarding cerrado, TLS dual, logout distribuido, least privilege y ACK serializado** |
 | M22G-R01 | **CLOSED — mínimos históricos/operativos reconciliados; 253→261→300→345→368→386→416** |
 | M2-3 — Complete Scheduler and Remaining Core Rules | **NOT AUTHORIZED** |
 | M2-4 — Action/Starter Cards and Regime Abilities | **NOT AUTHORIZED** |
@@ -258,15 +260,21 @@ La baseline M0/M1 **215/215 PASS**, el owner nominal M2-A **22/22 PASS** y las *
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**, M2-0 queda **APPROVED AND CLOSED mediante DEC-077**, M2-A/M2-1 queda **IMPLEMENTED AND APPROVED mediante DEC-080** y M2-2 queda **IMPLEMENTED / PENDING REVIEW mediante DEC-082**. M2-3…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
+M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**, M2-0 queda **APPROVED AND CLOSED mediante DEC-077**, M2-A/M2-1 queda **IMPLEMENTED AND APPROVED mediante DEC-080** y M2-2 queda **CORRECTION IMPLEMENTED / PENDING REVIEW**. M2-3…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
 
 ## Implementación M2-2 mediante DEC-082
 
 M2-2 reutiliza `GameSessionApplicationPort`, AuthorizedProjection/feed M1, recovery PostgreSQL y outbox M2-A. `ProductiveAuthnPort` verifica identidad externa por RS256/JWKS; `PostgresMembershipAuthorityAdapter` deriva participant, seat, role, game y permisos desde PostgreSQL. El boundary HTTP/HTTPS conserva los commands autoritativos y el servidor WSS `malign.realtime.v1` se limita a AuthN, subscriptions, SYNC, EVENT_BATCH, ACK, GAP/RESYNC, unsubscribe y draining. `LISTEN/NOTIFY` es sólo wake-up opaco; cada nodo relee feed/proyección durable. No se creó migration, tabla, Engine alterno, política de proyección paralela ni fuente de estado adicional.
 
-El gate dirigido reporta **8/8 owners** y **17/17 regresiones asignadas PASS**. Las **27 pruebas complementarias** cubren JWT criptográfico/JWKS rotation, HTTP y WSS reales, dos nodos stateless, sesión/expiry, cross-game/hijacking, payload/framing/Origin/subprotocolo, backpressure, graceful shutdown, outbox y LISTEN/NOTIFY perdido/duplicado/desordenado/reconectado. La suite acumulada reporta **288/288 PASS en 32 archivos, 0 skips, 0 todo y 0 waivers** sobre PostgreSQL real **18.6**, migrations `001…006` y esquema **87/87**.
+El gate dirigido reporta **75/75 PASS**: **8/8 owners**, **17/17 regresiones asignadas** y **50 pruebas complementarias/regresiones ejecutables**. La evidencia cubre JWT criptográfico/JWKS rotation, HTTP y WSS reales, dos procesos Node stateless, sesión/expiry, cross-game/hijacking, payload/framing/Origin/subprotocolo, backpressure, graceful shutdown, outbox y LISTEN/NOTIFY perdido/duplicado/desordenado/reconectado. La suite acumulada reporta **302/302 PASS en 34 archivos, 0 skips, 0 todo y 0 waivers** sobre PostgreSQL real **18.6**, migrations `001…006` y esquema **87/87**.
 
 La autoauditoría corrigió M22-R01…R08: callback exitoso `ws` con `null` mal interpretado como overload; lifecycle de cierre prematuro; ACK intermedio no emitido; cursores incorrectos en batches; overflow de timer de expiración; configuración de scopes vacía; catch-up periódico de todas las subscriptions; y señal explícita `GAP_DETECTED` antes del feed de recuperación. No queda `IMPLEMENTATION_QUESTION` pendiente. No existe tenant Auth0, cuenta Render, contratación, proveedor cloud, infraestructura persistente, secret productivo ni deployment.
+
+## Corrección M22-R09…R14
+
+M22-R09…R14 están **IMPLEMENTED / PENDING REVIEW**. La evidencia sustituye el multinodo nominal por PostgreSQL 18.6, dos procesos Node, pools/application boundaries independientes, puertos TCP/WebSocket reales y JWKS efímero. IQ-M2-016 queda **RESOLVED** con alcance conservador: Games y memberships deben estar preprovisionados; CREATE/JOIN productivos y onboarding permanecen fuera. TLS separa `direct`, `trusted_proxy` y `disabled` de test; logout distribuye invalidación efímera digest-only; preflight valida tres accesos PostgreSQL de mínimo privilegio; ACK/batching/resync se serializan por subscription con checkpoints monotónicos.
+
+No se creó migration 007, no cambió el esquema 87/87, no se añadieron dependencias y M2-3…M2-7 continúan **NOT AUTHORIZED**. M2-2 no está aprobado ni cerrado.
 
 ## Continuidad documental
 

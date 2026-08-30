@@ -1,6 +1,6 @@
 # MALIGN-AI
 
-MALIGN-AI is a fidelity-first, multiplayer web implementation of the Malign serious game. M0 and M1 are approved/closed, M2-0 and M2-A/M2-1 are approved/closed, and M2-2 Productive Transport and Reconnect is **IMPLEMENTED / PENDING REVIEW under DEC-082**. The current suite reports **288/288 PASS in 32 test files, 0 skips, 0 todo and 0 waivers**.
+MALIGN-AI is a fidelity-first, multiplayer web implementation of the Malign serious game. M0 and M1 are approved/closed, M2-0 and M2-A/M2-1 are approved/closed, and M2-2 Productive Transport and Reconnect is **CORRECTION IMPLEMENTED / PENDING REVIEW**. M2-2 is not approved or closed.
 
 M0 comprises the approved repository bootstrap, pure Rule Kernel, command safety, and in-memory campaign slice. M1 adds:
 
@@ -32,6 +32,7 @@ The implemented baseline consists of a pure deterministic Rule Kernel, an author
 - WSS `malign.realtime.v1` with first-frame authentication, authorized subscriptions, sync, ACK, gaps/resync and reconnect;
 - durable outbox wake-up and stateless multi-node fan-out through PostgreSQL `LISTEN/NOTIFY`;
 - heartbeat, bounded backpressure, token/session invalidation, graceful draining and redacted in-process telemetry.
+- real PostgreSQL 18.6/two-process integration evidence, explicit direct/trusted-proxy TLS modes, digest-only distributed logout invalidation, runtime-role preflight and serialized per-subscription cursor/ACK handling.
 
 M1's deterministic projection/feed policy remains the single authorization source reused by M2-2; WebSocket never adjudicates gameplay commands.
 
@@ -78,6 +79,8 @@ scripts/m2a-restore.sh malign_m2a_restored /tmp/malign-m2a.dump
 See [`docs/implementation/MALIGN_AI_M2_A_RUNBOOK_v0.1.md`](docs/implementation/MALIGN_AI_M2_A_RUNBOOK_v0.1.md) for migrations, roles, recovery, query budgets and failure handling.
 
 M2-2 fixes `ws@8.21.3`, `@types/ws@8.18.1`, `jose@6.2.10` and `@auth0/nextjs-auth0@4.28.0`. Copy `.env.example` and provide local/test values; productive AuthN and TLS fail closed when configuration is absent. The BFF performs no Auth0 discovery during build and retains refresh tokens only server-side when configured.
+
+Productive transport operates only on preprovisioned games and memberships. `CREATE_GAME` and `JOIN_GAME_MEMBERSHIP` remain administrative/internal seams and are not exposed by HTTP/HTTPS M2-2; productive onboarding requires a separate future gate.
 
 The approved specifications are versioned under `docs/`. Documentary precedence is: official Gamebooks/formalized components, approved decisions, adjudication specification, interface contract, test oracle, data model/data dictionary, then architecture/bootstrap specifications. Contradictions must become an `IMPLEMENTATION_QUESTION`; they must not be silently reconciled.
 

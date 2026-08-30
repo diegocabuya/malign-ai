@@ -2,8 +2,8 @@
 
 **Fecha:** 2026-08-27
 **Estado:** M2-0 APPROVED AND CLOSED / M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080
-**Autoridad:** DEC-074…DEC-081; DEC-081 aprueba sólo el decision gate de M2-2
-**Implementación M2:** **M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED; M2-2 DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED; M2-3…M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
+**Autoridad:** DEC-074…DEC-082 y corrección autorizada M22-R09…R14
+**Implementación M2:** **M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED; M2-2 CORRECTION IMPLEMENTED / PENDING REVIEW; M2-3…M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
 
 > DEC-078 autorizó y materializó exclusivamente M2-A/M2-1; DEC-080 aprobó su commit funcional final `85ec047726a68007fbcabf07c6b3fe1b911a3070` y cerró M2A-R01…R30. DEC-080 no autoriza M2-2…M2-7, M2 global o M3.
 
@@ -48,7 +48,7 @@ Ante contradicción se falla cerrado, se registra pregunta y no se inventa compo
 - Mínimo canónico histórico del planning gate M2: `215 + 185 = 400`; no es el mínimo operativo vigente.
 - M2-A implementó 22 casos owner canónicos y añadió 16 casos ejecutables permanentes; la suite vigente es **253/253** y quedan **163 casos canónicos** de M2-2…M2-7.
 - Mínimo operativo vigente para el cierre futuro de M2: `253 + 163 = 416`.
-- PostgreSQL 18.6, migrations `001…006`, outbox durable y recovery de M2-A/M2-1 están implementados y aprobados mediante DEC-080. Permanecen no iniciados/no autorizados el transporte/WebSocket productivo, AuthN productiva, las reglas posteriores de M2-2…M2-7, UI final, IA/OpenAI/RAG, hosting y proveedores.
+- PostgreSQL 18.6, migrations `001…006`, outbox durable y recovery de M2-A/M2-1 están implementados y aprobados mediante DEC-080. Transporte/WebSocket y AuthN configurables de M2-2 están implementados con correcciones M22-R09…R14 y pendientes de revisión; permanecen no iniciados/no autorizados M2-3…M2-7, UI final, IA/OpenAI/RAG, hosting, cuentas y proveedores productivos.
 
 Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, analítica/AAR avanzada, proveedores no aprobados y M3. DEC-081 selecciona sólo referencias técnicas para el gate M2-2 —Auth0, Node.js 24 + `ws`, Render y PostgreSQL `LISTEN/NOTIFY` como wake-up— sin autorizar librerías, cuentas, planes, secrets, infraestructura o despliegue.
 
@@ -74,7 +74,7 @@ Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, an
 |---|---|---|---:|---|
 | M2-0 | Canonical Foundations Gate documental | Physical DB Spec, addendum M2, registry, Product Owner Review Matrix y hashes | 0 | APPROVED AND CLOSED mediante DEC-077 |
 | M2-1 | PostgreSQL Persistence and Durable Recovery | M2-0 aprobado; registry aprobado para seed | 22 | IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080 |
-| M2-2 | Productive Transport and Reconnect | M2-1 aprobado; IQ-M2-008/009 resueltas mediante DEC-081 | 8 | DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED |
+| M2-2 | Productive Transport and Reconnect | M2-1 aprobado; IQ-M2-008/009/016 resueltas | 8 | CORRECTION IMPLEMENTED / PENDING REVIEW |
 | M2-3 | Complete Scheduler and Remaining Core Rules | M2-1; contrato de registry suficiente | 39 | NOT AUTHORIZED |
 | M2-4 | Action/Starter Cards and Regime Abilities | M2-3; IQ-M2-010 resuelta | 45 | NOT AUTHORIZED |
 | M2-5 | Reaction, Veto and Deterministic Narrative | M2-3/M2-4; transport recovery para gate productivo | 23 | NOT AUTHORIZED |
@@ -148,6 +148,10 @@ Reversión operativa: volver al adapter in-memory por el mismo port y restaurar 
 M2-A/M2-1 queda **IMPLEMENTED AND APPROVED / CLOSED** en el commit funcional final `85ec047726a68007fbcabf07c6b3fe1b911a3070`. M2A-R01…R30 están **CLOSED**. El owner nominal queda en **22/22 PASS**, el gate acumulado M2-A en **38/38 PASS**, las **14/14 regresiones asignadas previas** y la baseline M0/M1 **215/215** permanecen preservadas, y la suite final reporta **253/253 PASS en 28 archivos, 0 skips, 0 todo y 0 waivers**. Los gates se ejecutaron con PostgreSQL real **18.6**, migrations `001…006` y esquema físico **87/87 tablas**; Catalog SHA-256: `447d8e06e3030a2744135c56edca135a142b2fcc252e69dd377259fc81d8a465`.
 
 ## 8. M2-2 — Productive Transport and Reconnect
+
+La corrección M22-R09…R14 fija el alcance productivo en partidas y memberships preprovisionados; `CREATE_GAME` y `JOIN_GAME_MEMBERSHIP` permanecen sólo en seams administrativos. La evidencia obligatoria usa PostgreSQL 18.6, dos procesos Node, application boundaries/pools independientes, puertos TCP, WebSocket y JWKS efímero reales. TLS tiene modos explícitos `direct`, `trusted_proxy` y `disabled` sólo para test/desarrollo; el proxy debe estar allowlisted por dirección y presentar `X-Forwarded-Proto=https`.
+
+La invalidación de logout se propaga de forma distribuida pero efímera mediante `LISTEN/NOTIFY` con únicamente SHA-256 de issuer normalizado + subject; no es ledger durable y la expiración corta del token sigue siendo backstop. Runtime, outbox y listener exigen URLs y principals LOGIN separados de mínimo privilegio, con preflight anterior a `listen()`. Cada subscription serializa catch-up/live/wakeup/resync/ACK/unsubscribe; conserva checkpoints emitidos, acepta ACK stale aplicado, rechaza cursores no emitidos y sólo incluye proyección en el batch final.
 
 Incluye, sólo para una futura autorización: HTTP commands/queries; protocolo WebSocket propio y versionado; AuthN application-side; outbox publisher; delivery at-least-once; ordering, dedup y gaps; reconnect/recovery entre procesos o nodos.
 
