@@ -1,6 +1,6 @@
 # MALIGN-AI — M2-2 Productive Transport Runbook v0.1
 
-**Estado:** CORRECTION IMPLEMENTED / PENDING REVIEW mediante DEC-082 y M22-R09…R14
+**Estado:** IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083; M22-R01…R14 CLOSED
 **Baseline:** `1569b0b634d63be0c7aee011b44353fd6df317ca`
 **PostgreSQL:** 18.6; migrations 001…006; 87/87 tablas
 
@@ -92,4 +92,4 @@ pnpm build
 pnpm audit --prod
 ```
 
-Estado verificado tras M22-R09…R14: 8/8 owner, 17/17 regresiones asignadas, 50/50 complementarias/regresiones ejecutables del gate M2-2 y gate dirigido 75/75; suite 302/302 en 34 archivos; 0 skips, 0 todo y 0 waivers. M2-2 no está aprobado/cerrado. M2-3…M2-7 no están autorizados.
+Estado aprobado mediante DEC-083: 8/8 owner, 17/17 regresiones asignadas, 50/50 complementarias/regresiones ejecutables del gate M2-2 y gate dirigido 75/75; suite 302/302 en 34 archivos; 0 skips, 0 todo y 0 waivers. M2-2 está cerrado. M2-3…M2-7 no están autorizados.

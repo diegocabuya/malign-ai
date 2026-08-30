@@ -1,6 +1,6 @@
 # MALIGN-AI
 
-MALIGN-AI is a fidelity-first, multiplayer web implementation of the Malign serious game. M0 and M1 are approved/closed, M2-0 and M2-A/M2-1 are approved/closed, and M2-2 Productive Transport and Reconnect is **CORRECTION IMPLEMENTED / PENDING REVIEW**. M2-2 is not approved or closed.
+MALIGN-AI is a fidelity-first, multiplayer web implementation of the Malign serious game. M0 and M1 are approved/closed; M2-0, M2-A/M2-1 and M2-2 Productive Transport and Reconnect are **IMPLEMENTED AND APPROVED / CLOSED**. The executable baseline is **302/302 PASS in 34 files, 0 skips, 0 todo and 0 waivers**.
 
 M0 comprises the approved repository bootstrap, pure Rule Kernel, command safety, and in-memory campaign slice. M1 adds:
 
@@ -17,7 +17,7 @@ M0 comprises the approved repository bootstrap, pure Rule Kernel, command safety
 
 Five players and one facilitator share a game session. The server is authoritative. The codebase is a TypeScript modular monolith with separate web and server applications, a framework-independent domain and Game Engine, server-side security projections, and persistence behind ports.
 
-The implemented baseline consists of a pure deterministic Rule Kernel, an authoritative Game Engine and application boundaries, the approved M2-A persistence stack, and the review-pending M2-2 transport:
+The implemented baseline consists of a pure deterministic Rule Kernel, an authoritative Game Engine and application boundaries, the approved M2-A persistence stack, and the approved M2-2 transport:
 
 - PostgreSQL 18.6 with 87 product tables and six forward-only SQL migrations;
 - the approved, versioned registry seed;
@@ -36,7 +36,7 @@ The implemented baseline consists of a pure deterministic Rule Kernel, an author
 
 M1's deterministic projection/feed policy remains the single authorization source reused by M2-2; WebSocket never adjudicates gameplay commands.
 
-No Auth0 tenant/account, cloud provider, hosting deployment, productive secrets, final UI, or AI/OpenAI/RAG exists. M2-3…M2-7 remain **NOT AUTHORIZED**, M2 global is **NOT YET CLOSED**, and M3 remains **NOT STARTED / NOT AUTHORIZED**. M2-2 is not approved or closed until external review.
+No Auth0 tenant/account, cloud provider, hosting deployment, productive secrets, final UI, or AI/OpenAI/RAG exists. M2-3…M2-7 remain **NOT AUTHORIZED**, M2 global is **NOT YET CLOSED**, and M3 remains **NOT STARTED / NOT AUTHORIZED**.
 
 > **LLM != Game Engine.** AI may eventually explain or suggest actions from an authorized projection, but it never adjudicates deterministic rules.
 

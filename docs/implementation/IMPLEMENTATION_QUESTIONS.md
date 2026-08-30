@@ -191,4 +191,4 @@
 - **Evidence:** la revisión del baseline `dfac53588463e319da27c8404f835fa1f897771b` identificó que el contrato HTTP productivo todavía incluía `JOIN_GAME_MEMBERSHIP`, aunque M2-2 no define invitation provisioning, enrollment productivo ni autoridad para crear partidas desde el transporte público.
 - **Resolution approved by Product Owner:** M2-2 opera exclusivamente sobre Games y memberships previamente provisionados mediante el seam administrativo aprobado. `CREATE_GAME` y `JOIN_GAME_MEMBERSHIP` no están disponibles en HTTP/HTTPS productivo y se rechazan antes de lookup de membership con `COMMAND_NOT_AVAILABLE_ON_PRODUCTIVE_TRANSPORT`. Los seams internos de M2-A se preservan.
 - **Deferred boundary:** onboarding, invitations y aprovisionamiento productivo requieren un gate separado; esta resolución no los autoriza.
-- **Status:** **RESOLVED mediante la autorización de corrección M22-R09…R14**.
+- **Status:** **RESOLVED mediante la autorización de corrección M22-R09…R14 y formalmente cerrado mediante DEC-083**.

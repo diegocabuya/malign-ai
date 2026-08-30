@@ -2,10 +2,10 @@
 
 **Fecha:** 2026-08-27
 **Estado:** M2-0 APPROVED AND CLOSED / M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080
-**Autoridad:** DEC-074…DEC-082 y corrección autorizada M22-R09…R14
+**Autoridad:** DEC-074…DEC-083
 **Oracle:** `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_SPEC_v0.1.md`
 **Addenda:** M1 v0.1 preservado; M2 v0.1 aprobado como test acceptance baseline
-**Implementación M2:** **M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED; M2-2 CORRECTION IMPLEMENTED / PENDING REVIEW; M2-3…M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
+**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3…M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
 
 > Históricamente, DEC-078 materializó exclusivamente los 22 owner asignados a M2-A/M2-1. DEC-080 aprobó y cerró posteriormente M2-A/M2-1. Los owners y conteos de M2-2…M2-7 permanecen futuros, sin alteración y no autorizados.
 
@@ -57,14 +57,14 @@ M2-A implementó 22 de los 185 casos canónicos y añadió 16 casos ejecutables 
 | Checkpoint operativo | Suite previa obligatoria | Casos canónicos nuevos | Mínimo operativo resultante |
 |---|---:|---:|---:|
 | M2-A/M2-1 cerrado | — | — | **253** |
-| M2-2 | 253 | 8 | **261** |
-| M2-3 | 261 | 39 | **300** |
-| M2-4 | 300 | 45 | **345** |
-| M2-5 | 345 | 23 | **368** |
-| M2-6 | 368 | 18 | **386** |
-| M2-7 / M2 completo | 386 | 30 | **416** |
+| M2-2 cerrado | 253 | 8 canónicos + cobertura complementaria | **302 real** |
+| M2-3 | 302 | 39 | **341** |
+| M2-4 | 341 | 45 | **386** |
+| M2-5 | 386 | 23 | **409** |
+| M2-6 | 409 | 18 | **427** |
+| M2-7 / M2 completo | 427 | 30 | **457** |
 
-El mínimo operativo vigente para el cierre futuro de M2 es `253 + 163 = 416`. Los 16 casos ejecutables adicionales incorporados durante M2-A permanecen obligatorios. Las 86 regresiones dirigidas se ejecutan según asignación, pero no se suman nuevamente como casos únicos.
+El mínimo planificado histórico permanece `253 + 163 = 416`. El cierre real M2-2 establece baseline ejecutable 302; por ello el mínimo operativo vigente de cierre M2 es `302 + 155 = 457`. Las regresiones dirigidas conservan su asignación y no se suman nuevamente como casos canónicos.
 
 ## 4. M2-0 — Canonical Foundations Gate
 
@@ -115,7 +115,7 @@ Cierre posterior mediante DEC-080: M2-A/M2-1 queda **IMPLEMENTED AND APPROVED / 
 
 ### Gate correctivo M22-R09…R14
 
-Resultado vigente de la corrección: **75/75 PASS** en el gate dirigido; suite acumulada **302/302 PASS en 34 archivos**, 0 skips, 0 todo y 0 waivers. M2-2 permanece `CORRECTION IMPLEMENTED / PENDING REVIEW`.
+Resultado aprobado mediante DEC-083: **75/75 PASS** en el gate dirigido; suite acumulada **302/302 PASS en 34 archivos**, 0 skips, 0 todo y 0 waivers. M2-2 queda `IMPLEMENTED AND APPROVED / CLOSED`.
 
 | Hallazgo | Evidencia ejecutable obligatoria |
 |---|---|
@@ -160,7 +160,7 @@ Riesgo trazado: authenticated boundary, privacy, cursor binding, initial-sync ra
 
 Decision gate DEC-081: **APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED**. IQ-M2-008/009 quedan **RESOLVED**; PTD-M2-012…016 fijan Auth0 application-side, primer frame WebSocket y autoridad PostgreSQL, Node.js 24 + `ws` + `malign.realtime.v1`, `LISTEN/NOTIFY` sólo como wake-up y Render como target de referencia.
 
-Gate futuro de implementación: **8 owners + 17 regresiones = 25 ejecuciones dirigidas**; baseline aprobada previamente **253/253** —no reejecutada por DEC-081—; suite mínima acumulada futura **261 casos únicos**; 0 skips, 0 todo y 0 waivers. Las asignaciones de owners/regresiones de M2-2…M2-7 permanecen intactas.
+Gate histórico planificado: **8 owners + 17 regresiones = 25 ejecuciones dirigidas**, baseline **253/253** y mínimo **261**. El gate materializado alcanza **75/75** y suite **302/302**; 0 skips, 0 todo y 0 waivers. Las asignaciones owner/regresión permanecen intactas.
 
 ## 7. M2-3 — Complete Scheduler and Remaining Core Rules
 
@@ -206,7 +206,7 @@ Los 30 `GE-ACT-*` y 15 `GE-REG-*` se trasladan a M2-4.
 - `GE-ERT-007 [REGRESSION]`
 - `GE-ERT-008 [REGRESSION]`
 
-Riesgo trazado: phase progression, hidden plan/reveal, campaign integrity, costs y ERT reuse. Gate futuro: **57 ejecuciones dirigidas + preservación completa de la suite M2-2**; 39 casos nuevos; mínimo operativo **300**.
+Riesgo trazado: phase progression, hidden plan/reveal, campaign integrity, costs y ERT reuse. Gate futuro: **57 ejecuciones dirigidas + preservación completa de la suite M2-2**; 39 casos nuevos; mínimo operativo **341**.
 
 ## 8. M2-4 — Action/Starter Cards and Regime Abilities
 
@@ -236,7 +236,7 @@ Riesgo trazado: phase progression, hidden plan/reveal, campaign integrity, costs
 
 Riesgo trazado: atomicidad de Action/Starter/Regime, AP/costs, zonas, campaign integration y dispatch por effect ID. Las repeticiones de core/plan/campaign/ERT respecto de M2-3 se justifican por los nuevos efectos que cruzan esos invariantes.
 
-Gate futuro: **57 ejecuciones dirigidas + preservación completa de la suite M2-3**; 45 casos nuevos; mínimo operativo **345**.
+Gate futuro: **57 ejecuciones dirigidas + preservación completa de la suite M2-3**; 45 casos nuevos; mínimo operativo **386**.
 
 ## 9. M2-5 — Reaction, Veto and Deterministic Narrative
 
@@ -267,7 +267,7 @@ Gate futuro: **57 ejecuciones dirigidas + preservación completa de la suite M2-
 
 Riesgo trazado: nested continuations, choices, ordering, no-auto-pass, privacy/reconnect y completitud final del registry effect manifest. `GE-M2-EFX-001 [REGRESSION]` expande el manifest para cubrir Reaction, Veto y efectos narrativos determinísticos relacionados; aquí se demuestra por primera vez la cobertura completa de todos los efectos de cartas del registry aprobado, sin fallback textual ni handler genérico silencioso. Las security/choice repeticiones se justifican por ventanas privadas nuevas.
 
-Gate futuro: **34 ejecuciones dirigidas + preservación completa de la suite M2-4**; 23 casos nuevos; mínimo operativo **368**.
+Gate futuro: **34 ejecuciones dirigidas + preservación completa de la suite M2-4**; 23 casos nuevos; mínimo operativo **409**.
 
 ## 10. M2-6 — Cleanup, Viralization and End Turn
 
@@ -291,7 +291,7 @@ Gate futuro: **34 ejecuciones dirigidas + preservación completa de la suite M2-
 
 Riesgo trazado: transición terminal de turno, campaign state, deterministic trace, snapshot/replay y pending-state recovery. Las repeticiones con M2-3/M2-7 se justifican por el nuevo boundary Cleanup→End Turn.
 
-Gate futuro: **24 ejecuciones dirigidas + preservación completa de la suite M2-5**; 18 casos nuevos; mínimo operativo **386**.
+Gate futuro: **24 ejecuciones dirigidas + preservación completa de la suite M2-5**; 18 casos nuevos; mínimo operativo **427**.
 
 ## 11. M2-7 — Objectives, Victory and End Game
 
@@ -319,7 +319,7 @@ Gate futuro: **24 ejecuciones dirigidas + preservación completa de la suite M2-
 
 Riesgo trazado: atomic final awards/outcome, replay/hash, ordering, idempotency, final projection y reconnect. Las repeticiones con persistencia/lifecycle son necesarias porque el golden cruza process restart hasta `GAME_COMPLETED`.
 
-Gate futuro: **38 ejecuciones dirigidas + preservación completa de la suite M2-6**; 30 casos nuevos; mínimo operativo vigente de cierre **416**.
+Gate futuro: **38 ejecuciones dirigidas + preservación completa de la suite M2-6**; 30 casos nuevos; mínimo operativo vigente de cierre **457**.
 
 ## 12. Cobertura transversal
 
@@ -389,4 +389,4 @@ FAIL ante ID/owner inválido, conteo irreconciliable, test suavizado, fixture qu
 
 ## 16. Estado
 
-El planning gate está **APPROVED AND CLOSED mediante DEC-076**, M2-0 **APPROVED AND CLOSED mediante DEC-077** y M2-A/M2-1 **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080**. El commit funcional final es `85ec047726a68007fbcabf07c6b3fe1b911a3070`; M20-R01…R10 y M2A-R01…R30 están **CLOSED**. El gate vigente M2-A es **38/38 PASS** y la suite final **253/253 PASS en 28 archivos**, con PostgreSQL 18.6, migrations `001…006`, esquema físico **87/87 tablas** y Catalog SHA-256 `447d8e06e3030a2744135c56edca135a142b2fcc252e69dd377259fc81d8a465`. DEC-081 resuelve IQ-M2-008/009 y deja M2-2 **DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED**. Su gate futuro conserva 8 owners + 17 regresiones = 25 ejecuciones, baseline previa 253/253 y mínimo futuro 261 casos únicos. M2-3…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT AUTHORIZED / NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
+El planning gate está **APPROVED AND CLOSED mediante DEC-076**, M2-0 mediante DEC-077, M2-A/M2-1 mediante DEC-080 y M2-2 **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083**. M2-2 cierra M22-R01…R14 con 8/8 owners, 17/17 regresiones asignadas, gate 75/75 y suite 302/302 en 34 archivos. La cadena histórica terminaba en 416; la operativa vigente es 302→341→386→409→427→457. M2-3…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT AUTHORIZED / NOT YET CLOSED** y M3 **NOT AUTHORIZED**.

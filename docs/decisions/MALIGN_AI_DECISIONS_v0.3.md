@@ -1243,3 +1243,36 @@ DEC-075 autoriza exclusivamente documentación. No autoriza M2 ni ninguna subeta
 **IMPACTO:** M2-2 puede implementarse, autoauditarse y corregirse dentro de su alcance. El resultado debe quedar `IMPLEMENTED / PENDING REVIEW` y requerirá una revisión técnica y decisión de cierre separadas.
 
 **ESTADO:** `APPROVED — M2-2 IMPLEMENTATION AUTHORIZATION ONLY`
+
+---
+
+## DEC-083 — Aprobación técnica y cierre formal de M2-2 Productive Transport and Reconnect
+
+**FECHA:** 2026-08-30
+**TEMA:** Revisión final y cierre documental de M2-2.
+
+**DECISIÓN:**
+
+- DEC-082 queda cumplida.
+- IQ-M2-016 queda formalmente **RESOLVED**.
+- M2-2 queda **IMPLEMENTED AND APPROVED**.
+- Commit funcional final aprobado: `ac2d2c5c66a79a98ce67003dda4515bd7b54dce2`.
+- Commit documental previo: `0b265a6d039de3b9eb3e93ba432a5ad68ef18191`.
+- M22-R01…R14 quedan **CLOSED**.
+- No se requieren nuevas correcciones de código.
+- Owner gate: **8/8 PASS**.
+- Regresiones asignadas: **17/17 PASS**.
+- Gate dirigido: **75/75 PASS**.
+- Suite final: **302/302 PASS en 34 archivos**.
+- Skips/todo/waivers: **0/0/0**.
+- PostgreSQL **18.6**, migrations `001…006` y **87/87 tablas** permanecen preservados.
+- El transporte sólo admite Games y memberships preprovisionados.
+- El onboarding productivo permanece diferido.
+- DEC-083 cierra exclusivamente M2-2.
+- DEC-083 **NO autoriza** M2-3…M2-7, M2 global ni M3.
+
+**JUSTIFICACIÓN:** La revisión final confirmó PostgreSQL y red multiproceso reales, transporte y TLS fail-closed, invalidación distribuida efímera, mínimo privilegio, serialización por subscription, cursores/ACK/batching/resync coherentes y preservación íntegra de gates, hashes y boundaries, sin defecto funcional material.
+
+**IMPACTO:** M2-2 queda formalmente cerrado. El baseline ejecutable vigente pasa a 302 pruebas; M2-3 y todos los bloques posteriores continúan sujetos a autorización expresa independiente.
+
+**ESTADO:** `APPROVED — M2-2 CLOSED`

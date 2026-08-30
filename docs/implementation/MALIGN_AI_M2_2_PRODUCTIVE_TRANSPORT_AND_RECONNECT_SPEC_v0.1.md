@@ -1,11 +1,11 @@
 # MALIGN-AI — M2-2 PRODUCTIVE TRANSPORT AND RECONNECT SPECIFICATION v0.1
 
 **Fecha:** 2026-08-29
-**Estado:** IMPLEMENTED / PENDING REVIEW mediante DEC-082
-**Autoridad:** DEC-081; DEC-082; PTD-M2-012…016
+**Estado:** IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083
+**Autoridad:** DEC-081; DEC-082; DEC-083; PTD-M2-012…016
 **Baseline preservada:** 253/253 PASS; suite actual 302/302 PASS en 34 archivos
 
-> DEC-082 autorizó y materializó exclusivamente M2-2. Este estado no constituye aprobación ni cierre técnico; no autoriza cuentas, secrets, infraestructura persistente, despliegue ni bloques posteriores.
+> DEC-082 autorizó y materializó exclusivamente M2-2; DEC-083 aprobó y cerró posteriormente su implementación. Ninguna de estas decisiones autoriza cuentas, secrets, infraestructura persistente, despliegue ni bloques posteriores.
 
 ## 1. Alcance y límites
 
@@ -221,7 +221,7 @@ Fuente preservada sin modificación: `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M2_A
 - `GE-M1-RT-009 [REGRESSION]`
 - `GE-M1-RT-010 [REGRESSION]`
 
-Reconciliación del gate futuro: **8 owners + 17 regresiones = 25 ejecuciones dirigidas**. Baseline aprobada de entrada: **253/253**. Suite mínima acumulada futura al implementar los ocho casos nuevos: **261 casos únicos**. Requiere 0 skips, 0 todo y 0 waivers.
+Reconciliación histórica del gate previo: **8 owners + 17 regresiones = 25 ejecuciones dirigidas**. Baseline aprobada de entrada: **253/253** y mínimo planificado **261 casos únicos**. El cierre real mediante DEC-083 alcanza **302/302**. Requiere 0 skips, 0 todo y 0 waivers.
 
 ## 14. Fault tests materializados
 
@@ -253,6 +253,6 @@ DEC-082 fijó `ws@8.21.3`, `@types/ws@8.18.1`, `jose@6.2.10` y `@auth0/nextjs-au
 
 No se añadieron dependencias, migrations, tablas, roles, reglas o despliegue. M22-R01…R08 permanecen vigentes.
 
-**Estado final:** `M2-2 CORRECTION IMPLEMENTED / PENDING REVIEW`.
+**Estado final:** `M2-2 IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083`.
 
 M2-3…M2-7 permanecen **NOT AUTHORIZED**; M2 global **NOT YET CLOSED**; M3 **NOT AUTHORIZED**.
