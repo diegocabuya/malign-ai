@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-29
-**Fase actual:** M0 IMPLEMENTED AND APPROVED — M1 IMPLEMENTED AND APPROVED / CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 IMPLEMENTED AND APPROVED mediante DEC-080 — M2-2 DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED mediante DEC-081 — M2-3…M2-7 NOT AUTHORIZED — M2 global NOT YET CLOSED — M3 NOT AUTHORIZED
+**Fase actual:** M0 IMPLEMENTED AND APPROVED — M1 IMPLEMENTED AND APPROVED / CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 IMPLEMENTED AND APPROVED mediante DEC-080 — M2-2 DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED mediante DEC-081 — M2-3…M2-7 NOT AUTHORIZED — M2 global NOT AUTHORIZED / NOT YET CLOSED — M3 NOT AUTHORIZED
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -88,8 +88,13 @@
 | Addendum M2 v0.1 | **32 IDs canónicos de test acceptance mediante DEC-075 — IMPLEMENTATION NOT AUTHORIZED** |
 | Casos nuevos únicos M2 | **185 = 153 oracle + 32 addendum** |
 | Ejecuciones dirigidas propuestas M2 | **185 casos nuevos únicos + 86 regresiones = 271** |
-| Suite mínima futura propuesta | **400 = 215 baseline + 185 nuevos únicos** |
-| Suite aprobada de entrada | **215/215 PASS en 27 archivos, 0 skips, 0 todo, 0 waivers — baseline histórica, no reejecutada por este gate documental** |
+| Mínimo canónico histórico del planning gate M2 | **400 = 215 baseline M0/M1 + 185 casos canónicos nuevos; no es el mínimo operativo vigente** |
+| Baseline histórica del planning gate original | **215/215 PASS en 27 archivos, 0 skips, 0 todo, 0 waivers** |
+| Suite ejecutable vigente tras M2-A | **253/253 PASS en 28 archivos; evidencia previamente aprobada, no reejecutada por M22G-R01** |
+| Casos owner canónicos M2-1 ya implementados | **22** |
+| Casos canónicos restantes M2-2…M2-7 | **163 = 185 − 22** |
+| Casos ejecutables adicionales permanentes de M2-A | **16; no pueden eliminarse ni omitirse de gates futuros** |
+| Mínimo operativo vigente para cierre futuro M2 | **416 = 253 suite vigente + 163 casos canónicos restantes** |
 | PTD-M2-001…011 | **CLASSIFIED mediante DEC-075** |
 | PTD-M2-012…016 | **APPROVED mediante DEC-081 — decision gate only** |
 | IQ-M2-001…007 | **RESOLVED mediante DEC-075** |
@@ -129,12 +134,13 @@
 | M2-A/M2-1 — PostgreSQL Persistence and Durable Recovery | **IMPLEMENTED AND APPROVED mediante DEC-080** |
 | M2-2 — Productive Transport and Reconnect | **DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED mediante DEC-081** |
 | M2-2 gate futuro | **8 owners + 17 regresiones = 25 ejecuciones dirigidas; baseline previa 253/253; mínimo futuro 261 casos únicos** |
+| M22G-R01 | **CLOSED — mínimos históricos/operativos reconciliados; 253→261→300→345→368→386→416** |
 | M2-3 — Complete Scheduler and Remaining Core Rules | **NOT AUTHORIZED** |
 | M2-4 — Action/Starter Cards and Regime Abilities | **NOT AUTHORIZED** |
 | M2-5 — Reaction, Veto and Deterministic Narrative | **NOT AUTHORIZED** |
 | M2-6 — Cleanup, Viralization and End Turn | **NOT AUTHORIZED** |
 | M2-7 — Objectives, Victory and End Game | **NOT AUTHORIZED** |
-| M2 | **NOT YET CLOSED — M2-2…M2-7 NOT AUTHORIZED** |
+| M2 | **NOT AUTHORIZED / NOT YET CLOSED — M2-2…M2-7 NOT AUTHORIZED** |
 | M3 | **NOT AUTHORIZED** |
 
 PR-1 fue aprobado técnicamente contra el commit `69ded64d912fc0231b82046fecad024baf8ec67e`. No requiere correcciones de código.
@@ -166,7 +172,7 @@ El Product Owner mantiene aprobadas `ARC-01` a `ARC-12`. Las decisiones canónic
 | Reaction/Veto | **NOT STARTED / NOT AUTHORIZED** |
 | Cleanup / End Turn | **NOT STARTED / NOT AUTHORIZED** |
 | Objectives / Victory | **NOT STARTED / NOT AUTHORIZED** |
-| M2 global | **NOT YET CLOSED — M2-2…M2-7 NOT AUTHORIZED** |
+| M2 global | **NOT AUTHORIZED / NOT YET CLOSED — M2-2…M2-7 NOT AUTHORIZED** |
 | M3 | **NOT STARTED / NOT AUTHORIZED** |
 
 ## Cierre formal de M1-0
@@ -229,7 +235,7 @@ La corrección posterior al gate `CHANGES REQUIRED` endurece phase enforcement, 
 
 DEC-074 autorizó exclusivamente preparar el planning gate y DEC-075 aprobó su enmienda. DEC-076 aprueba y cierra el planning gate corregido contra `2bfc49d17722538ee2f2688d5dd3735b1468fe5c`, cierra M2G-R01…R05, fija la estructura M2-0…M2-7 y autoriza exclusivamente el trabajo documental M2-0. El planning gate queda **APPROVED AND CLOSED**; esta aprobación no autoriza implementación M2.
 
-El oracle conserva **224 IDs = 71 implementados M0/M1 + 153 owner M2**. El addendum M2 contiene **32/32 IDs canónicos**, cada uno con owner único, pero no autoriza tests ejecutables. Los casos nuevos únicos son **185 = 153 + 32**; tras M2G-R01 las regresiones dirigidas son **86**, para **271 ejecuciones dirigidas**. M2-5 queda en **23 casos nuevos + 11 regresiones = 34 ejecuciones dirigidas**. La suite mínima acumulada futura sigue siendo **400 = 215 + 185**.
+El oracle conserva **224 IDs = 71 implementados M0/M1 + 153 owner M2**. El addendum M2 contiene **32/32 IDs canónicos**, cada uno con owner único, pero no autoriza tests ejecutables. Los casos nuevos únicos planificados originalmente son **185 = 153 + 32**; tras M2G-R01 las regresiones dirigidas son **86**, para **271 ejecuciones dirigidas**. M2-5 queda en **23 casos nuevos + 11 regresiones = 34 ejecuciones dirigidas**. `400 = 215 + 185` se conserva únicamente como mínimo canónico histórico del planning gate. Tras M2-A, 22 casos owner canónicos están implementados, quedan 163, y 16 casos ejecutables adicionales pasan a formar parte permanente de la suite. Por ello el mínimo operativo vigente para el cierre futuro de M2 es **416 = 253 + 163**.
 
 El Card Registry canónico aprobado registra **108 serial templates por country set**, **100 definitions**, **cinco Starter por set**, **cinco países**, **cuatro aliases** y **59 effect definitions**. La materialización futura permanece exactamente en **540 `CardInstance`**, incluidas **25 Starter**. La Product Owner Review Matrix aprobada cubre exhaustivamente **100/100 definitions, 108/108 serial templates, 6/6 grupos repetidos, 41/41 definitions sin effect y 59/59 effects** con source trace. DEC-077 aprueba REG-CAND-001…004, el snapshot queda `approved` y `seedable=true`, y sus **103/103 operaciones** quedan `complete_approved_dec_077`, con **0 parámetros unknown**. El candidate histórico permanece intacto con blob `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`.
 
@@ -270,3 +276,5 @@ El owner nominal M2-A conserva **22/22 PASS**, las **14/14 regresiones asignadas
 ## Gate documental M2-2 mediante DEC-081
 
 La especificación `MALIGN_AI_M2_2_PRODUCTIVE_TRANSPORT_AND_RECONNECT_SPEC_v0.1.md` registra fuentes oficiales consultadas el 2026-08-29, PTD-M2-012…016, Auth0 application-side, autenticación por primer frame, protocolo `malign.realtime.v1` sobre WSS con Node.js 24 + `ws`, fan-out multinodo con `LISTEN/NOTIFY` sólo como wake-up, Render como target de referencia y envelope operacional configurable. El gate futuro conserva **8 owners + 17 regresiones = 25 ejecuciones dirigidas**, baseline previamente aprobada **253/253** y suite mínima futura **261 casos únicos**, con 0 skips/todo/waivers. El estado es **DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED**.
+
+M22G-R01 reconcilia los mínimos sin alterar DEC-081 ni la especificación técnica: M2-A/M2-1 cerrado **253** → M2-2 **261** → M2-3 **300** → M2-4 **345** → M2-5 **368** → M2-6 **386** → M2-7/M2 completo **416**. Cada futura subetapa debe preservar toda la suite ejecutable aprobada hasta el bloque anterior.

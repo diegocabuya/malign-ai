@@ -5,7 +5,7 @@
 **Autoridad:** DEC-074…DEC-081; DEC-081 aprueba sólo el decision gate de M2-2
 **Oracle:** `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_SPEC_v0.1.md`
 **Addenda:** M1 v0.1 preservado; M2 v0.1 aprobado como test acceptance baseline
-**Implementación M2:** **M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED; M2-2 DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED; M2-3…M2-7 NOT AUTHORIZED; M2 global NOT YET CLOSED; M3 NOT AUTHORIZED**
+**Implementación M2:** **M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED; M2-2 DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED; M2-3…M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
 
 > Históricamente, DEC-078 materializó exclusivamente los 22 owner asignados a M2-A/M2-1. DEC-080 aprobó y cerró posteriormente M2-A/M2-1. Los owners y conteos de M2-2…M2-7 permanecen futuros, sin alteración y no autorizados.
 
@@ -17,7 +17,7 @@
 4. El addendum M2 contiene exactamente 32 IDs canónicos, cada uno con un owner.
 5. Un ID implementado sólo reaparece con `[REGRESSION]`; no cuenta como caso único nuevo.
 6. No se duplica una regresión dentro de un bloque; repeticiones entre bloques requieren justificación de riesgo.
-7. La suite aprobada de entrada 215/215 se ejecutará completa en cada bloque de implementación autorizado; no se suma como caso nuevo.
+7. La baseline histórica M0/M1 215/215 fue la entrada del planning gate original. Desde el cierre de M2-A, cada futura subetapa debe preservar la totalidad de la suite ejecutable aprobada hasta el bloque anterior; M2-2 parte obligatoriamente de 253/253. Las pruebas preservadas no se vuelven a contar como casos nuevos.
 8. Gate binario futuro: 100% PASS, 0 skips, 0 todo y 0 waivers.
 9. No se modifica oracle/addendum para acomodar código.
 10. Tests PostgreSQL/realtime sólo podrán usar infraestructura efímera y reproducible tras autorización expresa.
@@ -29,14 +29,14 @@
 | Oracle v0.1 | 224 | 71 implementados + 153 owner M2 |
 | Addendum M2 v0.1 | 32 | 32 owner únicos, sin choque con oracle/addendum M1 |
 | Casos nuevos únicos M2 | 185 | 153 oracle + 32 addendum |
-| Baseline aprobada de entrada | 215 | histórica; no reejecutada por esta enmienda |
-| Suite mínima acumulada futura | 400 | 215 + 185 |
+| Baseline M0/M1 del planning gate original | 215 | histórica; no reejecutada por esta enmienda |
+| Mínimo canónico histórico del planning gate M2 | 400 | 215 + 185; no es el mínimo operativo vigente |
 
 Los 35 IDs M0 y 49 IDs oracle owner M1 se solapan en 13; su unión verificable es 71. Los 38 IDs M1 addendum no pertenecen a los 224 del oracle.
 
-## 3. Distribución exacta de casos nuevos
+## 3. Distribución canónica histórica del planning gate
 
-| Bloque | Oracle owner | Addendum M2 | Nuevos únicos | Regresiones dirigidas | Ejecuciones owner+regresión | Suite mínima acumulada |
+| Bloque | Oracle owner | Addendum M2 | Nuevos únicos | Regresiones dirigidas | Ejecuciones owner+regresión | Mínimo canónico histórico desde 215 |
 |---|---:|---:|---:|---:|---:|---:|
 | M2-0 | 0 | 0 | 0 — gate documental | 0 | 0 | 215 |
 | M2-1 | 6 | 16 | 22 | 14 | 36 | 237 |
@@ -48,7 +48,23 @@ Los 35 IDs M0 y 49 IDs oracle owner M1 se solapan en 13; su unión verificable e
 | M2-7 | 28 | 2 | 30 | 8 | 38 | 400 |
 | **Total** | **153** | **32** | **185** | **86 ejecuciones** | **271** | **400** |
 
-La redistribución recalcula las regresiones por riesgo y reemplaza el total anterior de 66; no intenta preservarlo. Las siete ejecuciones futuras del baseline 215/215 para M2-1…M2-7 son gates completos separados y no forman parte de las 271 ejecuciones dirigidas. Ningún bloque de implementación contiene más de 50 casos nuevos únicos.
+La tabla anterior conserva la reconciliación canónica histórica `215 + 185 = 400` del planning gate. La redistribución recalcula las regresiones por riesgo y reemplaza el total anterior de 66; no intenta preservarlo. Sus siete repeticiones originalmente previstas de 215/215 son historia de planificación y no forman parte de las 271 ejecuciones dirigidas. Ningún bloque contiene más de 50 casos nuevos únicos.
+
+### 3.1 Mínimos operativos vigentes tras M2-A
+
+M2-A implementó 22 de los 185 casos canónicos y añadió 16 casos ejecutables permanentes. Quedan 163 casos canónicos para M2-2…M2-7. Cada bloque preserva toda la suite aprobada del bloque anterior:
+
+| Checkpoint operativo | Suite previa obligatoria | Casos canónicos nuevos | Mínimo operativo resultante |
+|---|---:|---:|---:|
+| M2-A/M2-1 cerrado | — | — | **253** |
+| M2-2 | 253 | 8 | **261** |
+| M2-3 | 261 | 39 | **300** |
+| M2-4 | 300 | 45 | **345** |
+| M2-5 | 345 | 23 | **368** |
+| M2-6 | 368 | 18 | **386** |
+| M2-7 / M2 completo | 386 | 30 | **416** |
+
+El mínimo operativo vigente para el cierre futuro de M2 es `253 + 163 = 416`. Los 16 casos ejecutables adicionales incorporados durante M2-A permanecen obligatorios. Las 86 regresiones dirigidas se ejecutan según asignación, pero no se suman nuevamente como casos únicos.
 
 ## 4. M2-0 — Canonical Foundations Gate
 
@@ -175,7 +191,7 @@ Los 30 `GE-ACT-*` y 15 `GE-REG-*` se trasladan a M2-4.
 - `GE-ERT-007 [REGRESSION]`
 - `GE-ERT-008 [REGRESSION]`
 
-Riesgo trazado: phase progression, hidden plan/reveal, campaign integrity, costs y ERT reuse. Gate futuro: **57 ejecuciones dirigidas + baseline 215/215**; 39 casos nuevos; suite mínima acumulada 284.
+Riesgo trazado: phase progression, hidden plan/reveal, campaign integrity, costs y ERT reuse. Gate futuro: **57 ejecuciones dirigidas + preservación completa de la suite M2-2**; 39 casos nuevos; mínimo operativo **300**.
 
 ## 8. M2-4 — Action/Starter Cards and Regime Abilities
 
@@ -205,7 +221,7 @@ Riesgo trazado: phase progression, hidden plan/reveal, campaign integrity, costs
 
 Riesgo trazado: atomicidad de Action/Starter/Regime, AP/costs, zonas, campaign integration y dispatch por effect ID. Las repeticiones de core/plan/campaign/ERT respecto de M2-3 se justifican por los nuevos efectos que cruzan esos invariantes.
 
-Gate futuro: **57 ejecuciones dirigidas + baseline 215/215**; 45 casos nuevos; suite mínima acumulada 329.
+Gate futuro: **57 ejecuciones dirigidas + preservación completa de la suite M2-3**; 45 casos nuevos; mínimo operativo **345**.
 
 ## 9. M2-5 — Reaction, Veto and Deterministic Narrative
 
@@ -236,7 +252,7 @@ Gate futuro: **57 ejecuciones dirigidas + baseline 215/215**; 45 casos nuevos; s
 
 Riesgo trazado: nested continuations, choices, ordering, no-auto-pass, privacy/reconnect y completitud final del registry effect manifest. `GE-M2-EFX-001 [REGRESSION]` expande el manifest para cubrir Reaction, Veto y efectos narrativos determinísticos relacionados; aquí se demuestra por primera vez la cobertura completa de todos los efectos de cartas del registry aprobado, sin fallback textual ni handler genérico silencioso. Las security/choice repeticiones se justifican por ventanas privadas nuevas.
 
-Gate futuro: **34 ejecuciones dirigidas + baseline 215/215**; 23 casos nuevos; suite mínima acumulada 352.
+Gate futuro: **34 ejecuciones dirigidas + preservación completa de la suite M2-4**; 23 casos nuevos; mínimo operativo **368**.
 
 ## 10. M2-6 — Cleanup, Viralization and End Turn
 
@@ -260,7 +276,7 @@ Gate futuro: **34 ejecuciones dirigidas + baseline 215/215**; 23 casos nuevos; s
 
 Riesgo trazado: transición terminal de turno, campaign state, deterministic trace, snapshot/replay y pending-state recovery. Las repeticiones con M2-3/M2-7 se justifican por el nuevo boundary Cleanup→End Turn.
 
-Gate futuro: **24 ejecuciones dirigidas + baseline 215/215**; 18 casos nuevos; suite mínima acumulada 370.
+Gate futuro: **24 ejecuciones dirigidas + preservación completa de la suite M2-5**; 18 casos nuevos; mínimo operativo **386**.
 
 ## 11. M2-7 — Objectives, Victory and End Game
 
@@ -288,7 +304,7 @@ Gate futuro: **24 ejecuciones dirigidas + baseline 215/215**; 18 casos nuevos; s
 
 Riesgo trazado: atomic final awards/outcome, replay/hash, ordering, idempotency, final projection y reconnect. Las repeticiones con persistencia/lifecycle son necesarias porque el golden cruza process restart hasta `GAME_COMPLETED`.
 
-Gate futuro: **38 ejecuciones dirigidas + baseline 215/215**; 30 casos nuevos; suite mínima acumulada 400.
+Gate futuro: **38 ejecuciones dirigidas + preservación completa de la suite M2-6**; 30 casos nuevos; mínimo operativo vigente de cierre **416**.
 
 ## 12. Cobertura transversal
 
@@ -334,7 +350,7 @@ Cada fallo afirma ausencia de publish, mutación parcial, RNG adicional y leakag
 - máximo por bloque de implementación = 45, menor que 51;
 - 86 regresiones reconciliadas, sin duplicado intrabloque;
 - repeticiones interbloque justificadas por boundary/riesgo;
-- baseline 215 separado de nuevos/regresiones;
+- baseline histórica 215 separada de nuevos/regresiones y mínimo operativo vigente reconciliado desde 253;
 - oracle y addendum M1 byte-for-byte intactos;
 - addendum M2 preservado con blob `6ae87a904a14a82e4fb174ff4d76eefd47052832`;
 - candidate histórico preservado con blob `fbcb750e72ae50a2bd4444789b0cfd11e75d7ab0`;
@@ -352,10 +368,10 @@ Cada fallo afirma ausencia de publish, mutación parcial, RNG adicional y leakag
 
 ## 15. Criterios PASS/FAIL futuros
 
-PASS sólo con 100% owner + addendum + regresiones del bloque, baseline completo 215/215, 0 skips, 0 todo, 0 waivers, checks técnicos aplicables verdes, privacy/replay/fault gates verdes y ninguna IQ bloqueante.
+PASS sólo con 100% owner + addendum + regresiones del bloque, preservación completa de toda la suite ejecutable aprobada hasta el bloque anterior, 0 skips, 0 todo, 0 waivers, checks técnicos aplicables verdes, privacy/replay/fault gates verdes y ninguna IQ bloqueante.
 
 FAIL ante ID/owner inválido, conteo irreconciliable, test suavizado, fixture que inventa regla, estado/event/ledger/trace/outbox divergente, leakage, dependencia productiva dentro del Engine o provider seleccionado sin aprobación.
 
 ## 16. Estado
 
-El planning gate está **APPROVED AND CLOSED mediante DEC-076**, M2-0 **APPROVED AND CLOSED mediante DEC-077** y M2-A/M2-1 **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080**. El commit funcional final es `85ec047726a68007fbcabf07c6b3fe1b911a3070`; M20-R01…R10 y M2A-R01…R30 están **CLOSED**. El gate vigente M2-A es **38/38 PASS** y la suite final **253/253 PASS en 28 archivos**, con PostgreSQL 18.6, migrations `001…006`, esquema físico **87/87 tablas** y Catalog SHA-256 `447d8e06e3030a2744135c56edca135a142b2fcc252e69dd377259fc81d8a465`. DEC-081 resuelve IQ-M2-008/009 y deja M2-2 **DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED**. Su gate futuro conserva 8 owners + 17 regresiones = 25 ejecuciones, baseline previa 253/253 y mínimo futuro 261 casos únicos. M2-3…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
+El planning gate está **APPROVED AND CLOSED mediante DEC-076**, M2-0 **APPROVED AND CLOSED mediante DEC-077** y M2-A/M2-1 **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080**. El commit funcional final es `85ec047726a68007fbcabf07c6b3fe1b911a3070`; M20-R01…R10 y M2A-R01…R30 están **CLOSED**. El gate vigente M2-A es **38/38 PASS** y la suite final **253/253 PASS en 28 archivos**, con PostgreSQL 18.6, migrations `001…006`, esquema físico **87/87 tablas** y Catalog SHA-256 `447d8e06e3030a2744135c56edca135a142b2fcc252e69dd377259fc81d8a465`. DEC-081 resuelve IQ-M2-008/009 y deja M2-2 **DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED**. Su gate futuro conserva 8 owners + 17 regresiones = 25 ejecuciones, baseline previa 253/253 y mínimo futuro 261 casos únicos. M2-3…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT AUTHORIZED / NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
