@@ -1,0 +1,262 @@
+import type {
+  CountryId,
+  InfluenceType,
+  M2BAuditRecord,
+  M2BCard,
+  M2BEffectContext,
+  M2BEffectError,
+  M2BEffectResult,
+  M2BState,
+} from '@malign-ai/domain';
+import { resolveTwoToOne } from '@malign-ai/rules';
+
+export type M2BEffectHandler = (state: M2BState, context: M2BEffectContext) => M2BEffectError | undefined;
+
+export interface M2BEffectDefinition {
+  readonly effectId: string;
+  readonly version: '0.1';
+  readonly enabledBlock: 'M2-3' | 'M2-4';
+  readonly handler: M2BEffectHandler;
+}
+
+const clone = (state: M2BState): M2BState => structuredClone(state);
+const stringParameter = (context: M2BEffectContext, key: string): string | undefined => {
+  const value = context.parameters[key];
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+};
+const integerParameter = (context: M2BEffectContext, key: string): number | undefined => {
+  const value = context.parameters[key];
+  return typeof value === 'number' && Number.isInteger(value) && Number.isFinite(value) ? value : undefined;
+};
+const actor = (state: M2BState, context: M2BEffectContext) => state.participants[context.actorParticipantId];
+const audit = (state: M2BState, context: M2BEffectContext, type: string, payload: M2BAuditRecord['payload']): void => {
+  state.audit.push({ type, actorParticipantId: context.actorParticipantId, payload });
+};
+const pay = (state: M2BState, context: M2BEffectContext, amount: number): M2BEffectError | undefined => {
+  const participant = actor(state, context);
+  if (participant === undefined) return 'INVALID_EFFECT_INPUT';
+  if (participant.resources < amount) return 'INSUFFICIENT_RESOURCES';
+  participant.resources -= amount;
+  audit(state, context, 'RESOURCE_SPENT', { amount, balanceAfter: participant.resources });
+  return undefined;
+};
+const transfer = (state: M2BState, context: M2BEffectContext, targetId: string, amount: number): M2BEffectError | undefined => {
+  const source = actor(state, context);
+  const target = state.participants[targetId];
+  if (source === undefined || target === undefined || amount < 0) return 'INVALID_EFFECT_INPUT';
+  const effective = Math.min(source.resources, amount);
+  source.resources -= effective;
+  target.resources += effective;
+  audit(state, context, 'RESOURCE_TRANSFERRED', { targetParticipantId: targetId, amount: effective });
+  return undefined;
+};
+
+export const discardWithLifecycle = (state: M2BState, cardId: string): M2BEffectError | undefined => {
+  const card = state.cards[cardId];
+  if (card === undefined) return 'CARD_NOT_ELIGIBLE';
+  if (card.returnToOwnerOnDiscard && card.controllerParticipantId !== card.ownerParticipantId) {
+    card.controllerParticipantId = card.ownerParticipantId;
+    card.zone = 'HAND';
+    card.returnToOwnerOnDiscard = false;
+  } else {
+    card.zone = card.cardClass === 'STARTER' ? 'REMOVED_FROM_GAME' : 'DISCARD';
+  }
+  return undefined;
+};
+
+export const applyDirectInfluence = (
+  state: M2BState,
+  pdId: string,
+  type: InfluenceType,
+  attributionCountryId: CountryId,
+  count: number,
+): { readonly placed: number; readonly removed: number } => {
+  const opposite = type === 'MALIGN' ? 'RESILIENCY' : 'MALIGN';
+  const oppositeStacks = state.influence.filter((stack) => stack.pdId === pdId && stack.type === opposite && stack.count > 0);
+  const resolution = resolveTwoToOne(count, oppositeStacks.reduce((total, stack) => total + stack.count, 0));
+  let remainingRemoval = resolution.oppositeRemoved;
+  for (const stack of oppositeStacks) {
+    const removed = Math.min(stack.count, remainingRemoval);
+    stack.count -= removed;
+    remainingRemoval -= removed;
+  }
+  const existing = state.influence.find((stack) => stack.pdId === pdId && stack.type === type && stack.attributionCountryId === attributionCountryId);
+  if (existing === undefined) state.influence.push({ pdId, type, attributionCountryId, count: resolution.placed });
+  else existing.count += resolution.placed;
+  return { placed: resolution.placed, removed: resolution.oppositeRemoved };
+};
+
+const handlers: Record<string, M2BEffectHandler> = {
+  PAIR_BONUS: (state, context) => {
+    const definitionIds = context.parameters.definitionIds;
+    if (!Array.isArray(definitionIds) || !definitionIds.every((value) => typeof value === 'string')) return 'INVALID_EFFECT_INPUT';
+    const amount = calculateRegisteredPairBonus(definitionIds);
+    audit(state, context, 'REGISTERED_PAIR_BONUS_CALCULATED', { amount });
+    return undefined;
+  },
+  TRADE_AGREEMENTS: (state, context) => {
+    const participant = actor(state, context); const targetId = stringParameter(context, 'targetParticipantId'); const target = targetId === undefined ? undefined : state.participants[targetId];
+    if (participant === undefined || target === undefined || target.id === participant.id) return 'INVALID_EFFECT_INPUT';
+    participant.resources += 2; target.resources += 2; audit(state, context, 'RESOURCE_GAINED', { amount: 2, targetParticipantId: target.id }); return undefined;
+  },
+  RESOURCE_GAIN: (state, context) => {
+    const amount = integerParameter(context, 'amount'); const participant = actor(state, context);
+    if (amount === undefined || amount < 0 || participant === undefined) return 'INVALID_EFFECT_INPUT';
+    participant.resources += amount; audit(state, context, 'RESOURCE_GAINED', { amount }); return undefined;
+  },
+  RESOURCE_TRANSFER: (state, context) => {
+    const target = stringParameter(context, 'targetParticipantId'); const amount = integerParameter(context, 'amount');
+    return target === undefined || amount === undefined ? 'INVALID_EFFECT_INPUT' : transfer(state, context, target, amount);
+  },
+  SANCTIONS: (state, context) => {
+    const targetId = stringParameter(context, 'targetParticipantId'); const participant = actor(state, context); const target = targetId === undefined ? undefined : state.participants[targetId];
+    if (participant === undefined || target === undefined || participant.id === target.id) return 'INVALID_EFFECT_INPUT';
+    const amount = Math.min(2, target.resources); target.resources -= amount; participant.resources += amount;
+    audit(state, context, 'RESOURCE_TRANSFERRED', { targetParticipantId: target.id, amount }); return undefined;
+  },
+  DIRECT_INFLUENCE: (state, context) => {
+    const pdId = stringParameter(context, 'pdId'); const type = stringParameter(context, 'type'); const amount = integerParameter(context, 'amount');
+    const participant = actor(state, context);
+    if (pdId === undefined || (type !== 'MALIGN' && type !== 'RESILIENCY') || amount === undefined || amount < 0 || participant === undefined) return 'INVALID_EFFECT_INPUT';
+    const result = applyDirectInfluence(state, pdId, type, participant.countryId, amount);
+    audit(state, context, 'DIRECT_INFLUENCE_APPLIED', { pdId, type, generated: amount, placed: result.placed, removed: result.removed }); return undefined;
+  },
+  VP_PENALTY: (state, context) => {
+    const targetId = stringParameter(context, 'targetParticipantId'); const amount = integerParameter(context, 'amount'); const target = targetId === undefined ? undefined : state.participants[targetId];
+    if (target === undefined || amount === undefined || amount < 0) return 'INVALID_EFFECT_INPUT';
+    const before = target.victoryPoints; target.victoryPoints = Math.max(0, before - amount);
+    audit(state, context, 'VP_CHANGED', { targetParticipantId: target.id, delta: target.victoryPoints - before }); return undefined;
+  },
+  CORRUPTION: (state, context) => {
+    const payment = pay(state, context, 1); if (payment !== undefined) return payment;
+    return handlers.VP_PENALTY?.(state, { ...context, parameters: { ...context.parameters, amount: 2 } });
+  },
+  PAY_AND_DIRECT_INFLUENCE: (state, context) => {
+    const cost = integerParameter(context, 'cost');
+    if (cost === undefined) return 'INVALID_EFFECT_INPUT';
+    const payment = pay(state, context, cost); if (payment !== undefined) return payment;
+    return handlers.DIRECT_INFLUENCE?.(state, context);
+  },
+  DOUBLE_ACTION: (state, context) => {
+    const campaignId = stringParameter(context, 'campaignId');
+    const campaign = campaignId === undefined ? undefined : state.campaigns[campaignId];
+    if (campaign === undefined || campaign.ownerParticipantId !== context.actorParticipantId) return 'INVALID_EFFECT_INPUT';
+    const payment = pay(state, context, 1); if (payment !== undefined) return payment;
+    campaign.activationCountThisTurn += 1;
+    audit(state, context, 'EXTRA_CAMPAIGN_ACTIVATION_GRANTED', { campaignId: campaign.id, activationCountThisTurn: campaign.activationCountThisTurn });
+    return undefined;
+  },
+  REGIME_DIE_REMOVE: (state, context) => {
+    const participant = actor(state, context); const roll = integerParameter(context, 'roll'); const pdId = stringParameter(context, 'pdId');
+    if (participant === undefined || roll === undefined || pdId === undefined || roll < 1 || roll > 10) return 'INVALID_DIE_VALUE';
+    if (participant.regimeAbilityUsed) return 'REGIME_ABILITY_ALREADY_USED'; participant.regimeAbilityUsed = true;
+    audit(state, context, 'DIE_ROLLED', { rawValue: roll, manual: Boolean(context.parameters.manual) });
+    if (roll <= 4) { const stack = state.influence.find((candidate) => candidate.pdId === pdId && candidate.type === 'MALIGN' && candidate.count > 0); if (stack !== undefined) stack.count -= 1; }
+    return undefined;
+  },
+};
+
+const definitions: readonly M2BEffectDefinition[] = [
+  { effectId: 'CARD_EFFECT_BASE_2025_E002', version: '0.1', enabledBlock: 'M2-3', handler: handlers.PAIR_BONUS! },
+  { effectId: 'CARD_EFFECT_BASE_2025_E001', version: '0.1', enabledBlock: 'M2-4', handler: handlers.TRADE_AGREEMENTS! },
+  { effectId: 'CARD_EFFECT_BASE_2025_E014', version: '0.1', enabledBlock: 'M2-4', handler: handlers.DIRECT_INFLUENCE! },
+  { effectId: 'CARD_EFFECT_BASE_2025_E015', version: '0.1', enabledBlock: 'M2-4', handler: handlers.PAY_AND_DIRECT_INFLUENCE! },
+  { effectId: 'CARD_EFFECT_BASE_2025_E019', version: '0.1', enabledBlock: 'M2-4', handler: handlers.SANCTIONS! },
+  { effectId: 'CARD_EFFECT_BASE_2025_E025', version: '0.1', enabledBlock: 'M2-4', handler: handlers.DOUBLE_ACTION! },
+  { effectId: 'CARD_EFFECT_BASE_2025_E051', version: '0.1', enabledBlock: 'M2-4', handler: handlers.CORRUPTION! },
+  { effectId: 'REGIME_EFFECT_ARDEN', version: '0.1', enabledBlock: 'M2-4', handler: handlers.REGIME_DIE_REMOVE! },
+] as const;
+
+export const BASE_2025_PAIR_BONUSES: readonly (readonly [string, string])[] = [
+  ['CARD_DEF_BASE_2025_D002', 'CARD_DEF_BASE_2025_D098'], ['CARD_DEF_BASE_2025_D008', 'CARD_DEF_BASE_2025_D044'],
+  ['CARD_DEF_BASE_2025_D009', 'CARD_DEF_BASE_2025_D029'], ['CARD_DEF_BASE_2025_D010', 'CARD_DEF_BASE_2025_D052'],
+  ['CARD_DEF_BASE_2025_D013', 'CARD_DEF_BASE_2025_D024'], ['CARD_DEF_BASE_2025_D015', 'CARD_DEF_BASE_2025_D002'],
+  ['CARD_DEF_BASE_2025_D017', 'CARD_DEF_BASE_2025_D022'], ['CARD_DEF_BASE_2025_D020', 'CARD_DEF_BASE_2025_D016'],
+  ['CARD_DEF_BASE_2025_D033', 'CARD_DEF_BASE_2025_D098'], ['CARD_DEF_BASE_2025_D038', 'CARD_DEF_BASE_2025_D053'],
+  ['CARD_DEF_BASE_2025_D046', 'CARD_DEF_BASE_2025_D067'], ['CARD_DEF_BASE_2025_D049', 'CARD_DEF_BASE_2025_D076'],
+  ['CARD_DEF_BASE_2025_D055', 'CARD_DEF_BASE_2025_D072'], ['CARD_DEF_BASE_2025_D057', 'CARD_DEF_BASE_2025_D077'],
+  ['CARD_DEF_BASE_2025_D058', 'CARD_DEF_BASE_2025_D019'], ['CARD_DEF_BASE_2025_D060', 'CARD_DEF_BASE_2025_D089'],
+  ['CARD_DEF_BASE_2025_D066', 'CARD_DEF_BASE_2025_D084'], ['CARD_DEF_BASE_2025_D068', 'CARD_DEF_BASE_2025_D025'],
+  ['CARD_DEF_BASE_2025_D074', 'CARD_DEF_BASE_2025_D004'], ['CARD_DEF_BASE_2025_D077', 'CARD_DEF_BASE_2025_D083'],
+  ['CARD_DEF_BASE_2025_D078', 'CARD_DEF_BASE_2025_D004'], ['CARD_DEF_BASE_2025_D086', 'CARD_DEF_BASE_2025_D045'],
+  ['CARD_DEF_BASE_2025_D090', 'CARD_DEF_BASE_2025_D025'],
+] as const;
+
+export const calculateRegisteredPairBonus = (definitionIds: readonly string[]): number => {
+  const present = new Set(definitionIds);
+  return BASE_2025_PAIR_BONUSES.reduce((total, [left, right]) => total + (present.has(left) && present.has(right) ? 2 : 0), 0);
+};
+
+export class M2BEffectDispatcher {
+  private readonly manifest = new Map(definitions.map((definition) => [definition.effectId, definition]));
+  constructor(private readonly enabledThrough: 'M2-3' | 'M2-4') {}
+
+  dispatch(state: M2BState, context: M2BEffectContext): M2BEffectResult {
+    const definition = this.manifest.get(context.effectId);
+    if (definition === undefined) return { ok: false, state, error: 'EFFECT_UNKNOWN', emitted: [] };
+    if (context.effectVersion !== definition.version) return { ok: false, state, error: 'EFFECT_VERSION_MISMATCH', emitted: [] };
+    if (this.enabledThrough === 'M2-3' && definition.enabledBlock === 'M2-4') return { ok: false, state, error: 'EFFECT_DISABLED', emitted: [] };
+    const draft = clone(state); const auditStart = draft.audit.length;
+    const error = definition.handler(draft, context);
+    if (error !== undefined) return { ok: false, state, error, emitted: [] };
+    draft.version += 1;
+    return { ok: true, state: draft, emitted: draft.audit.slice(auditStart) };
+  }
+}
+
+export const validateManualDie = (value: number): M2BEffectError | undefined =>
+  Number.isInteger(value) && Number.isFinite(value) && value >= 1 && value <= 10 ? undefined : 'INVALID_DIE_VALUE';
+
+export const applyBacklash = (state: M2BState, participantId: string, pdId: string, amount: number): number => {
+  const participant = state.participants[participantId]; if (participant === undefined) return 0;
+  const placed = applyDirectInfluence(state, pdId, 'RESILIENCY', participant.countryId, amount).placed;
+  participant.victoryPoints = Math.max(0, participant.victoryPoints - placed); return placed;
+};
+
+export const establishLegitimacy = (state: M2BState, participantId: string, pdId: string, replacePdId?: string): boolean => {
+  const owned = Object.entries(state.legitimacyByPd).filter(([, owner]) => owner === participantId);
+  if (owned.length >= 3) {
+    if (replacePdId === undefined || state.legitimacyByPd[replacePdId] !== participantId) return false;
+    state.legitimacyByPd[replacePdId] = null;
+  }
+  state.legitimacyByPd[pdId] = participantId; return true;
+};
+
+export const modifyCampaignCard = (state: M2BState, campaignId: string, oldCardId: string, replacementCardId?: string): M2BEffectError | undefined => {
+  const campaign = state.campaigns[campaignId];
+  if (campaign === undefined || replacementCardId === undefined) return 'CARD_NOT_ELIGIBLE';
+  const index = campaign.cardIds.indexOf(oldCardId); const replacement = state.cards[replacementCardId];
+  if (index < 0 || replacement?.zone !== 'HAND') return 'CARD_WRONG_ZONE';
+  discardWithLifecycle(state, oldCardId); replacement.zone = 'CAMPAIGN'; campaign.cardIds[index] = replacementCardId; return undefined;
+};
+
+export const discardCampaign = (state: M2BState, campaignId: string): M2BEffectError | undefined => {
+  const campaign = state.campaigns[campaignId]; if (campaign === undefined) return 'CARD_NOT_ELIGIBLE';
+  for (const cardId of campaign.cardIds) discardWithLifecycle(state, cardId);
+  delete state.campaigns[campaignId]; return undefined;
+};
+
+export const runM2BScheduler = <T>(
+  orderedSlots: readonly T[],
+  execute: (slot: T, index: number) => 'RESOLVED' | 'SUSPENDED',
+  startIndex = 0,
+): { readonly nextIndex: number; readonly status: 'SUSPENDED' | 'COMPLETE'; readonly executionOrder: readonly number[] } => {
+  const order: number[] = [];
+  for (let index = startIndex; index < orderedSlots.length; index += 1) {
+    const slot = orderedSlots[index]; if (slot === undefined) break; order.push(index);
+    if (execute(slot, index) === 'SUSPENDED') return { nextIndex: index, status: 'SUSPENDED', executionOrder: order };
+  }
+  return { nextIndex: orderedSlots.length, status: 'COMPLETE', executionOrder: order };
+};
+
+export const playStarter = (state: M2BState, cardId: string, actorParticipantId: string): M2BEffectError | undefined => {
+  const card = state.cards[cardId]; const participant = state.participants[actorParticipantId];
+  if (card === undefined || participant === undefined || card.cardClass !== 'STARTER' || card.zone !== 'HAND') return 'CARD_NOT_ELIGIBLE';
+  card.zone = 'REMOVED_FROM_GAME'; return undefined;
+};
+
+export const stealBlindCard = (state: M2BState, actorId: string, targetId: string, position: number): string | undefined => {
+  const targetCards = Object.values(state.cards).filter((card) => card.controllerParticipantId === targetId && card.zone === 'HAND').sort((a, b) => a.id.localeCompare(b.id));
+  const card: M2BCard | undefined = targetCards[position]; if (card === undefined) return undefined;
+  card.controllerParticipantId = actorId; card.returnToOwnerOnDiscard = true; return card.id;
+};
