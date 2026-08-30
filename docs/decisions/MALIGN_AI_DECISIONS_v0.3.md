@@ -1325,3 +1325,23 @@ DEC-075 autoriza exclusivamente documentación. No autoriza M2 ni ninguna subeta
 **IMPACTO:** Se habilita M2-5 con gate propio y preservación completa de la baseline. IA no interviene en sanciones narrativas ni adjudicación.
 
 **ESTADO:** `APPROVED — M2-5 IMPLEMENTATION AUTHORIZATION ONLY`
+
+---
+
+## DEC-086 — Autorización de implementación M2-6 Cleanup, Viralization and End Turn
+
+**FECHA:** 2026-08-30
+**TEMA:** Implementación acotada del lifecycle terminal de turno anterior a Objectives/Victory.
+
+**DECISIÓN:**
+
+- Se autoriza exclusivamente **M2-6 — Cleanup, Viralization and End Turn** sobre el baseline M2-5 publicado.
+- El gate conserva 17 owners oracle, `GE-M2-LC-001` y seis regresiones asignadas: **18 owners y 24 ejecuciones dirigidas**.
+- Campaign aging usa snapshot y semántica simultánea: Row II se descarta antes de mover Row I a Row II.
+- Viral usa snapshot de elegibilidad, umbrales estrictos `>8` baseline y `>6` short, orden initiative rank + `pd_id`, máximo un intento por origen y ninguna cascada.
+- Baseline consume segundo dado sólo tras primer resultado `>=6`; short nunca consume segundo dado. Los cubos atraviesan el flujo directo 2:1 sin VP ni legitimidad.
+- Cleanup es una state machine versionada y reiniciable; un checkpoint stale/corrupto falla cerrado y cada paso se compromete una vez.
+- El resultado queda **IMPLEMENTED / PENDING REVIEW**; DEC-086 no aprueba ni cierra M2-6 o M2 global.
+- M2-7 y M3 permanecen **NOT AUTHORIZED**.
+
+**ESTADO:** `APPROVED — M2-6 IMPLEMENTATION AUTHORIZATION ONLY`

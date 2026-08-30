@@ -5,7 +5,7 @@
 **Autoridad:** DEC-074…DEC-083
 **Oracle:** `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_SPEC_v0.1.md`
 **Addenda:** M1 v0.1 preservado; M2 v0.1 aprobado como test acceptance baseline
-**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3/M2-4 IMPLEMENTED / PENDING REVIEW mediante DEC-084; M2-5 IMPLEMENTED / PENDING REVIEW mediante DEC-085; M2-6/M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
+**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3…M2-6 IMPLEMENTED / PENDING REVIEW mediante DEC-084/085/086; M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
 
 > Históricamente, DEC-078 materializó exclusivamente los 22 owner asignados a M2-A/M2-1. DEC-080 aprobó y cerró posteriormente M2-A/M2-1. Los owners y conteos de M2-2…M2-7 permanecen futuros, sin alteración y no autorizados.
 
@@ -291,7 +291,7 @@ Resultado DEC-085 pendiente de revisión: **23/23 owners + 11/11 regresiones = 3
 
 Riesgo trazado: transición terminal de turno, campaign state, deterministic trace, snapshot/replay y pending-state recovery. Las repeticiones con M2-3/M2-7 se justifican por el nuevo boundary Cleanup→End Turn.
 
-Gate futuro: **24 ejecuciones dirigidas + preservación completa de la suite M2-5**; 18 casos nuevos; mínimo operativo **427**.
+Resultado DEC-086 pendiente de revisión: **18/18 owners + 6/6 regresiones = 24/24 PASS**, preservando M2-5; suite acumulada **474/474 PASS en 42 archivos**.
 
 ## 11. M2-7 — Objectives, Victory and End Game
 

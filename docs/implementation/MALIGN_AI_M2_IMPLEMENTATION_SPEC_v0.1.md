@@ -3,7 +3,7 @@
 **Fecha:** 2026-08-27
 **Estado:** M2-0 APPROVED AND CLOSED / M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080
 **Autoridad:** DEC-074…DEC-083
-**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3/M2-4 IMPLEMENTED / PENDING REVIEW mediante DEC-084; M2-5 IMPLEMENTED / PENDING REVIEW mediante DEC-085; M2-6/M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
+**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3…M2-6 IMPLEMENTED / PENDING REVIEW mediante DEC-084/085/086; M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
 
 > DEC-078 autorizó y materializó exclusivamente M2-A/M2-1; DEC-080 aprobó su commit funcional final `85ec047726a68007fbcabf07c6b3fe1b911a3070` y cerró M2A-R01…R30. DEC-080 no autoriza M2-2…M2-7, M2 global o M3.
 
@@ -78,7 +78,7 @@ Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, an
 | M2-3 | Complete Scheduler and Remaining Core Rules | M2-1; contrato de registry suficiente | 39 | IMPLEMENTED / PENDING REVIEW — DEC-084 |
 | M2-4 | Action/Starter Cards and Regime Abilities | M2-3; IQ-M2-010 resuelta | 45 | IMPLEMENTED / PENDING REVIEW — DEC-084 |
 | M2-5 | Reaction, Veto and Deterministic Narrative | M2-3/M2-4; transport recovery para gate productivo | 23 | IMPLEMENTED / PENDING REVIEW — DEC-085 |
-| M2-6 | Cleanup, Viralization and End Turn | M2-3/M2-5 | 18 | NOT AUTHORIZED |
+| M2-6 | Cleanup, Viralization and End Turn | M2-3/M2-5 | 18 | IMPLEMENTED / PENDING REVIEW — DEC-086 |
 | M2-7 | Objectives, Victory and End Game | M2-1/M2-2/M2-6 | 30 | NOT AUTHORIZED |
 
 Ningún bloque de implementación supera 50 casos nuevos únicos. La autorización de un bloque requerirá un prompt posterior separado.
@@ -189,7 +189,7 @@ Checkpoint implementado: ventanas/prioridad determinísticas; nested continuatio
 
 Incluye state progression y campaign aging; Cleanup; 12 `GE-VIR-*`; `GE-M2-LC-001`; transición segura a End Turn o siguiente fase.
 
-DoD futuro: aging con snapshot/simultaneidad aprobada; no cascada viral; ordering estable; continuation reiniciable sin duplicados; **18/18 nuevos únicos** y regresiones dirigidas, preservando toda la suite M2-5 y alcanzando mínimo operativo **427**.
+Checkpoint implementado: aging simultáneo por snapshot; viral sin cascada, ordering estable, variantes baseline/short y continuation reiniciable fail-closed. **18/18 owners + 6/6 regresiones = 24/24 PASS**; suite acumulada **474/474 en 42 archivos**. Estado **PENDING REVIEW**.
 
 ## 13. M2-7 — Objectives, Victory and End Game
 
