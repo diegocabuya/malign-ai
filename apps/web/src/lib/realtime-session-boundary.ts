@@ -15,3 +15,16 @@ export class HttpRealtimeSessionInvalidationAdapter implements RealtimeSessionIn
     if (response.status !== 204) throw new Error('REALTIME_SESSION_INVALIDATION_FAILED');
   }
 }
+
+export interface ServerSideLogoutDependencies {
+  readonly getAccessToken: () => Promise<string>;
+  readonly invalidateRealtime: RealtimeSessionInvalidationPort;
+  readonly completeLocalLogout: () => Promise<void>;
+}
+
+/** Server-only ordering boundary: distributed realtime invalidation completes before local BFF logout. */
+export const completeServerSideLogout = async (dependencies: ServerSideLogoutDependencies): Promise<void> => {
+  const accessToken = await dependencies.getAccessToken();
+  await dependencies.invalidateRealtime.invalidateCurrentSession(accessToken);
+  await dependencies.completeLocalLogout();
+};

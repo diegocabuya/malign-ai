@@ -7,6 +7,7 @@ import {
   type VerifiedExternalIdentity,
 } from '@malign-ai/authz';
 import { createRemoteJWKSet, errors, jwtVerify } from 'jose';
+import { assertLeastPrivilegeRuntimeIdentity } from '@malign-ai/persistence';
 
 export interface Auth0JwksAuthnConfig {
   readonly issuer: string;
@@ -139,6 +140,12 @@ export interface SqlQueryResult {
 
 export interface SqlQueryPort {
   query(text: string, values?: readonly unknown[]): Promise<SqlQueryResult>;
+  connect(): Promise<SqlClientPort>;
+}
+
+export interface SqlClientPort {
+  query<T extends object = Record<string, unknown>>(text: string, values?: readonly unknown[]): Promise<{ readonly rows: T[] }>;
+  release(): void;
 }
 
 const property = (value: object, key: string): unknown => Reflect.get(value, key);
@@ -148,19 +155,28 @@ export class PostgresMembershipAuthorityAdapter implements ProductiveMembershipA
   constructor(private readonly database: SqlQueryPort) {}
 
   async resolveMembership(session: ProductiveSession, gameId: string): Promise<AuthoritativeMembership> {
-    const result = await this.database.query(
-      `SELECT p.id::text participant_id,p.external_user_ref,p.role,
+    const client = await this.database.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SET LOCAL ROLE malign_app_runtime');
+      await assertLeastPrivilegeRuntimeIdentity(client, 'malign_app_runtime');
+      const result = await client.query(
+      `SELECT logical_participant.key participant_id,p.external_user_ref,p.role,
               seat.id::text seat_id,country.logical_id country_id
          FROM malign.game_participants p
+         JOIN malign.games game ON game.id=p.game_id
+         CROSS JOIN LATERAL jsonb_each(game.authoritative_state_json->'participants') logical_participant
          JOIN malign.game_sessions game_session ON game_session.game_id=p.game_id
          JOIN malign.game_memberships membership
            ON membership.game_session_id=game_session.id AND membership.participant_id=p.id
          LEFT JOIN malign.player_seats seat ON seat.game_id=p.game_id AND seat.participant_id=p.id
          LEFT JOIN malign.country_definitions country ON country.id=seat.country_definition_id
         WHERE p.game_id=$1::uuid AND p.external_user_ref=$2 AND p.status='ACTIVE'
+          AND logical_participant.value->>'userId'=p.external_user_ref
           AND game_session.state<>'CLOSED'`,
       [gameId, session.identity.subject],
     );
+      await client.query('COMMIT');
     if (result.rows.length !== 1) throw new ProductiveAuthnError('AUTHZ_MEMBERSHIP_REJECTED');
     const row = result.rows[0];
     if (typeof row !== 'object' || row === null) throw new ProductiveAuthnError('AUTHZ_MEMBERSHIP_REJECTED');
@@ -191,5 +207,10 @@ export class PostgresMembershipAuthorityAdapter implements ProductiveMembershipA
         ...(typeof countryId === 'string' ? { countryId } : {}),
       },
     };
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      if (error instanceof ProductiveAuthnError) throw error;
+      throw new ProductiveAuthnError('AUTHZ_MEMBERSHIP_REJECTED');
+    } finally { client.release(); }
   }
 }

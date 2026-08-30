@@ -11,7 +11,6 @@ export const HttpCommandRequestSchema = z.object({
   gameId: id,
   expectedGameVersion: z.number().int().nonnegative().finite(),
   commandType: z.enum([
-    'JOIN_GAME_MEMBERSHIP',
     'ASSIGN_PLAYER_SEAT',
     'CONFIGURE_GAME_OPTION',
     'START_GAME',

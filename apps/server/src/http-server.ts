@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type RequestListener, type Server, 
 import {
   ProductiveAuthnError,
   ProductiveSessionRegistry,
+  externalIdentityDigest,
   type ProductiveAuthnPort,
   type ProductiveMembershipAuthorityPort,
 } from '@malign-ai/authz';
@@ -23,6 +24,17 @@ import type {
 } from './game-session-application.js';
 import type { ProductiveRealtimeServer } from './realtime-server.js';
 
+export class ProductiveTransportError extends Error {
+  override readonly name = 'ProductiveTransportError';
+  constructor(readonly code: 'COMMAND_NOT_AVAILABLE_ON_PRODUCTIVE_TRANSPORT') {
+    super('Command is not available on the productive transport');
+  }
+}
+
+export interface DistributedSessionInvalidationPort {
+  invalidate(identity: { readonly issuer: string; readonly subject: string }): Promise<void>;
+}
+
 export interface AuthoritativeHttpServerOptions {
   readonly application: GameSessionApplicationPort;
   readonly authn: ProductiveAuthnPort;
@@ -31,6 +43,7 @@ export interface AuthoritativeHttpServerOptions {
   readonly realtime: ProductiveRealtimeServer;
   readonly maximumBodyBytes?: number;
   readonly readiness?: () => Promise<boolean>;
+  readonly distributedSessionInvalidation?: DistributedSessionInvalidationPort;
   readonly serverFactory?: (listener: RequestListener) => Server;
 }
 
@@ -47,6 +60,9 @@ const sendJson = (response: ServerResponse, status: number, payload: unknown): v
 
 const rejectOpaque = (response: ServerResponse, status = 403): void =>
   sendJson(response, status, { error: { code: 'REQUEST_REJECTED' } });
+
+const rejectUnavailableCommand = (response: ServerResponse): void =>
+  sendJson(response, 400, { error: { code: 'COMMAND_NOT_AVAILABLE_ON_PRODUCTIVE_TRANSPORT' } });
 
 const bearerToken = (request: IncomingMessage): string | undefined => {
   const header = request.headers.authorization;
@@ -85,7 +101,7 @@ const readJson = async (request: IncomingMessage, maximumBytes: number): Promise
 };
 
 const setupCommandTypes = new Set<SetupCommandType>([
-  'JOIN_GAME_MEMBERSHIP', 'ASSIGN_PLAYER_SEAT', 'CONFIGURE_GAME_OPTION', 'START_GAME',
+  'ASSIGN_PLAYER_SEAT', 'CONFIGURE_GAME_OPTION', 'START_GAME',
   'PAUSE_GAME', 'RESUME_GAME', 'SUBMIT_OPERATIONS_DECK', 'LOCK_STRATEGY',
   'REQUEST_INITIATIVE_ROLL', 'SET_INITIATIVE_MAINTENANCE', 'LOCK_INITIATIVE_MAINTENANCE',
   'SET_ACTION_PLAN', 'LOCK_ACTION_PLAN', 'CONSTRUCT_CAMPAIGN', 'END_GAME_SCORING',
@@ -116,7 +132,8 @@ export const createAuthoritativeHttpServer = (options: AuthoritativeHttpServerOp
       const session = options.sessions.create(identity);
       sessionId = session.sessionId;
       if (request.url === '/v1/session/invalidate') {
-        options.sessions.invalidateExternalSubject(identity.subject);
+        options.sessions.invalidateExternalIdentityDigest(externalIdentityDigest(identity.issuer, identity.subject));
+        await options.distributedSessionInvalidation?.invalidate(identity);
         response.writeHead(204, { 'cache-control': 'no-store' });
         response.end();
         return;
@@ -137,6 +154,10 @@ export const createAuthoritativeHttpServer = (options: AuthoritativeHttpServerOp
         if (!result.ok) { rejectOpaque(response); return; }
         sendJson(response, 200, result.value);
         return;
+      }
+      if (typeof raw === 'object' && raw !== null &&
+          (Reflect.get(raw, 'commandType') === 'CREATE_GAME' || Reflect.get(raw, 'commandType') === 'JOIN_GAME_MEMBERSHIP')) {
+        throw new ProductiveTransportError('COMMAND_NOT_AVAILABLE_ON_PRODUCTIVE_TRANSPORT');
       }
       const input = HttpCommandRequestSchema.parse(raw);
       const membership = await options.memberships.resolveMembership(session, input.gameId);
@@ -175,7 +196,8 @@ export const createAuthoritativeHttpServer = (options: AuthoritativeHttpServerOp
       const result = await options.application.executeForActor(membership.actorContext, command);
       sendJson(response, result.status === 'REJECTED' ? 409 : 200, result);
     } catch (error) {
-      rejectOpaque(response, error instanceof ProductiveAuthnError ? 403 : 400);
+      if (error instanceof ProductiveTransportError) rejectUnavailableCommand(response);
+      else rejectOpaque(response, error instanceof ProductiveAuthnError ? 403 : 400);
     } finally {
       if (sessionId !== undefined) options.sessions.invalidate(sessionId);
     }

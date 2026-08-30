@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 
 import type { ActorContext } from '@malign-ai/contracts';
 
@@ -27,6 +28,12 @@ export interface VerifiedExternalIdentity {
   readonly scopes: readonly string[];
   readonly expiresAtEpochSeconds: number;
 }
+
+export const normalizedExternalIssuer = (issuer: string): string =>
+  issuer.endsWith('/') ? issuer : `${issuer}/`;
+
+export const externalIdentityDigest = (issuer: string, subject: string): string =>
+  createHash('sha256').update(`${normalizedExternalIssuer(issuer)}\u0000${subject}`, 'utf8').digest('hex');
 
 /** Application-layer identity port. It deliberately returns no gameplay authority. */
 export interface ProductiveAuthnPort {
@@ -75,6 +82,14 @@ export class ProductiveSessionRegistry {
   invalidateExternalSubject(subject: string): void {
     const matching = [...this.#sessions.values()]
       .filter((session) => session.identity.subject === subject)
+      .map((session) => session.sessionId);
+    for (const sessionId of matching) this.invalidate(sessionId);
+  }
+
+  invalidateExternalIdentityDigest(digest: string): void {
+    if (!/^[a-f0-9]{64}$/.test(digest)) return;
+    const matching = [...this.#sessions.values()]
+      .filter((session) => externalIdentityDigest(session.identity.issuer, session.identity.subject) === digest)
       .map((session) => session.sessionId);
     for (const sessionId of matching) this.invalidate(sessionId);
   }

@@ -92,5 +92,26 @@ export interface RealtimeServerFrame<TPayload = unknown> {
   readonly payload: TPayload;
 }
 
+export interface RealtimeIntermediateEventBatchPayload<TEvent = unknown> {
+  readonly fromCursor: RealtimeCursorV1;
+  readonly cursor: RealtimeCursorV1;
+  readonly events: readonly TEvent[];
+  readonly final: false;
+  readonly delivery: 'AT_LEAST_ONCE';
+}
+
+export interface RealtimeFinalEventBatchPayload<TEvent = unknown, TProjection = unknown> {
+  readonly fromCursor: RealtimeCursorV1;
+  readonly cursor: RealtimeCursorV1;
+  readonly events: readonly TEvent[];
+  readonly final: true;
+  readonly projection: TProjection;
+  readonly delivery: 'AT_LEAST_ONCE';
+}
+
+export type RealtimeEventBatchPayload<TEvent = unknown, TProjection = unknown> =
+  | RealtimeIntermediateEventBatchPayload<TEvent>
+  | RealtimeFinalEventBatchPayload<TEvent, TProjection>;
+
 export const parseRealtimeClientFrame = (value: unknown): RealtimeClientFrame =>
   RealtimeClientFrameSchema.parse(value);

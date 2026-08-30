@@ -1,6 +1,8 @@
-import type { PoolClient } from 'pg';
-
 import { PersistenceError } from './errors.js';
+
+export interface RuntimeIdentityClient {
+  query<T extends object = Record<string, unknown>>(text: string, values?: readonly unknown[]): Promise<{ readonly rows: T[] }>;
+}
 
 export type ProductRuntimeRole = 'malign_app_runtime' | 'malign_outbox_publisher';
 
@@ -16,7 +18,7 @@ export interface VerifiedRuntimeIdentity {
  * when they could SET ROLE successfully.
  */
 export const assertLeastPrivilegeRuntimeIdentity = async (
-  client: PoolClient,
+  client: RuntimeIdentityClient,
   expectedRole: ProductRuntimeRole,
 ): Promise<VerifiedRuntimeIdentity> => {
   const identity = await client.query<{

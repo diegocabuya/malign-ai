@@ -13,7 +13,14 @@ import {
 class FakeClient extends EventEmitter implements DedicatedPostgresClient {
   readonly queries: string[] = [];
   released = false;
-  query(text: string): Promise<unknown> { this.queries.push(text); return Promise.resolve({}); }
+  query(text: string): Promise<unknown> {
+    this.queries.push(text);
+    if (text.includes('FROM pg_roles')) return Promise.resolve({ rows: [{
+      session_user: 'malign_test_app_listener', current_user: 'malign_app_runtime', rolcanlogin: true,
+      rolsuper: false, rolcreatedb: false, rolcreaterole: false, memberships: ['malign_app_runtime'],
+    }] });
+    return Promise.resolve({ rows: [] });
+  }
   override on<E extends 'notification' | 'error' | 'end'>(
     event: E,
     listener: E extends 'notification'
@@ -47,10 +54,11 @@ describe('M2-2 PostgreSQL LISTEN/NOTIFY durable wake-up adapter', () => {
       return Promise.resolve();
     }, new InMemoryFanoutMetrics(), 10_000);
     await listener.start();
-    expect(pool.clients[0]?.queries[0]).toBe('LISTEN malign_realtime_wakeup');
+    expect(pool.clients[0]?.queries).toContain('LISTEN malign_realtime_wakeup');
+    expect(pool.clients[0]?.queries).toContain('LISTEN malign_session_invalidation');
     expect(order).toEqual(['catchup']);
     await listener.stop();
-    expect(pool.clients[0]?.queries).toContain('UNLISTEN malign_realtime_wakeup');
+    expect(pool.clients[0]?.queries).toContain('UNLISTEN *');
     expect(pool.clients[0]?.released).toBe(true);
   });
 

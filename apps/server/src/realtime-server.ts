@@ -25,7 +25,8 @@ import { WebSocket, WebSocketServer, type RawData } from 'ws';
 
 export interface RealtimeOperationalConfig {
   readonly allowedOrigins: readonly string[];
-  readonly requireTls: boolean;
+  readonly tlsMode: 'direct' | 'trusted_proxy' | 'disabled';
+  readonly trustedProxyAddresses: readonly string[];
   readonly authenticationTimeoutMilliseconds: number;
   readonly heartbeatMilliseconds: number;
   readonly maximumMissedPongs: number;
@@ -41,10 +42,11 @@ export interface RealtimeOperationalConfig {
 
 export const defaultRealtimeOperationalConfig = (
   allowedOrigins: readonly string[],
-  requireTls = process.env.NODE_ENV === 'production',
+  tlsMode: RealtimeOperationalConfig['tlsMode'] | boolean = process.env.NODE_ENV === 'production' ? 'direct' : 'disabled',
 ): RealtimeOperationalConfig => ({
   allowedOrigins: [...allowedOrigins],
-  requireTls,
+  tlsMode: typeof tlsMode === 'boolean' ? (tlsMode ? 'direct' : 'disabled') : tlsMode,
+  trustedProxyAddresses: [],
   authenticationTimeoutMilliseconds: 5_000,
   heartbeatMilliseconds: 30_000,
   maximumMissedPongs: 2,
@@ -57,6 +59,31 @@ export const defaultRealtimeOperationalConfig = (
   feedBatchSize: 100,
   shutdownGraceMilliseconds: 10_000,
 });
+
+export const validateRealtimeOperationalConfig = (config: RealtimeOperationalConfig): void => {
+  if (config.allowedOrigins.length === 0 || config.allowedOrigins.some((origin) => !origin.startsWith('https://'))) {
+    throw new Error('REALTIME_ALLOWED_ORIGINS_INVALID');
+  }
+  if (config.tlsMode === 'trusted_proxy' && config.trustedProxyAddresses.length === 0) {
+    throw new Error('REALTIME_TRUSTED_PROXY_CONFIGURATION_INVALID');
+  }
+  if (config.tlsMode !== 'trusted_proxy' && config.trustedProxyAddresses.length > 0) {
+    throw new Error('REALTIME_TRUSTED_PROXY_CONFIGURATION_INVALID');
+  }
+  if (config.tlsMode === 'disabled' && process.env.NODE_ENV === 'production') {
+    throw new Error('REALTIME_TLS_DISABLED_IN_PRODUCTION');
+  }
+};
+
+export const validateTlsServerMaterial = (
+  mode: RealtimeOperationalConfig['tlsMode'],
+  keyPath: string | undefined,
+  certificatePath: string | undefined,
+): void => {
+  if ((keyPath === undefined) !== (certificatePath === undefined)) throw new Error('REALTIME_TLS_MATERIAL_INCOMPLETE');
+  if (mode === 'direct' && keyPath === undefined) throw new Error('REALTIME_DIRECT_TLS_MATERIAL_REQUIRED');
+  if (mode !== 'direct' && keyPath !== undefined) throw new Error('REALTIME_TLS_MATERIAL_MODE_INVALID');
+};
 
 export type RealtimeMetricName =
   | 'connections.active'
@@ -127,6 +154,11 @@ interface ProductiveSubscription {
   active: boolean;
   lastIssuedCursor: RealtimeCursorV1;
   lastAcknowledgedCursor: RealtimeCursorV1;
+  readonly initialCursor: RealtimeCursorV1;
+  readonly issuedCursors: Map<string, RealtimeCursorV1>;
+  readonly acknowledgedCursors: Set<string>;
+  tail: Promise<void>;
+  closed: boolean;
 }
 
 interface ConnectionState {
@@ -150,13 +182,15 @@ const sameCursorScope = (left: RealtimeCursorV1, right: RealtimeCursorV1): boole
   left.projectionId === right.projectionId;
 
 const cursorAtOrBefore = (left: RealtimeCursorV1, right: RealtimeCursorV1): boolean =>
-  left.lastSequenceNumber < right.lastSequenceNumber ||
-  (left.lastSequenceNumber === right.lastSequenceNumber && left.gameVersion <= right.gameVersion);
+  left.lastSequenceNumber <= right.lastSequenceNumber && left.gameVersion <= right.gameVersion;
 
 const sameCursorPosition = (left: RealtimeCursorV1, right: RealtimeCursorV1): boolean =>
   sameCursorScope(left, right) &&
   left.lastSequenceNumber === right.lastSequenceNumber &&
   left.gameVersion === right.gameVersion;
+
+const cursorKey = (cursor: RealtimeCursorV1): string =>
+  `${cursor.lastSequenceNumber}:${cursor.gameVersion}`;
 
 const rawDataLength = (data: RawData): number => {
   if (typeof data === 'string') return Buffer.byteLength(data);
@@ -172,6 +206,15 @@ const rawDataText = (data: RawData): string => {
 };
 
 const isTlsRequest = (request: IncomingMessage): boolean => Reflect.get(request.socket, 'encrypted') === true;
+
+const normalizedRemoteAddress = (request: IncomingMessage): string =>
+  (request.socket.remoteAddress ?? '').replace(/^::ffff:/, '');
+
+const hasTrustedProxyTlsEvidence = (request: IncomingMessage, config: RealtimeOperationalConfig): boolean => {
+  if (!config.trustedProxyAddresses.includes(normalizedRemoteAddress(request))) return false;
+  const forwardedProto = request.headers['x-forwarded-proto'];
+  return typeof forwardedProto === 'string' && forwardedProto.trim().toLowerCase() === 'https';
+};
 
 export class ProductiveRealtimeServer {
   readonly #webSockets: WebSocketServer;
@@ -192,6 +235,7 @@ export class ProductiveRealtimeServer {
     private readonly config: RealtimeOperationalConfig,
     private readonly now: () => number = Date.now,
   ) {
+    validateRealtimeOperationalConfig(config);
     this.#webSockets = new WebSocketServer({
       noServer: true,
       clientTracking: false,
@@ -226,10 +270,13 @@ export class ProductiveRealtimeServer {
     this.#handshakesByAddress.set(address, attempts);
     const requestUrl = new URL(request.url ?? '/', 'http://local.invalid');
     const tokenInUrl = [...requestUrl.searchParams.keys()].some((key) => /token|credential|session/i.test(key));
+    const secureTransport = this.config.tlsMode === 'disabled' ||
+      (this.config.tlsMode === 'direct' && isTlsRequest(request)) ||
+      (this.config.tlsMode === 'trusted_proxy' && hasTrustedProxyTlsEvidence(request, this.config));
     const rejected = this.#draining ||
       !this.config.allowedOrigins.includes(origin) ||
       protocols.length !== 1 || protocols[0] !== MALIGN_REALTIME_PROTOCOL ||
-      (this.config.requireTls && !isTlsRequest(request)) || tokenInUrl ||
+      !secureTransport || tokenInUrl ||
       attempts.length > this.config.maximumHandshakesPerMinute;
     if (rejected) {
       this.metrics.add('handshake.rejects');
@@ -244,7 +291,8 @@ export class ProductiveRealtimeServer {
     for (const connection of this.#connections.values()) {
       for (const subscription of connection.subscriptions.values()) {
         if (subscription.gameId === gameId && subscription.active) {
-          tasks.push(this.deliverCatchup(connection, subscription, subscription.lastIssuedCursor, 'EVENT_BATCH'));
+          tasks.push(this.enqueueSubscription(subscription, () =>
+            this.deliverCatchup(connection, subscription, subscription.lastIssuedCursor, 'EVENT_BATCH')));
         }
       }
     }
@@ -337,9 +385,9 @@ export class ProductiveRealtimeServer {
       switch (frame.type) {
         case 'AUTHENTICATE': await this.authenticate(connection, frame); break;
         case 'SUBSCRIBE': await this.subscribe(connection, frame); break;
-        case 'ACK': this.acknowledge(connection, frame); break;
+        case 'ACK': await this.acknowledge(connection, frame); break;
         case 'RESYNC_REQUEST': await this.resync(connection, frame); break;
-        case 'UNSUBSCRIBE': this.unsubscribe(connection, frame.subscriptionId, frame.gameId); break;
+        case 'UNSUBSCRIBE': await this.unsubscribe(connection, frame.subscriptionId, frame.gameId); break;
       }
       this.log('INFO', frame.correlationId, frame.type, 'OK', started);
     } catch (error) {
@@ -394,6 +442,11 @@ export class ProductiveRealtimeServer {
       active: false,
       lastIssuedCursor: structuredClone(startCursor),
       lastAcknowledgedCursor: structuredClone(startCursor),
+      initialCursor: structuredClone(startCursor),
+      issuedCursors: new Map([[cursorKey(initial.value.cursor), structuredClone(initial.value.cursor)]]),
+      acknowledgedCursors: new Set([cursorKey(startCursor)]),
+      tail: Promise.resolve(),
+      closed: false,
     };
     connection.subscriptions.set(subscriptionId, subscription);
     this.metrics.add('subscriptions.active');
@@ -405,24 +458,32 @@ export class ProductiveRealtimeServer {
       cursor: initial.value.cursor,
     }, frame.gameId, subscriptionId);
     subscription.active = true;
-    await this.deliverCatchup(connection, subscription, startCursor, 'EVENT_BATCH', frame.correlationId);
+    await this.enqueueSubscription(subscription, () =>
+      this.deliverCatchup(connection, subscription, startCursor, 'EVENT_BATCH', frame.correlationId));
     this.metrics.observe('sync.latency_ms', this.now() - started);
   }
 
-  private acknowledge(
+  private async acknowledge(
     connection: ConnectionState,
     frame: Extract<RealtimeClientFrame, { readonly type: 'ACK' }>,
-  ): void {
+  ): Promise<void> {
     const subscription = this.ownedSubscription(connection, frame.subscriptionId, frame.gameId);
-    const cursor = frame.payload.cursor;
-    if (!sameCursorScope(cursor, subscription.lastIssuedCursor) || !cursorAtOrBefore(cursor, subscription.lastIssuedCursor)) {
-      throw new ProductiveAuthnError('AUTHN_POLICY_REJECTED');
-    }
-    if (cursorAtOrBefore(cursor, subscription.lastAcknowledgedCursor)) return;
-    if (!sameCursorPosition(cursor, subscription.lastIssuedCursor)) {
-      throw new ProductiveAuthnError('AUTHN_POLICY_REJECTED');
-    }
-    subscription.lastAcknowledgedCursor = structuredClone(cursor);
+    await this.enqueueSubscription(subscription, async () => {
+      const cursor = frame.payload.cursor;
+      if (!sameCursorScope(cursor, subscription.lastIssuedCursor)) throw new ProductiveAuthnError('AUTHN_POLICY_REJECTED');
+      const key = cursorKey(cursor);
+      if (subscription.acknowledgedCursors.has(key)) return Promise.resolve();
+      if (!subscription.issuedCursors.has(key) || !cursorAtOrBefore(subscription.lastAcknowledgedCursor, cursor)) {
+        throw new ProductiveAuthnError('AUTHN_POLICY_REJECTED');
+      }
+      subscription.lastAcknowledgedCursor = structuredClone(cursor);
+      subscription.acknowledgedCursors.add(key);
+      return Promise.resolve();
+      for (const [issuedKey, issued] of subscription.issuedCursors) {
+        if (cursorAtOrBefore(issued, cursor)) subscription.issuedCursors.delete(issuedKey);
+      }
+      return Promise.resolve();
+    });
   }
 
   private async resync(
@@ -430,22 +491,28 @@ export class ProductiveRealtimeServer {
     frame: Extract<RealtimeClientFrame, { readonly type: 'RESYNC_REQUEST' }>,
   ): Promise<void> {
     const subscription = this.ownedSubscription(connection, frame.subscriptionId, frame.gameId);
-    if (!sameCursorScope(frame.payload.afterCursor, subscription.lastIssuedCursor)) {
+    const resyncKey = cursorKey(frame.payload.afterCursor);
+    if (!sameCursorScope(frame.payload.afterCursor, subscription.lastIssuedCursor) ||
+      (!sameCursorPosition(frame.payload.afterCursor, subscription.initialCursor) &&
+       !subscription.issuedCursors.has(resyncKey) && !subscription.acknowledgedCursors.has(resyncKey))) {
       throw new ProductiveAuthnError('AUTHN_POLICY_REJECTED');
     }
-    this.metrics.add('gaps.detected');
-    this.send(connection, 'GAP_DETECTED', frame.correlationId, {
-      afterCursor: frame.payload.afterCursor,
-      recovery: 'AUTHORIZED_FEED',
-    }, subscription.gameId, subscription.subscriptionId);
-    await this.deliverCatchup(connection, subscription, frame.payload.afterCursor, 'EVENT_BATCH', frame.correlationId);
-    this.metrics.add('gaps.recovered');
+    await this.enqueueSubscription(subscription, async () => {
+      this.metrics.add('gaps.detected');
+      this.send(connection, 'GAP_DETECTED', frame.correlationId, {
+        afterCursor: frame.payload.afterCursor,
+        recovery: 'AUTHORIZED_FEED',
+      }, subscription.gameId, subscription.subscriptionId);
+      await this.deliverCatchup(connection, subscription, frame.payload.afterCursor, 'EVENT_BATCH', frame.correlationId);
+      this.metrics.add('gaps.recovered');
+    });
   }
 
-  private unsubscribe(connection: ConnectionState, subscriptionId: string, gameId: string): void {
-    this.ownedSubscription(connection, subscriptionId, gameId);
-    connection.subscriptions.delete(subscriptionId);
-    this.metrics.add('subscriptions.active', -1);
+  private async unsubscribe(connection: ConnectionState, subscriptionId: string, gameId: string): Promise<void> {
+    const subscription = this.ownedSubscription(connection, subscriptionId, gameId);
+    subscription.closed = true;
+    await subscription.tail;
+    if (connection.subscriptions.delete(subscriptionId)) this.metrics.add('subscriptions.active', -1);
   }
 
   private async deliverCatchup(
@@ -455,6 +522,7 @@ export class ProductiveRealtimeServer {
     frameType: 'EVENT_BATCH',
     correlationId: string = randomUUID(),
   ): Promise<void> {
+    if (subscription.closed) return;
     const session = this.requireSession(connection);
     const membership = await this.memberships.resolveMembership(session, subscription.gameId);
     if (membership.participantId !== subscription.membership.participantId) {
@@ -481,6 +549,7 @@ export class ProductiveRealtimeServer {
       batches.push(feed.events.slice(index, index + this.config.feedBatchSize));
     }
     if (batches.length === 0 && cursorAtOrBefore(feed.cursor, subscription.lastIssuedCursor)) return;
+    if (!cursorAtOrBefore(subscription.lastIssuedCursor, feed.cursor)) return;
     const effectiveBatches = batches.length === 0 ? [[]] : batches;
     let batchStart = structuredClone(feed.fromCursor);
     effectiveBatches.forEach((events, index) => {
@@ -492,17 +561,26 @@ export class ProductiveRealtimeServer {
             gameVersion: lastEvent.gameVersion,
             lastSequenceNumber: lastEvent.sequenceNumber,
           };
+      const final = index === effectiveBatches.length - 1;
       this.send(connection, frameType, correlationId, {
         fromCursor: batchStart,
         cursor: batchCursor,
         events,
-        projection: feed.projection,
+        final,
+        ...(final ? { projection: feed.projection } : {}),
         delivery: 'AT_LEAST_ONCE',
       }, subscription.gameId, subscription.subscriptionId);
+      subscription.issuedCursors.set(cursorKey(batchCursor), structuredClone(batchCursor));
       batchStart = structuredClone(batchCursor);
     });
     subscription.lastIssuedCursor = structuredClone(feed.cursor);
     this.metrics.observe('catchup.size', feed.events.length);
+  }
+
+  private enqueueSubscription(subscription: ProductiveSubscription, operation: () => Promise<void>): Promise<void> {
+    const run = subscription.tail.then(operation);
+    subscription.tail = run.catch(() => undefined);
+    return run;
   }
 
   private ownedSubscription(connection: ConnectionState, subscriptionId: string, gameId: string): ProductiveSubscription {

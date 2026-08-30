@@ -45,14 +45,24 @@ describe('M2-2 Productive Transport and Reconnect owner gate', () => {
   it('GE-M2-RT-001 verifies identity application-side and binds PostgreSQL-style membership without Engine AuthN', async () => {
     const harness = realtimeAdjudicationHarness();
     const memberships = new PostgresMembershipAuthorityAdapter({
-      query: (text, values) => {
-        expect(text).toContain('malign.game_memberships');
-        expect(values).toEqual([GAME_ID, 'user-p1']);
-        return Promise.resolve({ rows: [{
-          participant_id: 'P1', external_user_ref: 'user-p1', role: 'PLAYER',
-          seat_id: 'seat-p1', country_id: 'ARDEN',
-        }] });
-      },
+      query: () => Promise.resolve({ rows: [] }),
+      connect: () => Promise.resolve({
+        query: (text, values) => {
+          if (text.includes('FROM pg_roles')) return Promise.resolve({ rows: [{
+            session_user: 'malign_test_app_owner', current_user: 'malign_app_runtime', rolcanlogin: true,
+            rolsuper: false, rolcreatedb: false, rolcreaterole: false, memberships: ['malign_app_runtime'],
+          }] });
+          if (text.includes('malign.game_memberships')) {
+            expect(values).toEqual([GAME_ID, 'user-p1']);
+            return Promise.resolve({ rows: [{
+              participant_id: 'P1', external_user_ref: 'user-p1', role: 'PLAYER',
+              seat_id: 'seat-p1', country_id: 'ARDEN',
+            }] });
+          }
+          return Promise.resolve({ rows: [] });
+        },
+        release: () => undefined,
+      }),
     });
     const node = await startRealtimeNode(harness.app, { memberships });
     try {
@@ -216,8 +226,19 @@ describe('M2-2 Productive Transport and Reconnect owner gate', () => {
       acknowledge: () => { acknowledgements += 1; return Promise.resolve(); },
     };
     const notifications: unknown[][] = [];
+    const fakeClient = {
+      query: (text: string, values?: readonly unknown[]) => {
+        if (text.includes('FROM pg_roles')) return Promise.resolve({ rows: [{
+          session_user: 'malign_test_outbox_owner', current_user: 'malign_outbox_publisher', rolcanlogin: true,
+          rolsuper: false, rolcreatedb: false, rolcreaterole: false, memberships: ['malign_outbox_publisher'],
+        }] });
+        if (text.includes('pg_notify')) notifications.push([...(values ?? [])]);
+        return Promise.resolve({ rows: [] });
+      },
+      on() { return fakeClient; }, removeAllListeners() { return fakeClient; }, release() {},
+    };
     const pump = new RealtimeOutboxPump(publisher, {
-      query: (_text, values) => { notifications.push([...(values ?? [])]); return Promise.resolve({}); },
+      query: () => Promise.resolve({ rows: [] }), connect: () => Promise.resolve(fakeClient),
     }, new InMemoryFanoutMetrics());
     await expect(pump.publishOne(GAME_ID)).rejects.toThrow('socket down');
     expect(await pump.publishOne(GAME_ID)).toBe(true);
