@@ -6,6 +6,7 @@ export * from './terminal-disposition.js';
 export * from './m1-adjudication.js';
 export * from './m2a-persistence-fixture.js';
 export * from './m2b.js';
+export * from './m2b-reaction.js';
 export {
   buildDurableEngineTransition,
   durableTransitionCompletenessFailures,

@@ -33,3 +33,4 @@ export * from './base-2025.js';
 export * from './m1-adjudication.js';
 export * from './durable-transition.js';
 export * from './m2b.js';
+export * from './m2b-reaction.js';
