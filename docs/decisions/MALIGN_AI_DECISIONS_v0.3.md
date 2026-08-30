@@ -1276,3 +1276,27 @@ DEC-075 autoriza exclusivamente documentación. No autoriza M2 ni ninguna subeta
 **IMPACTO:** M2-2 queda formalmente cerrado. El baseline ejecutable vigente pasa a 302 pruebas; M2-3 y todos los bloques posteriores continúan sujetos a autorización expresa independiente.
 
 **ESTADO:** `APPROVED — M2-2 CLOSED`
+
+---
+
+## DEC-084 — Autorización acelerada del macro-bloque M2-B (M2-3 + M2-4)
+
+**FECHA:** 2026-08-30
+**TEMA:** Implementación conjunta, con gates internos separados, de Complete Scheduler/Remaining Core Rules y Action/Starter Cards/Regime Abilities.
+
+**DECISIÓN:**
+
+- Se autoriza exclusivamente **M2-B**, compuesto por M2-3 y M2-4, sobre el baseline M2-2 aprobado mediante DEC-083.
+- M2-3 conserva sus 39 owners y 18 regresiones; M2-4 conserva sus 45 owners y 12 regresiones.
+- Debe existir un checkpoint verde de M2-3 antes de habilitar handlers propios de M2-4.
+- El dispatch se realiza sólo por `effect_id` y versión del registry aprobado, con handlers tipados, determinísticos y fail-closed.
+- El Rule Kernel se reutiliza; Engine/Domain permanecen libres de PostgreSQL, HTTP, WebSocket, AuthN SDK, UI e IA.
+- La implementación debe conservar M2-2 y todos los milestones aprobados, sin skips, todo ni waivers.
+- El resultado queda **IMPLEMENTED / PENDING REVIEW**; DEC-084 no aprueba ni cierra M2-3, M2-4 o M2 global.
+- M2-5…M2-7 y M3 permanecen **NOT AUTHORIZED**.
+
+**JUSTIFICACIÓN:** M2-3 y M2-4 forman una secuencia ejecutable coherente sobre scheduler, reglas core y el registry, y pueden acelerarse sin perder ownership, trazabilidad ni el gate intermedio.
+
+**IMPACTO:** Se habilita la implementación conjunta y autocorrectiva de M2-3/M2-4. Cualquier contradicción normativa nueva debe convertirse en `IMPLEMENTATION_QUESTION`; no habilita Reaction/Veto, Cleanup, Victory, UI ni IA.
+
+**ESTADO:** `APPROVED — M2-B IMPLEMENTATION AUTHORIZATION ONLY`

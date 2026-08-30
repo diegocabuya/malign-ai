@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-29
-**Fase actual:** M0 IMPLEMENTED AND APPROVED — M1 IMPLEMENTED AND APPROVED / CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 IMPLEMENTED AND APPROVED mediante DEC-080 — M2-2 IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083 — M2-3…M2-7 NOT AUTHORIZED — M2 global NOT YET CLOSED — M3 NOT AUTHORIZED
+**Fase actual:** M0 IMPLEMENTED AND APPROVED — M1 IMPLEMENTED AND APPROVED / CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 IMPLEMENTED AND APPROVED mediante DEC-080 — M2-2 IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083 — M2-3/M2-4 IMPLEMENTED / PENDING REVIEW mediante DEC-084 — M2-5…M2-7 NOT AUTHORIZED — M2 global NOT YET CLOSED — M3 NOT AUTHORIZED
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -131,7 +131,7 @@
 | Commit funcional de la corrección M2A-R30 | `85ec047726a68007fbcabf07c6b3fe1b911a3070` |
 | Commit funcional final aprobado M2-A/M2-1 | `85ec047726a68007fbcabf07c6b3fe1b911a3070` |
 | IMPLEMENTATION_QUESTIONS | **IQ-M2-008…012 y 014/015 RESOLVED; IQ-M2-013 RESOLVED FOR M2** |
-| Decisions v0.3 | **DEC-083 APPROVED — M2-2 CLOSED** |
+| Decisions v0.3 | **DEC-084 APPROVED — M2-B IMPLEMENTATION AUTHORIZATION ONLY** |
 | M2-0 — Canonical Foundations Gate documental | **APPROVED AND CLOSED mediante DEC-077** |
 | M2-A/M2-1 — PostgreSQL Persistence and Durable Recovery | **IMPLEMENTED AND APPROVED mediante DEC-080** |
 | M2-2 — Productive Transport and Reconnect | **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083** |
@@ -140,12 +140,13 @@
 | Dependencias M2-2 | **`ws@8.21.3`, `@types/ws@8.18.1`, `jose@6.2.10`, `@auth0/nextjs-auth0@4.28.0`** |
 | M22-R01…R14 | **CLOSED mediante DEC-083** |
 | Reconciliación operativa pos-DEC-083 | **302→341→386→409→427→457; el 416 anterior permanece histórico** |
-| M2-3 — Complete Scheduler and Remaining Core Rules | **NOT AUTHORIZED** |
-| M2-4 — Action/Starter Cards and Regime Abilities | **NOT AUTHORIZED** |
+| M2-3 — Complete Scheduler and Remaining Core Rules | **IMPLEMENTED / PENDING REVIEW mediante DEC-084 — 39/39 owners; gate 57/57** |
+| M2-4 — Action/Starter Cards and Regime Abilities | **IMPLEMENTED / PENDING REVIEW mediante DEC-084 — 45/45 owners; gate 57/57** |
+| Suite acumulada tras M2-B | **416/416 PASS en 38 archivos, 0 skips, 0 todo, 0 waivers** |
 | M2-5 — Reaction, Veto and Deterministic Narrative | **NOT AUTHORIZED** |
 | M2-6 — Cleanup, Viralization and End Turn | **NOT AUTHORIZED** |
 | M2-7 — Objectives, Victory and End Game | **NOT AUTHORIZED** |
-| M2 | **NOT YET CLOSED — M2-2 CLOSED; M2-3…M2-7 NOT AUTHORIZED** |
+| M2 | **NOT YET CLOSED — M2-2 CLOSED; M2-3/M2-4 PENDING REVIEW; M2-5…M2-7 NOT AUTHORIZED** |
 | M3 | **NOT AUTHORIZED** |
 
 PR-1 fue aprobado técnicamente contra el commit `69ded64d912fc0231b82046fecad024baf8ec67e`. No requiere correcciones de código.

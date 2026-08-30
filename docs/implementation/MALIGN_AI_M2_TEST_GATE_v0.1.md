@@ -5,7 +5,7 @@
 **Autoridad:** DEC-074…DEC-083
 **Oracle:** `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_SPEC_v0.1.md`
 **Addenda:** M1 v0.1 preservado; M2 v0.1 aprobado como test acceptance baseline
-**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3…M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
+**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3/M2-4 IMPLEMENTED / PENDING REVIEW mediante DEC-084; M2-5…M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
 
 > Históricamente, DEC-078 materializó exclusivamente los 22 owner asignados a M2-A/M2-1. DEC-080 aprobó y cerró posteriormente M2-A/M2-1. Los owners y conteos de M2-2…M2-7 permanecen futuros, sin alteración y no autorizados.
 
@@ -206,7 +206,7 @@ Los 30 `GE-ACT-*` y 15 `GE-REG-*` se trasladan a M2-4.
 - `GE-ERT-007 [REGRESSION]`
 - `GE-ERT-008 [REGRESSION]`
 
-Riesgo trazado: phase progression, hidden plan/reveal, campaign integrity, costs y ERT reuse. Gate futuro: **57 ejecuciones dirigidas + preservación completa de la suite M2-2**; 39 casos nuevos; mínimo operativo **341**.
+Resultado DEC-084 pendiente de revisión: **39/39 owners; 57/57 ejecuciones dirigidas PASS**, con preservación completa de M2-2.
 
 ## 8. M2-4 — Action/Starter Cards and Regime Abilities
 
@@ -236,7 +236,7 @@ Riesgo trazado: phase progression, hidden plan/reveal, campaign integrity, costs
 
 Riesgo trazado: atomicidad de Action/Starter/Regime, AP/costs, zonas, campaign integration y dispatch por effect ID. Las repeticiones de core/plan/campaign/ERT respecto de M2-3 se justifican por los nuevos efectos que cruzan esos invariantes.
 
-Gate futuro: **57 ejecuciones dirigidas + preservación completa de la suite M2-3**; 45 casos nuevos; mínimo operativo **386**.
+Resultado DEC-084 pendiente de revisión: **45/45 owners; 57/57 ejecuciones dirigidas PASS**, preservando el checkpoint M2-3. Suite acumulada: **416/416 PASS en 38 archivos**.
 
 ## 9. M2-5 — Reaction, Veto and Deterministic Narrative
 
@@ -389,4 +389,4 @@ FAIL ante ID/owner inválido, conteo irreconciliable, test suavizado, fixture qu
 
 ## 16. Estado
 
-El planning gate está **APPROVED AND CLOSED mediante DEC-076**, M2-0 mediante DEC-077, M2-A/M2-1 mediante DEC-080 y M2-2 **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083**. M2-2 cierra M22-R01…R14 con 8/8 owners, 17/17 regresiones asignadas, gate 75/75 y suite 302/302 en 34 archivos. La cadena histórica terminaba en 416; la operativa vigente es 302→341→386→409→427→457. M2-3…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT AUTHORIZED / NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
+El planning gate está **APPROVED AND CLOSED mediante DEC-076**, M2-0 mediante DEC-077, M2-A/M2-1 mediante DEC-080 y M2-2 **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083**. M2-3/M2-4 están **IMPLEMENTED / PENDING REVIEW mediante DEC-084**, con gates 57/57 y suite acumulada 416/416 en 38 archivos. M2-5…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT AUTHORIZED / NOT YET CLOSED** y M3 **NOT AUTHORIZED**.

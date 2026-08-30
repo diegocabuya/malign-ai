@@ -1,6 +1,6 @@
 # MALIGN-AI
 
-MALIGN-AI is a fidelity-first, multiplayer web implementation of the Malign serious game. M0 and M1 are approved/closed; M2-0, M2-A/M2-1 and M2-2 Productive Transport and Reconnect are **IMPLEMENTED AND APPROVED / CLOSED**. The executable baseline is **302/302 PASS in 34 files, 0 skips, 0 todo and 0 waivers**.
+MALIGN-AI is a fidelity-first, multiplayer web implementation of the Malign serious game. M0 and M1 are approved/closed; M2-0, M2-A/M2-1 and M2-2 are **IMPLEMENTED AND APPROVED / CLOSED**. M2-3/M2-4 are **IMPLEMENTED / PENDING REVIEW** under DEC-084. The executable suite is **416/416 PASS in 38 files, 0 skips, 0 todo and 0 waivers**.
 
 M0 comprises the approved repository bootstrap, pure Rule Kernel, command safety, and in-memory campaign slice. M1 adds:
 
@@ -36,7 +36,7 @@ The implemented baseline consists of a pure deterministic Rule Kernel, an author
 
 M1's deterministic projection/feed policy remains the single authorization source reused by M2-2; WebSocket never adjudicates gameplay commands.
 
-No Auth0 tenant/account, cloud provider, hosting deployment, productive secrets, final UI, or AI/OpenAI/RAG exists. M2-3…M2-7 remain **NOT AUTHORIZED**, M2 global is **NOT YET CLOSED**, and M3 remains **NOT STARTED / NOT AUTHORIZED**.
+No Auth0 tenant/account, cloud provider, hosting deployment, productive secrets, final UI, or AI/OpenAI/RAG exists. M2-5…M2-7 remain **NOT AUTHORIZED**, M2 global is **NOT YET CLOSED**, and M3 remains **NOT STARTED / NOT AUTHORIZED**.
 
 > **LLM != Game Engine.** AI may eventually explain or suggest actions from an authorized projection, but it never adjudicates deterministic rules.
 
@@ -66,6 +66,8 @@ pnpm db:seed
 pnpm db:verify
 pnpm test:m2a
 pnpm test:m2-2
+pnpm test:m2-3
+pnpm test:m2-4
 docker compose down
 ```
 
@@ -94,4 +96,4 @@ The approved specifications are versioned under `docs/`. Documentary precedence 
 - `apps/web` never imports persistence or authoritative domain internals.
 - PostgreSQL access remains in persistence/infrastructure adapters; Domain, Rules and Game Engine do not know PostgreSQL.
 - `jose`, Auth0, HTTP and WebSocket imports are absent from Domain, Rules and Game Engine.
-- M2-3…M2-7 and M3 work must not begin without explicit authorization.
+- M2-5…M2-7 and M3 work must not begin without explicit authorization.
