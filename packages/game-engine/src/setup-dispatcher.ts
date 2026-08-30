@@ -279,6 +279,11 @@ export const validateSetupCommandPayload = (
   return 'INVALID_COMMAND_PAYLOAD';
 };
 
+export const isSetupCommandPayload = (
+  commandType: SetupCommandType,
+  payload: unknown,
+): payload is SetupCommandPayload => validateSetupCommandPayload(commandType, payload) === undefined;
+
 export class InMemorySetupGameStore extends InMemoryAtomicStateStore<SetupGameState> {
   snapshot(gameId: string): SetupGameState | undefined { return this.load(gameId); }
 }

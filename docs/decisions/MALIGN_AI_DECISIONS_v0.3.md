@@ -1219,3 +1219,27 @@ DEC-075 autoriza exclusivamente documentación. No autoriza M2 ni ninguna subeta
 **IMPACTO:** IQ-M2-008/IQ-M2-009 dejan de bloquear la preparación técnica. M2-2 queda listo para solicitar una autorización de implementación separada; ningún artifact ejecutable o de infraestructura queda autorizado.
 
 **ESTADO:** `APPROVED — M2-2 DECISION GATE ONLY`
+
+---
+
+## DEC-082 — Autorización de implementación M2-2 Productive Transport and Reconnect
+
+**FECHA:** 2026-08-29
+**TEMA:** Implementación integral y autocorrectiva de M2-2 sobre el baseline aprobado.
+
+**DECISIÓN:**
+
+- Se autoriza exclusivamente la implementación integral y autocorrectiva de **M2-2 — Productive Transport and Reconnect** sobre el baseline exacto `1569b0b634d63be0c7aee011b44353fd6df317ca`.
+- El alcance incluye AuthN productiva configurable detrás de `ProductiveAuthnPort`, BFF/session boundary Auth0, validación JWKS, HTTP/HTTPS autoritativo, WSS `malign.realtime.v1`, subscriptions, initial sync, feed autorizado, ACK, gaps/resync, reconnect multinodo, outbox, PostgreSQL `LISTEN/NOTIFY`, heartbeat, backpressure, graceful shutdown, observabilidad, pruebas, CI y documentación estrictamente necesarios.
+- Se fijan exactamente `ws@8.21.3`, `@types/ws@8.18.1`, `jose@6.2.10` y `@auth0/nextjs-auth0@4.28.0`.
+- El gate materializa los **8 owners** `GE-M2-RT-001…008` y ejecuta explícitamente **17 regresiones asignadas**.
+- Debe preservar la baseline **253/253 PASS**, alcanzar como mínimo **261 casos únicos** y conservar 0 skips, 0 todo y 0 waivers.
+- No se autoriza crear tenant, cuentas, secrets productivos, contratación, infraestructura persistente, proveedor cloud, Blueprint ni deployment.
+- M2-3…M2-7, M2 global y M3 permanecen **NOT AUTHORIZED**.
+- DEC-082 es exclusivamente autorización de implementación: **no aprueba ni cierra M2-2**.
+
+**JUSTIFICACIÓN:** DEC-081 resolvió IQ-M2-008/IQ-M2-009 y fijó PTD-M2-012…016; el baseline M2-A/M2-1 aprobado aporta PostgreSQL durable, outbox, recovery y AuthorizedProjection para construir el transporte sin duplicar Engine, estado ni política.
+
+**IMPACTO:** M2-2 puede implementarse, autoauditarse y corregirse dentro de su alcance. El resultado debe quedar `IMPLEMENTED / PENDING REVIEW` y requerirá una revisión técnica y decisión de cierre separadas.
+
+**ESTADO:** `APPROVED — M2-2 IMPLEMENTATION AUTHORIZATION ONLY`

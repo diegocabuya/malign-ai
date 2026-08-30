@@ -45,6 +45,7 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm db:verify
       - run: pnpm test:m2a
+      - run: pnpm test:m2-2
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test

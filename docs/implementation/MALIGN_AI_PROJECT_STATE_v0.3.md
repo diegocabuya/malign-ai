@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-29
-**Fase actual:** M0 IMPLEMENTED AND APPROVED — M1 IMPLEMENTED AND APPROVED / CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 IMPLEMENTED AND APPROVED mediante DEC-080 — M2-2 DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED mediante DEC-081 — M2-3…M2-7 NOT AUTHORIZED — M2 global NOT AUTHORIZED / NOT YET CLOSED — M3 NOT AUTHORIZED
+**Fase actual:** M0 IMPLEMENTED AND APPROVED — M1 IMPLEMENTED AND APPROVED / CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 IMPLEMENTED AND APPROVED mediante DEC-080 — M2-2 IMPLEMENTED / PENDING REVIEW mediante DEC-082 — M2-3…M2-7 NOT AUTHORIZED — M2 global NOT YET CLOSED — M3 NOT AUTHORIZED
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -129,18 +129,21 @@
 | Commit funcional de la corrección M2A-R30 | `85ec047726a68007fbcabf07c6b3fe1b911a3070` |
 | Commit funcional final aprobado M2-A/M2-1 | `85ec047726a68007fbcabf07c6b3fe1b911a3070` |
 | IMPLEMENTATION_QUESTIONS | **IQ-M2-008…012 y 014/015 RESOLVED; IQ-M2-013 RESOLVED FOR M2** |
-| Decisions v0.3 | **DEC-081 APPROVED — M2-2 DECISION GATE ONLY** |
+| Decisions v0.3 | **DEC-082 APPROVED — M2-2 IMPLEMENTATION AUTHORIZATION ONLY** |
 | M2-0 — Canonical Foundations Gate documental | **APPROVED AND CLOSED mediante DEC-077** |
 | M2-A/M2-1 — PostgreSQL Persistence and Durable Recovery | **IMPLEMENTED AND APPROVED mediante DEC-080** |
-| M2-2 — Productive Transport and Reconnect | **DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED mediante DEC-081** |
-| M2-2 gate futuro | **8 owners + 17 regresiones = 25 ejecuciones dirigidas; baseline previa 253/253; mínimo futuro 261 casos únicos** |
+| M2-2 — Productive Transport and Reconnect | **IMPLEMENTED / PENDING REVIEW mediante DEC-082; no aprobado ni cerrado** |
+| M2-2 gate ejecutado | **8/8 owners PASS + 17/17 regresiones asignadas PASS + 27 complementarias PASS** |
+| Suite acumulada tras M2-2 | **288/288 PASS en 32 archivos, 0 skips, 0 todo, 0 waivers** |
+| Dependencias M2-2 | **`ws@8.21.3`, `@types/ws@8.18.1`, `jose@6.2.10`, `@auth0/nextjs-auth0@4.28.0`** |
+| M22-R01…R08 | **CORREGIDOS en la autoauditoría; M2-2 continúa PENDING REVIEW** |
 | M22G-R01 | **CLOSED — mínimos históricos/operativos reconciliados; 253→261→300→345→368→386→416** |
 | M2-3 — Complete Scheduler and Remaining Core Rules | **NOT AUTHORIZED** |
 | M2-4 — Action/Starter Cards and Regime Abilities | **NOT AUTHORIZED** |
 | M2-5 — Reaction, Veto and Deterministic Narrative | **NOT AUTHORIZED** |
 | M2-6 — Cleanup, Viralization and End Turn | **NOT AUTHORIZED** |
 | M2-7 — Objectives, Victory and End Game | **NOT AUTHORIZED** |
-| M2 | **NOT AUTHORIZED / NOT YET CLOSED — M2-2…M2-7 NOT AUTHORIZED** |
+| M2 | **NOT YET CLOSED — M2-2 PENDING REVIEW; M2-3…M2-7 NOT AUTHORIZED** |
 | M3 | **NOT AUTHORIZED** |
 
 PR-1 fue aprobado técnicamente contra el commit `69ded64d912fc0231b82046fecad024baf8ec67e`. No requiere correcciones de código.
@@ -164,15 +167,15 @@ El Product Owner mantiene aprobadas `ARC-01` a `ARC-12`. Las decisiones canónic
 | Componente | Estado |
 |---|---|
 | PostgreSQL 18.6, migrations y durable recovery M2-A | **IMPLEMENTED AND APPROVED mediante DEC-080** |
-| Transactional Outbox durable + publisher de pruebas M2-A | **IMPLEMENTED AND APPROVED dentro de M2-A — sin transporte productivo** |
-| Realtime/WebSocket productivo | **NOT STARTED / NOT AUTHORIZED** |
-| Autenticación productiva | **NOT STARTED / NOT AUTHORIZED** |
+| Transactional Outbox durable + publisher de transporte | **IMPLEMENTED; M2-A aprobado y adapter M2-2 PENDING REVIEW** |
+| Realtime/WebSocket productivo | **IMPLEMENTED / PENDING REVIEW mediante DEC-082** |
+| Autenticación productiva configurable | **IMPLEMENTED / PENDING REVIEW; sin tenant ni secrets reales** |
 | UI final | **NOT STARTED / NOT AUTHORIZED** |
 | IA / OpenAI / RAG | **NOT STARTED / NOT AUTHORIZED** |
 | Reaction/Veto | **NOT STARTED / NOT AUTHORIZED** |
 | Cleanup / End Turn | **NOT STARTED / NOT AUTHORIZED** |
 | Objectives / Victory | **NOT STARTED / NOT AUTHORIZED** |
-| M2 global | **NOT AUTHORIZED / NOT YET CLOSED — M2-2…M2-7 NOT AUTHORIZED** |
+| M2 global | **NOT YET CLOSED — M2-3…M2-7 NOT AUTHORIZED** |
 | M3 | **NOT STARTED / NOT AUTHORIZED** |
 
 ## Cierre formal de M1-0
@@ -255,7 +258,15 @@ La baseline M0/M1 **215/215 PASS**, el owner nominal M2-A **22/22 PASS** y las *
 
 Los documentos `MALIGN_AI_M1_VERTICAL_SLICE_IMPLEMENTATION_SPEC_v0.1.md` y `MALIGN_AI_M1_TEST_GATE_v0.1.md` fueron enmendados conforme a `DEC-065`, y el planning gate quedó aprobado mediante `DEC-066`. `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M1_ADDENDUM_v0.1.md` fija 38 IDs canónicos sin modificar el oracle v0.1.
 
-M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**, M2-0 queda **APPROVED AND CLOSED mediante DEC-077**, y M2-A/M2-1 queda **IMPLEMENTED AND APPROVED mediante DEC-080**. El decision gate M2-2 queda **APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED mediante DEC-081**. M2-3…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
+M1-0 está formalmente cerrado mediante DEC-067, M1-1 mediante DEC-069, M1-2 mediante DEC-071 y M1-3 mediante DEC-073. M1 global está **IMPLEMENTED AND APPROVED / CLOSED**. El planning gate M2 queda **APPROVED AND CLOSED mediante DEC-076**, M2-0 queda **APPROVED AND CLOSED mediante DEC-077**, M2-A/M2-1 queda **IMPLEMENTED AND APPROVED mediante DEC-080** y M2-2 queda **IMPLEMENTED / PENDING REVIEW mediante DEC-082**. M2-3…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
+
+## Implementación M2-2 mediante DEC-082
+
+M2-2 reutiliza `GameSessionApplicationPort`, AuthorizedProjection/feed M1, recovery PostgreSQL y outbox M2-A. `ProductiveAuthnPort` verifica identidad externa por RS256/JWKS; `PostgresMembershipAuthorityAdapter` deriva participant, seat, role, game y permisos desde PostgreSQL. El boundary HTTP/HTTPS conserva los commands autoritativos y el servidor WSS `malign.realtime.v1` se limita a AuthN, subscriptions, SYNC, EVENT_BATCH, ACK, GAP/RESYNC, unsubscribe y draining. `LISTEN/NOTIFY` es sólo wake-up opaco; cada nodo relee feed/proyección durable. No se creó migration, tabla, Engine alterno, política de proyección paralela ni fuente de estado adicional.
+
+El gate dirigido reporta **8/8 owners** y **17/17 regresiones asignadas PASS**. Las **27 pruebas complementarias** cubren JWT criptográfico/JWKS rotation, HTTP y WSS reales, dos nodos stateless, sesión/expiry, cross-game/hijacking, payload/framing/Origin/subprotocolo, backpressure, graceful shutdown, outbox y LISTEN/NOTIFY perdido/duplicado/desordenado/reconectado. La suite acumulada reporta **288/288 PASS en 32 archivos, 0 skips, 0 todo y 0 waivers** sobre PostgreSQL real **18.6**, migrations `001…006` y esquema **87/87**.
+
+La autoauditoría corrigió M22-R01…R08: callback exitoso `ws` con `null` mal interpretado como overload; lifecycle de cierre prematuro; ACK intermedio no emitido; cursores incorrectos en batches; overflow de timer de expiración; configuración de scopes vacía; catch-up periódico de todas las subscriptions; y señal explícita `GAP_DETECTED` antes del feed de recuperación. No queda `IMPLEMENTATION_QUESTION` pendiente. No existe tenant Auth0, cuenta Render, contratación, proveedor cloud, infraestructura persistente, secret productivo ni deployment.
 
 ## Continuidad documental
 

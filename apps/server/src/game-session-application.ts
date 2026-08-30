@@ -112,10 +112,14 @@ type MaybePromise<T> = T | Promise<T>;
 export interface GameSessionApplicationPort {
   execute(authenticatedSessionId: string, input: SessionCommandInput): MaybePromise<EngineCommandResult>;
   executeM1Interaction(authenticatedSessionId: string, input: SessionM1InteractionInput): MaybePromise<EngineCommandResult>;
+  executeForActor(actorContext: ActorContext, input: SessionCommandInput): MaybePromise<EngineCommandResult>;
+  executeM1InteractionForActor(actorContext: ActorContext, input: SessionM1InteractionInput): MaybePromise<EngineCommandResult>;
   getGameProjection(authenticatedSessionId: string, gameId: string): MaybePromise<ProjectionQueryResult>;
   getM1AdjudicationProjection(authenticatedSessionId: string, gameId: string): MaybePromise<M1ProjectionQueryResult>;
   getM1InitialSync(authenticatedSessionId: string, gameId: string): MaybePromise<M1RealtimeOperationResult<M1InitialSync>>;
   getM1EventFeed(authenticatedSessionId: string, gameId: string, afterCursor: unknown): MaybePromise<M1RealtimeOperationResult<M1AuthorizedEventFeed>>;
+  getM1InitialSyncForActor(actorContext: ActorContext, gameId: string): MaybePromise<M1RealtimeOperationResult<M1InitialSync>>;
+  getM1EventFeedForActor(actorContext: ActorContext, gameId: string, afterCursor: unknown): MaybePromise<M1RealtimeOperationResult<M1AuthorizedEventFeed>>;
 }
 
 export interface M1ReconnectResult extends M1InitialSync {
@@ -190,6 +194,23 @@ export class InMemoryGameSessionApplication implements GameSessionApplicationPor
     return this.adjudicationEngine.dispatchInteraction({ ...input, actorContext: resolution.actorContext });
   }
 
+  executeForActor(actorContext: ActorContext, input: SessionCommandInput): EngineCommandResult {
+    const state = this.store.snapshot(input.gameId);
+    if (state === undefined || !this.actorMatchesState(actorContext, state)) return this.reject(input, state?.version ?? 0, 'NOT_AUTHORIZED');
+    if (payloadClaimsAuthority(input.payload)) return this.reject(input, state.version, 'INVALID_ACTOR_CONTEXT');
+    const payloadError = validateSetupCommandPayload(input.commandType, input.payload);
+    if (payloadError !== undefined) return this.reject(input, state.version, payloadError);
+    return this.dispatcher.dispatch({ ...input, actorContext });
+  }
+
+  executeM1InteractionForActor(actorContext: ActorContext, input: SessionM1InteractionInput): EngineCommandResult {
+    const state = this.store.snapshot(input.gameId);
+    if (state === undefined || !this.actorMatchesState(actorContext, state)) return this.reject(input, state?.version ?? 0, 'NOT_AUTHORIZED');
+    if (payloadClaimsAuthority(input.payload)) return this.reject(input, state.version, 'INVALID_ACTOR_CONTEXT');
+    if (this.adjudicationEngine === undefined) return this.reject(input, state.version, 'NOT_AUTHORIZED');
+    return this.adjudicationEngine.dispatchInteraction({ ...input, actorContext });
+  }
+
   getGameProjection(authenticatedSessionId: string, gameId: string): ProjectionQueryResult {
     const scope = this.authority.verifyGameScope(authenticatedSessionId, gameId);
     if (!scope.ok) return { ok: false, error: engineErrorFor(scope.error) };
@@ -240,6 +261,33 @@ export class InMemoryGameSessionApplication implements GameSessionApplicationPor
       ok: true,
       value: buildM1AuthorizedEventFeed(viewer.state, viewer.actorContext, afterCursor),
     };
+  }
+
+  getM1InitialSyncForActor(actorContext: ActorContext, gameId: string): M1RealtimeOperationResult<M1InitialSync> {
+    const state = this.store.snapshot(gameId);
+    if (state === undefined || !this.actorMatchesState(actorContext, state)) {
+      return { ok: false, error: engineErrorFor('NOT_AUTHORIZED') };
+    }
+    return { ok: true, value: {
+      projection: buildM1RealtimeProjection(state, actorContext),
+      cursor: buildM1RealtimeCursor(state, actorContext),
+    } };
+  }
+
+  getM1EventFeedForActor(
+    actorContext: ActorContext,
+    gameId: string,
+    afterCursor: unknown,
+  ): M1RealtimeOperationResult<M1AuthorizedEventFeed> {
+    const state = this.store.snapshot(gameId);
+    if (state === undefined || !this.actorMatchesState(actorContext, state)) {
+      return { ok: false, error: engineErrorFor('NOT_AUTHORIZED') };
+    }
+    const cursorError = validateM1RealtimeCursor(state, actorContext, afterCursor);
+    if (cursorError !== undefined || !isM1RealtimeCursor(afterCursor)) {
+      return { ok: false, error: engineErrorFor(cursorError ?? 'REALTIME_CURSOR_INVALID') };
+    }
+    return { ok: true, value: buildM1AuthorizedEventFeed(state, actorContext, afterCursor) };
   }
 
   subscribeM1Realtime(
@@ -395,6 +443,12 @@ export class InMemoryGameSessionApplication implements GameSessionApplicationPor
       };
       this.realtime.publish(subscription.subscriptionId, delivery);
     }
+  }
+
+  private actorMatchesState(actorContext: ActorContext, state: SetupGameState): boolean {
+    const participantId = actorContext.participantId;
+    const participant = participantId === undefined ? undefined : state.participants[participantId];
+    return participant !== undefined && participant.userId === actorContext.actorId && participant.role === actorContext.actorType;
   }
 
   private ownedSubscription(
@@ -567,6 +621,63 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
             const afterState=store.snapshot(input.gameId);
             return {result,...(afterState===undefined?{}:{afterState})};
           }};
+      },
+    });
+  }
+
+  async executeForActor(actorContext: ActorContext, input: SessionCommandInput): Promise<EngineCommandResult> {
+    if (input.commandType === 'CREATE_GAME') return this.reject(input, 0, 'NOT_AUTHORIZED');
+    const fingerprintSha256 = this.fingerprint(input);
+    return this.coordinateDurableOperation({
+      input,
+      actorId: actorContext.actorId,
+      fingerprintSha256,
+      prepare: (state): DurableOperationPreparation => {
+        if (state === undefined) return { ready: false, result: this.reject(input, 0, 'GAME_NOT_FOUND') };
+        if (!this.actorMatchesRecoveredState(actorContext, state)) return { ready: false, result: this.reject(input, state.version, 'NOT_AUTHORIZED') };
+        if (payloadClaimsAuthority(input.payload)) return { ready: false, result: this.reject(input, state.version, 'INVALID_ACTOR_CONTEXT') };
+        const payloadError = validateSetupCommandPayload(input.commandType, input.payload);
+        if (payloadError !== undefined) return { ready: false, result: this.reject(input, state.version, payloadError) };
+        return {
+          ready: true,
+          actor: this.durableActor(actorContext),
+          commandType: input.commandType,
+          beforeState: state,
+          execute: (random, now) => {
+            const store = new InMemorySetupGameStore([state]);
+            const result = new SetupCommandDispatcher(store, random, now, 'APPLICATION')
+              .dispatch({ ...input, actorContext });
+            const afterState = store.snapshot(input.gameId);
+            return { result, ...(afterState === undefined ? {} : { afterState }) };
+          },
+        };
+      },
+    });
+  }
+
+  async executeM1InteractionForActor(actorContext: ActorContext, input: SessionM1InteractionInput): Promise<EngineCommandResult> {
+    const fingerprintSha256 = this.fingerprint(input);
+    return this.coordinateDurableOperation({
+      input,
+      actorId: actorContext.actorId,
+      fingerprintSha256,
+      prepare: (state): DurableOperationPreparation => {
+        if (state === undefined) return { ready: false, result: this.reject(input, 0, 'GAME_NOT_FOUND') };
+        if (!this.actorMatchesRecoveredState(actorContext, state)) return { ready: false, result: this.reject(input, state.version, 'NOT_AUTHORIZED') };
+        if (payloadClaimsAuthority(input.payload)) return { ready: false, result: this.reject(input, state.version, 'INVALID_ACTOR_CONTEXT') };
+        return {
+          ready: true,
+          actor: this.durableActor(actorContext),
+          commandType: input.commandType,
+          beforeState: state,
+          execute: (random, now) => {
+            const store = new InMemorySetupGameStore([state]);
+            const result = new M1AdjudicationEngine(store, random, now, 'APPLICATION')
+              .dispatchInteraction({ ...input, actorContext });
+            const afterState = store.snapshot(input.gameId);
+            return { result, ...(afterState === undefined ? {} : { afterState }) };
+          },
+        };
       },
     });
   }
@@ -754,6 +865,33 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
     return { ok: true, value: buildM1AuthorizedEventFeed(viewer.state, viewer.actorContext, afterCursor) };
   }
 
+  async getM1InitialSyncForActor(actorContext: ActorContext, gameId: string): Promise<M1RealtimeOperationResult<M1InitialSync>> {
+    const state = await this.recoverState(gameId);
+    if (state === undefined || !this.actorMatchesRecoveredState(actorContext, state)) {
+      return { ok: false, error: engineErrorFor('NOT_AUTHORIZED') };
+    }
+    return { ok: true, value: {
+      projection: buildM1RealtimeProjection(state, actorContext),
+      cursor: buildM1RealtimeCursor(state, actorContext),
+    } };
+  }
+
+  async getM1EventFeedForActor(
+    actorContext: ActorContext,
+    gameId: string,
+    afterCursor: unknown,
+  ): Promise<M1RealtimeOperationResult<M1AuthorizedEventFeed>> {
+    const state = await this.recoverState(gameId);
+    if (state === undefined || !this.actorMatchesRecoveredState(actorContext, state)) {
+      return { ok: false, error: engineErrorFor('NOT_AUTHORIZED') };
+    }
+    const cursorError = validateM1RealtimeCursor(state, actorContext, afterCursor);
+    if (cursorError !== undefined || !isM1RealtimeCursor(afterCursor)) {
+      return { ok: false, error: engineErrorFor(cursorError ?? 'REALTIME_CURSOR_INVALID') };
+    }
+    return { ok: true, value: buildM1AuthorizedEventFeed(state, actorContext, afterCursor) };
+  }
+
   private async resolveViewer(
     authenticatedSessionId: string,
     gameId: string,
@@ -771,6 +909,12 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
   private resolveDurableViewer(authenticatedSessionId: string, gameId: string, state: SetupGameState) {
     const active = this.authority.resolve(authenticatedSessionId, gameId, state);
     return active.ok ? active : this.authority.resolvePersistedMembership(authenticatedSessionId, gameId, state);
+  }
+
+  private actorMatchesRecoveredState(actorContext: ActorContext, state: SetupGameState): boolean {
+    const participantId = actorContext.participantId;
+    const participant = participantId === undefined ? undefined : state.participants[participantId];
+    return participant !== undefined && participant.userId === actorContext.actorId && participant.role === actorContext.actorType;
   }
 
   private async recoverState(gameId: string): Promise<SetupGameState | undefined> {

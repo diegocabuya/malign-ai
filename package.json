@@ -15,6 +15,7 @@
     "format:write": "prettier --write .",
     "test": "vitest run",
     "test:m2a": "vitest run packages/persistence/src/m2-a.owner.postgres.test.ts",
+    "test:m2-2": "vitest run tests/m2-2 tests/command/GE-CORE-001-010.command-safety.test.ts tests/m1-1/GE-SEC-PROJECTION.m1-1-owner.test.ts tests/m1-3/GE-M1-RT-001-010.realtime.test.ts",
     "db:migrate": "tsx packages/persistence/src/cli.ts migrate",
     "db:seed": "tsx packages/persistence/src/cli.ts seed",
     "db:verify": "tsx packages/persistence/src/cli.ts verify"
@@ -23,11 +24,14 @@
     "@eslint/js": "10.0.1",
     "@types/node": "26.2.0",
     "@types/react": "19.2.18",
+    "@types/ws": "8.18.1",
     "eslint": "10.9.0",
+    "jose": "6.2.10",
     "prettier": "3.9.6",
     "tsx": "4.20.6",
     "typescript": "6.0.3",
     "typescript-eslint": "8.67.0",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "ws": "8.21.3"
   }
 }

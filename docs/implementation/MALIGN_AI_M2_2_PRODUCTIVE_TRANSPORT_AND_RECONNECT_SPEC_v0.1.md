@@ -1,21 +1,20 @@
 # MALIGN-AI — M2-2 PRODUCTIVE TRANSPORT AND RECONNECT SPECIFICATION v0.1
 
 **Fecha:** 2026-08-29
-**Estado:** DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED
-**Autoridad:** DEC-081; PTD-M2-012…016
-**Baseline aprobada previamente:** 253/253 PASS en 28 archivos; no reejecutada por este gate documental
+**Estado:** IMPLEMENTED / PENDING REVIEW mediante DEC-082
+**Autoridad:** DEC-081; DEC-082; PTD-M2-012…016
+**Baseline preservada:** 253/253 PASS; suite actual 288/288 PASS en 32 archivos
 
-> Este documento resuelve decisiones y prepara el contrato final de M2-2. No autoriza código, tests ejecutables, dependencias, cuentas, secrets, infraestructura, despliegue, WebSocket/AuthN productivos ni ningún bloque posterior.
+> DEC-082 autorizó y materializó exclusivamente M2-2. Este estado no constituye aprobación ni cierre técnico; no autoriza cuentas, secrets, infraestructura persistente, despliegue ni bloques posteriores.
 
 ## 1. Alcance y límites
 
-M2-2 deberá materializar, sólo tras autorización separada, transporte productivo y reconnect sobre el Engine y la persistencia aprobados. Los commands autoritativos continúan por HTTPS; WebSocket se limita a autenticación, subscriptions, sync, feed autorizado, ACK, resync y draining.
+M2-2 materializa transporte productivo configurable y reconnect sobre el Engine y la persistencia aprobados. Los commands autoritativos continúan por HTTP/HTTPS; WebSocket se limita a autenticación, subscriptions, sync, feed autorizado, ACK, resync y draining.
 
 Fuera de este gate permanecen:
 
-- instalación o selección de versión exacta de SDK/librería;
 - tenant, cuenta, plan, región, costos, secrets o contratación;
-- infraestructura, Blueprint, despliegue y WebSocket/AuthN productivos;
+- infraestructura persistente, Blueprint y despliegue;
 - cambios PostgreSQL, migrations o ampliación de las 87 tablas;
 - M2-3…M2-7, cierre global de M2 y M3.
 
@@ -84,7 +83,7 @@ Fuera de este gate permanecen:
 
 ## 6. Transporte y protocolo `malign.realtime.v1`
 
-Node.js 24 LTS y `ws` operan detrás del port de transporte; browser usa WebSocket nativo; servidor usa `noServer`/HTTP upgrade. No se adopta Socket.IO porque su framing, reconnect y ACK competirían con el protocolo versionado MALIGN-AI. La versión exacta de `ws` se fija sólo tras autorización de implementación.
+Node.js 24 LTS y `ws@8.21.3` operan detrás del port de transporte; browser usa WebSocket nativo; servidor usa `noServer`/HTTP upgrade. No se adopta Socket.IO porque su framing, reconnect y ACK competirían con el protocolo versionado MALIGN-AI.
 
 ### 6.1 Frames
 
@@ -224,7 +223,7 @@ Fuente preservada sin modificación: `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_M2_A
 
 Reconciliación del gate futuro: **8 owners + 17 regresiones = 25 ejecuciones dirigidas**. Baseline aprobada de entrada: **253/253**. Suite mínima acumulada futura al implementar los ocho casos nuevos: **261 casos únicos**. Requiere 0 skips, 0 todo y 0 waivers.
 
-## 14. Fault tests futuros obligatorios
+## 14. Fault tests materializados
 
 - dos o más nodos y random instance assignment;
 - commit entre initial sync y activación;
@@ -239,10 +238,10 @@ Reconciliación del gate futuro: **8 owners + 17 regresiones = 25 ejecuciones di
 - ausencia de leakage entre P1, P2 y F1;
 - load tests de heartbeat, límites, backpressure, pool y latencias p95/p99.
 
-## 15. Gate de implementación futuro
+## 15. Evidencia de implementación
 
-M2-2 sólo podrá implementarse tras autorización expresa separada. Ese gate deberá fijar versiones exactas, crear únicamente infraestructura autorizada, ejecutar los 8 owners y 17 regresiones, preservar baseline 253/253 y alcanzar al menos 261 casos únicos con 0 skips/todo/waivers. La aprobación de DEC-081 no equivale a esa autorización.
+DEC-082 fijó `ws@8.21.3`, `@types/ws@8.18.1`, `jose@6.2.10` y `@auth0/nextjs-auth0@4.28.0`. El gate ejecuta 8/8 owners y 17/17 regresiones asignadas, preserva la baseline 253/253 y alcanza 288/288 casos en 32 archivos, con 0 skips, 0 todo y 0 waivers. Las pruebas complementarias usan JWT RS256/JWKS real local, HTTP/WSS real, nodos/adapters separados, PostgreSQL 18.6 y fallos reproducibles sin Auth0 ni Render reales.
 
-**Estado final:** `DECISION GATE APPROVED / READY FOR IMPLEMENTATION AUTHORIZATION / NOT AUTHORIZED`.
+**Estado final:** `M2-2 IMPLEMENTED / PENDING REVIEW`.
 
 M2-3…M2-7 permanecen **NOT AUTHORIZED**; M2 global **NOT YET CLOSED**; M3 **NOT AUTHORIZED**.
