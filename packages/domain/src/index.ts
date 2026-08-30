@@ -34,3 +34,4 @@ export * from './m1-adjudication.js';
 export * from './durable-transition.js';
 export * from './m2b.js';
 export * from './m2b-reaction.js';
+export * from './m2b-lifecycle.js';
