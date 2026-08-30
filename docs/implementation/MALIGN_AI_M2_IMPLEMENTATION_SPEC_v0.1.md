@@ -3,7 +3,7 @@
 **Fecha:** 2026-08-27
 **Estado:** M2-0 APPROVED AND CLOSED / M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080
 **Autoridad:** DEC-074…DEC-083
-**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3/M2-4 IMPLEMENTED / PENDING REVIEW mediante DEC-084; M2-5…M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
+**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3/M2-4 IMPLEMENTED / PENDING REVIEW mediante DEC-084; M2-5 IMPLEMENTED / PENDING REVIEW mediante DEC-085; M2-6/M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
 
 > DEC-078 autorizó y materializó exclusivamente M2-A/M2-1; DEC-080 aprobó su commit funcional final `85ec047726a68007fbcabf07c6b3fe1b911a3070` y cerró M2A-R01…R30. DEC-080 no autoriza M2-2…M2-7, M2 global o M3.
 
@@ -77,7 +77,7 @@ Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, an
 | M2-2 | Productive Transport and Reconnect | M2-1 aprobado; IQ-M2-008/009/016 resueltas | 8 | IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083 |
 | M2-3 | Complete Scheduler and Remaining Core Rules | M2-1; contrato de registry suficiente | 39 | IMPLEMENTED / PENDING REVIEW — DEC-084 |
 | M2-4 | Action/Starter Cards and Regime Abilities | M2-3; IQ-M2-010 resuelta | 45 | IMPLEMENTED / PENDING REVIEW — DEC-084 |
-| M2-5 | Reaction, Veto and Deterministic Narrative | M2-3/M2-4; transport recovery para gate productivo | 23 | NOT AUTHORIZED |
+| M2-5 | Reaction, Veto and Deterministic Narrative | M2-3/M2-4; transport recovery para gate productivo | 23 | IMPLEMENTED / PENDING REVIEW — DEC-085 |
 | M2-6 | Cleanup, Viralization and End Turn | M2-3/M2-5 | 18 | NOT AUTHORIZED |
 | M2-7 | Objectives, Victory and End Game | M2-1/M2-2/M2-6 | 30 | NOT AUTHORIZED |
 
@@ -183,7 +183,7 @@ Incluye 10 `GE-REA-*`, cuatro `GE-NAR-*`, cinco `GE-VETO-*`, `GE-AUD-005` y `GE-
 
 `GE-M2-EFX-001 [REGRESSION]` se reejecuta nuevamente con el manifest expandido para Reaction, Veto y efectos narrativos determinísticos relacionados. M2-5 demuestra la cobertura completa final de todos los efectos de cartas del registry aprobado y la ausencia de fallback textual o handler genérico silencioso.
 
-DoD futuro: ventanas/priority determinísticas; una sola transición de continuation comprometida mediante idempotencia + CAS, con retry del resultado original y sin afirmar exactly-once delivery; no timer ni auto-pass; `expires_at=null`; F1 auditado; opciones/errores opacos; **23/23 nuevos únicos + 11 regresiones = 34 ejecuciones dirigidas**, preservando toda la suite M2-4 y alcanzando mínimo operativo **409**.
+Checkpoint implementado: ventanas/prioridad determinísticas; nested continuation serializable; `expires_at=null`; sin timer ni auto-pass; proyección opaca; Veto por mayoría estricta y narrativa determinística. **23/23 owners + 11/11 regresiones = 34/34 PASS**; suite acumulada **450/450 en 40 archivos**. Estado **PENDING REVIEW**.
 
 ## 12. M2-6 — Cleanup, Viralization and End Turn
 
@@ -276,4 +276,4 @@ M2 sólo podrá cerrarse tras nuevas autorizaciones si:
 
 ## 19. Gate de salida documental
 
-El planning gate queda **APPROVED AND CLOSED mediante DEC-076**, M2-0 mediante DEC-077, M2-A/M2-1 mediante DEC-080 y M2-2 **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083**. DEC-084 autoriza M2-B: M2-3 y M2-4 quedan **IMPLEMENTED / PENDING REVIEW**, cada gate dirigido en **57/57**, con suite acumulada **416/416 en 38 archivos**. M2-5…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT AUTHORIZED / NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
+El planning gate queda **APPROVED AND CLOSED mediante DEC-076**, M2-0 mediante DEC-077, M2-A/M2-1 mediante DEC-080 y M2-2 **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083**. M2-3/M2-4 quedan **IMPLEMENTED / PENDING REVIEW mediante DEC-084** y M2-5 **IMPLEMENTED / PENDING REVIEW mediante DEC-085**. La suite acumulada es **450/450 en 40 archivos**. M2-6/M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT AUTHORIZED / NOT YET CLOSED** y M3 **NOT AUTHORIZED**.

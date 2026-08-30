@@ -1300,3 +1300,28 @@ DEC-075 autoriza exclusivamente documentación. No autoriza M2 ni ninguna subeta
 **IMPACTO:** Se habilita la implementación conjunta y autocorrectiva de M2-3/M2-4. Cualquier contradicción normativa nueva debe convertirse en `IMPLEMENTATION_QUESTION`; no habilita Reaction/Veto, Cleanup, Victory, UI ni IA.
 
 **ESTADO:** `APPROVED — M2-B IMPLEMENTATION AUTHORIZATION ONLY`
+
+---
+
+## DEC-085 — Autorización de implementación M2-5 Reaction, Veto and Deterministic Narrative
+
+**FECHA:** 2026-08-30
+**TEMA:** Implementación acotada del siguiente bloque canónico posterior a M2-B.
+
+**DECISIÓN:**
+
+- Se autoriza exclusivamente **M2-5 — Reaction, Veto and Deterministic Narrative** sobre el baseline M2-B publicado.
+- El alcance comprende 20 owners oracle (`GE-REA-001…010`, `GE-NAR-001…004`, `GE-VETO-001…005`, `GE-AUD-005`), tres owners addendum (`GE-M2-RX-001…003`) y 11 regresiones asignadas.
+- Reaction Windows son datos serializables y versionados, con prioridad circular por iniciativa, ventanas hijas sólo para triggers expresos, `expires_at=null` y sin auto-pass.
+- Veto usa mayoría estricta de jugadores activos; empate o minoría permite continuar. El rechazo `VETO_ABUSE` ocurre antes de mutar la carta.
+- Narrative strict acepta 2–3 oraciones; una oración bloquea y más de tres o lectura confirmada aplican únicamente las penalizaciones determinísticas aprobadas.
+- Eligibility y opciones privadas se calculan server-side y se proyectan fail-closed; no se revela mano, conteo ni razón a viewers no autorizados.
+- Idempotencia + CAS compromete una sola transición durable; no se afirma exactly-once delivery.
+- El resultado debe quedar **IMPLEMENTED / PENDING REVIEW**; DEC-085 no aprueba ni cierra M2-5 o M2 global.
+- M2-6, M2-7 y M3 permanecen **NOT AUTHORIZED**.
+
+**JUSTIFICACIÓN:** M2-B aporta scheduler, core rules y registry dispatch suficientes para implementar las ventanas de reacción y sus continuations sin adelantar Cleanup o Victory.
+
+**IMPACTO:** Se habilita M2-5 con gate propio y preservación completa de la baseline. IA no interviene en sanciones narrativas ni adjudicación.
+
+**ESTADO:** `APPROVED — M2-5 IMPLEMENTATION AUTHORIZATION ONLY`

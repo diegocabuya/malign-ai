@@ -5,7 +5,7 @@
 **Autoridad:** DEC-074…DEC-083
 **Oracle:** `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_SPEC_v0.1.md`
 **Addenda:** M1 v0.1 preservado; M2 v0.1 aprobado como test acceptance baseline
-**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3/M2-4 IMPLEMENTED / PENDING REVIEW mediante DEC-084; M2-5…M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
+**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3/M2-4 IMPLEMENTED / PENDING REVIEW mediante DEC-084; M2-5 IMPLEMENTED / PENDING REVIEW mediante DEC-085; M2-6/M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
 
 > Históricamente, DEC-078 materializó exclusivamente los 22 owner asignados a M2-A/M2-1. DEC-080 aprobó y cerró posteriormente M2-A/M2-1. Los owners y conteos de M2-2…M2-7 permanecen futuros, sin alteración y no autorizados.
 
@@ -267,7 +267,7 @@ Resultado DEC-084 pendiente de revisión: **45/45 owners; 57/57 ejecuciones diri
 
 Riesgo trazado: nested continuations, choices, ordering, no-auto-pass, privacy/reconnect y completitud final del registry effect manifest. `GE-M2-EFX-001 [REGRESSION]` expande el manifest para cubrir Reaction, Veto y efectos narrativos determinísticos relacionados; aquí se demuestra por primera vez la cobertura completa de todos los efectos de cartas del registry aprobado, sin fallback textual ni handler genérico silencioso. Las security/choice repeticiones se justifican por ventanas privadas nuevas.
 
-Gate futuro: **34 ejecuciones dirigidas + preservación completa de la suite M2-4**; 23 casos nuevos; mínimo operativo **409**.
+Resultado DEC-085 pendiente de revisión: **23/23 owners + 11/11 regresiones = 34/34 PASS**, con preservación completa de M2-4 y suite acumulada **450/450 PASS en 40 archivos**.
 
 ## 10. M2-6 — Cleanup, Viralization and End Turn
 
@@ -389,4 +389,4 @@ FAIL ante ID/owner inválido, conteo irreconciliable, test suavizado, fixture qu
 
 ## 16. Estado
 
-El planning gate está **APPROVED AND CLOSED mediante DEC-076**, M2-0 mediante DEC-077, M2-A/M2-1 mediante DEC-080 y M2-2 **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083**. M2-3/M2-4 están **IMPLEMENTED / PENDING REVIEW mediante DEC-084**, con gates 57/57 y suite acumulada 416/416 en 38 archivos. M2-5…M2-7 permanecen **NOT AUTHORIZED**, M2 global **NOT AUTHORIZED / NOT YET CLOSED** y M3 **NOT AUTHORIZED**.
+El planning gate está **APPROVED AND CLOSED mediante DEC-076**, M2-0 mediante DEC-077, M2-A/M2-1 mediante DEC-080 y M2-2 **IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083**. M2-3/M2-4 están **IMPLEMENTED / PENDING REVIEW mediante DEC-084** y M2-5 **IMPLEMENTED / PENDING REVIEW mediante DEC-085**. Gates: M2-3 57/57, M2-4 57/57, M2-5 34/34; suite acumulada 450/450. M2-6/M2-7 permanecen **NOT AUTHORIZED** y M3 **NOT AUTHORIZED**.
