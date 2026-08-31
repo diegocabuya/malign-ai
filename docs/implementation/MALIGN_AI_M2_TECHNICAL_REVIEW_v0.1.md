@@ -35,7 +35,7 @@ Parte de `GE-M2-3.owner`, `GE-M2-4.owner`, M2-6 y las regresiones modifica fixtu
 
 El dispatcher M2-B registra sólo un subconjunto de IDs, mientras el registry aprobado contiene 59 effect definitions y M2-5 exige cobertura completa final, sin fallback silencioso. `GE-M2-EFX-001 [REGRESSION]` no enumera ni ejecuta exhaustivamente el manifest aprobado.
 
-**Corrección en progreso:** `M2_EFFECT_MANIFEST` materializa y prueba por igualdad exacta los 59 pares `effect_id`/`source_definition_id` del snapshot DEC-077. El dispatcher distingue ID desconocido (`EFFECT_UNKNOWN`) de ID aprobado sin handler (`EFFECT_DISABLED`), siempre sin mutación. Permanecen 51 handlers de cartas sin implementar; por ello M2R-R04 continúa **OPEN** y no se presenta el inventario como cobertura funcional 59/59.
+**Corrección en progreso:** `M2_EFFECT_MANIFEST` materializa y prueba por igualdad exacta los 59 pares `effect_id`/`source_definition_id` del snapshot DEC-077. El dispatcher distingue ID desconocido (`EFFECT_UNKNOWN`) de ID aprobado sin handler (`EFFECT_DISABLED`), siempre sin mutación. Se implementaron los 23 bindings `CV_PAIR_BONUS` con validación de su pareja exacta, seis `TARGET_DT_SET` ligados a campaña/DT del escenario, y tres efectos fijos de recursos/lifecycle; sumados a los handlers previos, el dispatcher tiene 39 IDs ejecutables contando la habilidad de régimen. Permanecen 21 IDs del manifest sin handler en este dispatcher; algunos pertenecen al pipeline Reaction, pero no se contabilizan como cobertura completa hasta cerrar sus interacciones. M2R-R04 continúa **OPEN** y no se presenta el inventario como cobertura funcional 59/59.
 
 ### M2R-R05 — Atomicidad/idempotencia final insuficiente
 
