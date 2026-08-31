@@ -24,7 +24,16 @@ import { applyM2StateToCanonical, buildM2StateFromCanonical } from './m2-integra
 import { cleanupCampaignAging, resetTurnFlags } from './m2b-lifecycle.js';
 import { finalizeGame } from './m2b-endgame.js';
 import { makeReactionContinuation, openReactionWindow, passReactionPriority, playReaction } from './m2b-reaction.js';
-import { discardWithLifecycle, M2BEffectDispatcher } from './m2b.js';
+import {
+  applyBacklash,
+  discardCampaign,
+  discardWithLifecycle,
+  establishLegitimacy,
+  M2BEffectDispatcher,
+  modifyCampaignCard,
+  playStarter,
+  stealBlindCard,
+} from './m2b.js';
 import { m2EffectSourceDefinition } from './m2-effect-manifest.js';
 
 export type SetupCommandType =
@@ -100,6 +109,14 @@ export interface PlayReactionPayload {
   readonly cardId: string;
   readonly effectId: string;
 }
+
+export type M2CoreOperation =
+  | { readonly kind: 'APPLY_BACKLASH'; readonly actorParticipantId: string; readonly pdId: string; readonly amount: number }
+  | { readonly kind: 'ESTABLISH_LEGITIMACY'; readonly actorParticipantId: string; readonly pdId: string; readonly replacePdId?: string }
+  | { readonly kind: 'MODIFY_CAMPAIGN'; readonly actorParticipantId: string; readonly campaignId: string; readonly oldCardId: string; readonly replacementCardId: string }
+  | { readonly kind: 'DISCARD_CAMPAIGN'; readonly actorParticipantId: string; readonly campaignId: string }
+  | { readonly kind: 'PLAY_STARTER'; readonly actorParticipantId: string; readonly cardId: string }
+  | { readonly kind: 'STEAL_BLIND_CARD'; readonly actorParticipantId: string; readonly targetParticipantId: string };
 
 export type SetupCommandPayload =
   | CreateGamePayload
@@ -569,6 +586,97 @@ export class SetupCommandDispatcher {
           nextState: working, resultCode: 'M2_EFFECT_EXECUTED',
           resultPayload: { effectId: options.effectId, audit: result.emitted }, emittedEventRefs: [event.id],
         };
+      },
+    });
+  }
+
+  executeM2CoreOperation(options: {
+    readonly gameId: string;
+    readonly expectedGameVersion: number;
+    readonly commandId: string;
+    readonly idempotencyKey: string;
+    readonly operation: M2CoreOperation;
+    readonly correlationId?: string;
+  }): EngineCommandResult {
+    if (this.randomTransactionOwner === 'APPLICATION') return this.executeM2CoreOperationAtomic(options);
+    const checkpoint = this.random.checkpoint();
+    try {
+      const result = this.executeM2CoreOperationAtomic(options);
+      if (result.status === 'RESOLVED') this.random.commit(checkpoint);
+      else this.random.restore(checkpoint);
+      return result;
+    } catch (error) {
+      this.random.restore(checkpoint);
+      throw error;
+    }
+  }
+
+  private executeM2CoreOperationAtomic(options: {
+    readonly gameId: string;
+    readonly expectedGameVersion: number;
+    readonly commandId: string;
+    readonly idempotencyKey: string;
+    readonly operation: M2CoreOperation;
+    readonly correlationId?: string;
+  }): EngineCommandResult {
+    const envelope: CommandEnvelope<'INTERNAL_EXECUTE_M2_CORE_OPERATION', Record<string, never>> = {
+      engineContractVersion: M1_0_BASELINE_VERSIONS.engineContractVersion,
+      commandId: options.commandId, idempotencyKey: options.idempotencyKey, gameId: options.gameId,
+      actorContext: { actorId: 'M2_INTERNAL_COORDINATOR', actorType: 'SYSTEM', authenticatedSessionId: 'internal:m2', permissions: ['game:internal-core-operation'] },
+      expectedGameVersion: options.expectedGameVersion, commandType: 'INTERNAL_EXECUTE_M2_CORE_OPERATION',
+      payloadSchemaVersion: M1_0_BASELINE_VERSIONS.fixtureSchemaVersion, payload: {},
+      ...(options.correlationId === undefined ? {} : { correlationId: options.correlationId }),
+    };
+    return dispatchAtomicCommand({
+      envelope, store: this.store, now: this.now,
+      prepare: (before, candidate) => {
+        const version = before?.version ?? 0;
+        if (before === undefined) return { error: 'GAME_NOT_FOUND' as const, version };
+        if (candidate.expectedGameVersion !== before.version) return { error: 'STALE_STATE_VERSION' as const, version: before.version };
+        if (before.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const, version: before.version };
+        if (before.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const, version: before.version };
+        const operation = options.operation;
+        if (before.participants[operation.actorParticipantId]?.role !== 'PLAYER') return { error: 'PARTICIPANT_NOT_FOUND' as const, version: before.version };
+        const working = structuredClone(before); const m2 = buildM2StateFromCanonical(working);
+        let error: AnyEngineErrorCode | undefined; let subjectId = ''; let detail: Readonly<Record<string, unknown>> = {};
+        if (operation.kind === 'APPLY_BACKLASH') {
+          if (working.populationDemographics[operation.pdId] === undefined || !Number.isInteger(operation.amount) || operation.amount < 0) error = 'INVALID_EFFECT_INPUT';
+          else { const placed = applyBacklash(m2, operation.actorParticipantId, operation.pdId, operation.amount); subjectId = operation.pdId; detail = { placed }; }
+        } else if (operation.kind === 'ESTABLISH_LEGITIMACY') {
+          if (working.populationDemographics[operation.pdId] === undefined || (operation.replacePdId !== undefined && working.populationDemographics[operation.replacePdId] === undefined)) error = 'INVALID_EFFECT_INPUT';
+          else if (!establishLegitimacy(m2, operation.actorParticipantId, operation.pdId, operation.replacePdId)) error = 'INVALID_EFFECT_INPUT';
+          else subjectId = operation.pdId;
+        } else if (operation.kind === 'MODIFY_CAMPAIGN') {
+          const campaign = m2.campaigns[operation.campaignId]; const replacement = m2.cards[operation.replacementCardId];
+          if (campaign?.ownerParticipantId !== operation.actorParticipantId) error = 'CAMPAIGN_NOT_OWNED';
+          else if (replacement?.controllerParticipantId !== operation.actorParticipantId) error = 'CARD_NOT_CONTROLLED';
+          else { error = modifyCampaignCard(m2, operation.campaignId, operation.oldCardId, operation.replacementCardId); subjectId = operation.campaignId; }
+        } else if (operation.kind === 'DISCARD_CAMPAIGN') {
+          if (m2.campaigns[operation.campaignId]?.ownerParticipantId !== operation.actorParticipantId) error = 'CAMPAIGN_NOT_OWNED';
+          else { error = discardCampaign(m2, operation.campaignId); subjectId = operation.campaignId; }
+        } else if (operation.kind === 'PLAY_STARTER') {
+          const card = m2.cards[operation.cardId];
+          if (card?.controllerParticipantId !== operation.actorParticipantId) error = 'CARD_NOT_CONTROLLED';
+          else { error = playStarter(m2, operation.cardId, operation.actorParticipantId); subjectId = operation.cardId; }
+        } else {
+          if (m2.participants[operation.targetParticipantId] === undefined || operation.targetParticipantId === operation.actorParticipantId) error = 'INVALID_EFFECT_INPUT';
+          else {
+            const eligible = Object.values(m2.cards).filter(({ controllerParticipantId, zone }) => controllerParticipantId === operation.targetParticipantId && zone === 'HAND').length;
+            if (eligible === 0) error = 'CARD_NOT_ELIGIBLE';
+            else {
+              const stolenCardId = stealBlindCard(m2, operation.actorParticipantId, operation.targetParticipantId, this.random.integer(0, eligible - 1));
+              if (stolenCardId === undefined) error = 'CARD_NOT_ELIGIBLE';
+              else { subjectId = stolenCardId; detail = { stolenCardId }; }
+            }
+          }
+        }
+        if (error !== undefined) return { error, version: before.version };
+        m2.audit.push({ type: operation.kind, actorParticipantId: operation.actorParticipantId, payload: { subjectId } });
+        applyM2StateToCanonical(working, m2);
+        const event = this.appendEvent(working, candidate, 'M2_CORE_OPERATION_EXECUTED', {
+          operation: operation.kind, actorParticipantId: operation.actorParticipantId, subjectId,
+        });
+        return { nextState: working, resultCode: 'M2_CORE_OPERATION_EXECUTED', resultPayload: { operation: operation.kind, subjectId, ...detail }, emittedEventRefs: [event.id] };
       },
     });
   }

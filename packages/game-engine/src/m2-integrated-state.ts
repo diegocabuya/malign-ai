@@ -22,7 +22,7 @@ export const buildM2StateFromCanonical = (state: SetupGameState): M2BState => ({
     id: card.id, definitionId: card.definitionId, ownerParticipantId: state.countries[card.countryOwnerId].controllerParticipantId ?? card.controllerParticipantId!,
     controllerParticipantId: card.controllerParticipantId!, cardClass: cardClass(state, card.id), alignment: 'DUAL',
     zone: card.zone === 'OPERATIONS_DECK' || card.zone === 'OPERATIONS_POOL' || card.zone === 'STARTER_POOL' ? 'DECK' : card.zone,
-    returnToOwnerOnDiscard: false,
+    returnToOwnerOnDiscard: card.returnToOwnerOnDiscard ?? false,
   }])),
   campaigns: Object.fromEntries(Object.values(state.adjudication.campaigns).map((campaign) => [campaign.id, {
     id: campaign.id, ownerParticipantId: campaign.ownerParticipantId, row: campaign.row,
@@ -42,7 +42,17 @@ export const applyM2StateToCanonical = (target: SetupGameState, source: M2BState
   for (const card of Object.values(source.cards)) {
     const canonical = target.cards[card.id]; if (canonical === undefined) continue;
     canonical.controllerParticipantId = card.controllerParticipantId;
-    canonical.zone = card.zone === 'DECK' || card.zone === 'PLANNED_ACTION' || card.zone === 'REMOVED_FROM_GAME' ? 'DISCARD' : card.zone;
+    canonical.returnToOwnerOnDiscard = card.returnToOwnerOnDiscard;
+    canonical.zone = card.zone === 'DECK' || card.zone === 'PLANNED_ACTION' ? 'DISCARD' : card.zone;
+    for (const strategy of Object.values(target.strategy)) {
+      const handIndex = strategy.handCardInstanceIds.indexOf(card.id);
+      if (handIndex >= 0) strategy.handCardInstanceIds.splice(handIndex, 1);
+      const discardIndex = strategy.discardCardInstanceIds.indexOf(card.id);
+      if (discardIndex >= 0) strategy.discardCardInstanceIds.splice(discardIndex, 1);
+    }
+    const strategy = target.strategy[card.controllerParticipantId];
+    if (strategy !== undefined && card.zone === 'HAND' && !strategy.handCardInstanceIds.includes(card.id)) strategy.handCardInstanceIds.push(card.id);
+    if (strategy !== undefined && canonical.zone === 'DISCARD' && !strategy.discardCardInstanceIds.includes(card.id)) strategy.discardCardInstanceIds.push(card.id);
   }
   for (const campaignId of Object.keys(target.adjudication.campaigns)) {
     if (source.campaigns[campaignId] === undefined) delete target.adjudication.campaigns[campaignId];

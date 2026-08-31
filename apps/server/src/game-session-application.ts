@@ -3,6 +3,7 @@ import { InMemorySessionAuthority } from '@malign-ai/authz';
 import { engineErrorFor, type AnyEngineErrorCode, type EngineCommandResult } from '@malign-ai/contracts';
 import {
   M1AdjudicationEngine,
+  type M2CoreOperation,
   type SetupCommandPayload,
   type SetupCommandType,
   SetupCommandDispatcher,
@@ -123,6 +124,14 @@ export interface InternalM2EffectInput extends DurableOperationInput {
 /** Server-only effect port; actor, source card and parameters are derived by the authoritative scheduler. */
 export interface InternalM2EffectPort {
   executeM2Effect(input: InternalM2EffectInput): Promise<EngineCommandResult>;
+}
+
+export interface InternalM2CoreOperationInput extends DurableOperationInput {
+  readonly operation: M2CoreOperation;
+}
+
+export interface InternalM2CoreOperationPort {
+  executeM2CoreOperation(input: InternalM2CoreOperationInput): Promise<EngineCommandResult>;
 }
 
 export interface TransactionalApplicationClock {
@@ -560,7 +569,7 @@ interface DurableOperationInput {
 }
 
 /** Durable composition adapter: authenticated boundary → authoritative Engine → PostgreSQL. */
-export class PostgresGameSessionApplication implements GameSessionApplicationPort, InternalM1SchedulerPort, InternalM2CleanupPort, InternalM2EndGamePort, InternalM2ReactionPort, InternalM2EffectPort {
+export class PostgresGameSessionApplication implements GameSessionApplicationPort, InternalM1SchedulerPort, InternalM2CleanupPort, InternalM2EndGamePort, InternalM2ReactionPort, InternalM2EffectPort, InternalM2CoreOperationPort {
   private readonly randomByGame = new Map<string, TransactionalRandomProvider>();
   private readonly clockByGame = new Map<string, TransactionalApplicationClock>();
   private readonly writerTailByGame = new Map<string, Promise<void>>();
@@ -833,6 +842,26 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
           execute:(random,now)=>{
             const store=new InMemorySetupGameStore([state]);
             const result=new SetupCommandDispatcher(store,random,now,'APPLICATION').executeM2Effect(input);
+            const afterState=store.snapshot(input.gameId);
+            return {result,...(afterState===undefined?{}:{afterState})};
+          }};
+      },
+    });
+  }
+
+  async executeM2CoreOperation(input: InternalM2CoreOperationInput): Promise<EngineCommandResult> {
+    const fingerprintSha256=createHash('sha256').update(deterministicJsonSerialize({
+      commandType:'INTERNAL_EXECUTE_M2_CORE_OPERATION',beforeVersion:input.expectedGameVersion,operation:input.operation,
+    })).digest('hex');
+    return this.coordinateDurableOperation({
+      input, actorId:'M2_INTERNAL_COORDINATOR', fingerprintSha256,
+      prepare:(state):DurableOperationPreparation=>{
+        if(state===undefined)return {ready:false,result:this.reject(input,0,'GAME_NOT_FOUND')};
+        return {ready:true,commandType:'INTERNAL_EXECUTE_M2_CORE_OPERATION',beforeState:state,
+          actor:{actorId:'M2_INTERNAL_COORDINATOR',actorType:'SYSTEM',participantId:null,authenticatedSessionId:'internal:m2'},
+          execute:(random,now)=>{
+            const store=new InMemorySetupGameStore([state]);
+            const result=new SetupCommandDispatcher(store,random,now,'APPLICATION').executeM2CoreOperation(input);
             const afterState=store.snapshot(input.gameId);
             return {result,...(afterState===undefined?{}:{afterState})};
           }};

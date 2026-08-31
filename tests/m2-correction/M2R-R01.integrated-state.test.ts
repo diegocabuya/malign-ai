@@ -139,4 +139,37 @@ describe('M2R-R01 canonical state integration seam', () => {
     })).toMatchObject({ status: 'REJECTED', error: { code: 'EFFECT_DISABLED' } });
     expect(testHarness.store.snapshot(state.id)).toEqual(before);
   });
+
+  it('executes core legitimacy and backlash operations through canonical atomic state', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    state.adjudication.vpByParticipant.P1 = 5;
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const legitimacy = testHarness.dispatcher.executeM2CoreOperation({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-CORE-LEG-1', idempotencyKey: 'M2-CORE-LEG-K1',
+      operation: { kind: 'ESTABLISH_LEGITIMACY', actorParticipantId: 'P1', pdId: 'PRESQUE_PD_1' },
+    });
+    expect(legitimacy).toMatchObject({ status: 'RESOLVED', resultCode: 'M2_CORE_OPERATION_EXECUTED' });
+    const afterLegitimacy = testHarness.store.snapshot(state.id)!;
+    expect(afterLegitimacy.adjudication.legitimacyByPd.PRESQUE_PD_1).toBe('P1');
+    const backlash = testHarness.dispatcher.executeM2CoreOperation({
+      gameId: state.id, expectedGameVersion: afterLegitimacy.version, commandId: 'M2-CORE-BACKLASH-1', idempotencyKey: 'M2-CORE-BACKLASH-K1',
+      operation: { kind: 'APPLY_BACKLASH', actorParticipantId: 'P1', pdId: 'PRESQUE_PD_1', amount: 2 },
+    });
+    expect(backlash).toMatchObject({ status: 'RESOLVED', resultPayload: { operation: 'APPLY_BACKLASH' } });
+    expect(testHarness.store.snapshot(state.id)?.m2Audit?.slice(-2).map(({ type }) => type)).toEqual(['ESTABLISH_LEGITIMACY', 'APPLY_BACKLASH']);
+  });
+
+  it('uses transactional RNG for blind steal and preserves its idempotent result', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    const targetCard = state.cards['FLUMA-CARD-001']!; targetCard.controllerParticipantId = 'P2'; targetCard.zone = 'HAND';
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const options = {
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-CORE-STEAL-1', idempotencyKey: 'M2-CORE-STEAL-K1',
+      operation: { kind: 'STEAL_BLIND_CARD' as const, actorParticipantId: 'P1', targetParticipantId: 'P2' },
+    };
+    const first = testHarness.dispatcher.executeM2CoreOperation(options);
+    expect(first).toMatchObject({ status: 'RESOLVED', resultPayload: { operation: 'STEAL_BLIND_CARD', stolenCardId: targetCard.id } });
+    expect(testHarness.store.snapshot(state.id)?.cards[targetCard.id]).toMatchObject({ controllerParticipantId: 'P1', returnToOwnerOnDiscard: true });
+    expect(testHarness.dispatcher.executeM2CoreOperation(options)).toEqual(first);
+  });
 });

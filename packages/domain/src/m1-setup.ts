@@ -15,7 +15,7 @@ import type { EndGameState } from './m2b-endgame.js';
 import type { ReactionContinuation } from './m2b-reaction.js';
 import type { M2BAuditRecord } from './m2b.js';
 
-export type SetupCardZone = 'STARTER_POOL' | 'OPERATIONS_POOL' | 'OPERATIONS_DECK' | 'HAND' | 'DISCARD' | 'CAMPAIGN';
+export type SetupCardZone = 'STARTER_POOL' | 'OPERATIONS_POOL' | 'OPERATIONS_DECK' | 'HAND' | 'DISCARD' | 'CAMPAIGN' | 'REMOVED_FROM_GAME';
 
 export interface PinnedVersions {
   readonly rulesetVersion: string;
@@ -78,6 +78,7 @@ export interface SetupCardInstance {
   readonly definitionId: string;
   readonly serialWithinCountrySet: number;
   controllerParticipantId?: string;
+  returnToOwnerOnDiscard?: boolean;
   zone: SetupCardZone;
   zonePosition?: number;
 }
@@ -232,7 +233,8 @@ export type SetupGameEventType =
   | 'REACTION_PRIORITY_PASSED'
   | 'REACTION_PLAYED'
   | 'REACTION_WINDOW_CLOSED'
-  | 'M2_EFFECT_EXECUTED';
+  | 'M2_EFFECT_EXECUTED'
+  | 'M2_CORE_OPERATION_EXECUTED';
 
 
 export type SetupEventVisibilityClass = 'PUBLIC' | 'OWNER_AND_FACILITATOR';
