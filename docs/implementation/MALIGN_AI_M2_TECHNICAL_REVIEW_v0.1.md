@@ -25,6 +25,8 @@ La cifra anterior demuestra que los ejecutables actuales pasan; no demuestra por
 
 `M2BState`, `ReactionContinuation`, `CleanupContinuation` y `EndGameState` no aparecen en persistence, recovery, AuthorizedProjection ni server. Reaction/Veto, viral, awards y `GAME_COMPLETED` no se materializan mediante el UoW PostgreSQL, ledgers, traces, events y outbox aprobados.
 
+**Corrección en progreso:** el after-image canónico ya contiene Reaction continuation, End Game/outcome y auditoría M2. `buildDurableEngineTransition` incluye End Game en `SESSION_LIFECYCLE`, Reaction en `CONTINUATIONS` y auditoría M2 en `EVENTS_TRACES`, por lo que cambios omitidos rompen los hashes de completitud antes de I/O. Las transiciones aceptadas generan events/outbox mediante el UoW existente. Faltan materialización normalizada específica y gates PostgreSQL/replay multiproceso para todos los subtipos; M2R-R02 continúa **OPEN**.
+
 ### M2R-R03 — Owner tests no representan el oracle
 
 Parte de `GE-M2-3.owner`, `GE-M2-4.owner`, M2-6 y las regresiones modifica fixtures directamente o verifica constantes/IDs en lugar de ejecutar el comportamiento descrito. Ejemplos: swaps de zona manuales, descarte manual, counters manuales y regresiones que sólo comprueban `expect(id).toMatch`. Estos casos son ejecutables verdes pero no constituyen evidencia válida del owner.
@@ -44,6 +46,8 @@ Reaction, Cleanup y End Game mutan estructuras in-memory fuera de la frontera tr
 ### M2R-R06 — Privacy/reconnect incompletos
 
 La proyección de Reaction es una función aislada; no reutiliza el pipeline productivo de AuthorizedProjection/feed. No existe evidencia durable de reconnect para nested reaction, cleanup checkpoint o `GAME_COMPLETED` con viewers owner/rival/F1.
+
+**Corrección en progreso:** `SetupGameProjection` expone el outcome final público y la Reaction recuperada, pero sólo entrega opciones al actor prioritario y a F1. `M1AdjudicationProjection` expone a jugadores únicamente el conteo de auditoría M2 y reserva sus entradas completas para F1. Los eventos privados de robo ciego se proyectan al owner/F1 y quedan redactados para rivales. Las regresiones reconstruyen estas vistas desde el estado canónico y verifican que Reaction/End Game/audit participen en hashes durables. Falta el gate PostgreSQL de reconnect/restart con nested reactions; M2R-R06 continúa **OPEN**.
 
 ## Corrección obligatoria
 
