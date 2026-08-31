@@ -87,6 +87,13 @@ export interface InternalM1SchedulerPort {
   runM1SchedulerUntilBlocked(gameId: string): Promise<readonly EngineCommandResult[]>;
 }
 
+export type InternalM2CleanupInput = DurableOperationInput;
+
+/** Server-only Cleanup port; caller cannot supply ActorContext or permissions. */
+export interface InternalM2CleanupPort {
+  runM2Cleanup(input: InternalM2CleanupInput): Promise<EngineCommandResult>;
+}
+
 export interface TransactionalApplicationClock {
   checkpoint(): number;
   now(): Date;
@@ -522,7 +529,7 @@ interface DurableOperationInput {
 }
 
 /** Durable composition adapter: authenticated boundary → authoritative Engine → PostgreSQL. */
-export class PostgresGameSessionApplication implements GameSessionApplicationPort, InternalM1SchedulerPort {
+export class PostgresGameSessionApplication implements GameSessionApplicationPort, InternalM1SchedulerPort, InternalM2CleanupPort {
   private readonly randomByGame = new Map<string, TransactionalRandomProvider>();
   private readonly clockByGame = new Map<string, TransactionalApplicationClock>();
   private readonly writerTailByGame = new Map<string, Promise<void>>();
@@ -717,6 +724,26 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
       if(result.status!=='RESOLVED')return results;
     }
     throw new Error('M1 scheduler exceeded its deterministic guard');
+  }
+
+  async runM2Cleanup(input: InternalM2CleanupInput): Promise<EngineCommandResult> {
+    const fingerprintSha256=createHash('sha256').update(deterministicJsonSerialize({
+      commandType:'INTERNAL_RUN_M2_CLEANUP',beforeVersion:input.expectedGameVersion,
+    })).digest('hex');
+    return this.coordinateDurableOperation({
+      input, actorId:'M2_INTERNAL_COORDINATOR', fingerprintSha256,
+      prepare:(state):DurableOperationPreparation=>{
+        if(state===undefined)return {ready:false,result:this.reject(input,0,'GAME_NOT_FOUND')};
+        return {ready:true,commandType:'INTERNAL_RUN_M2_CLEANUP',beforeState:state,
+          actor:{actorId:'M2_INTERNAL_COORDINATOR',actorType:'SYSTEM',participantId:null,authenticatedSessionId:'internal:m2'},
+          execute:(random,now)=>{
+            const store=new InMemorySetupGameStore([state]);
+            const result=new SetupCommandDispatcher(store,random,now,'APPLICATION').runM2Cleanup(input);
+            const afterState=store.snapshot(input.gameId);
+            return {result,...(afterState===undefined?{}:{afterState})};
+          }};
+      },
+    });
   }
 
   private async coordinateDurableOperation(options: {

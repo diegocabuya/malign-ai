@@ -217,7 +217,12 @@ export type SetupGameEventType =
   | 'INFLUENCE_MUTATED'
   | 'LEGITIMACY_CHANGED'
   | 'VP_CHANGED'
-  | 'CAMPAIGN_ACTIVATION_COMPLETED';
+  | 'CAMPAIGN_ACTIVATION_COMPLETED'
+  | 'CLEANUP_STARTED'
+  | 'CAMPAIGN_AGED'
+  | 'CAMPAIGN_DISCARDED'
+  | 'TURN_FLAGS_RESET'
+  | 'CLEANUP_COMPLETED';
 
 export type SetupEventVisibilityClass = 'PUBLIC' | 'OWNER_AND_FACILITATOR';
 export type SetupEventActorType = ParticipantRole | 'SYSTEM';

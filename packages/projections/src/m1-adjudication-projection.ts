@@ -135,6 +135,11 @@ const canonicalPayloadKeys: Readonly<Record<SetupGameEventType, readonly string[
   LEGITIMACY_CHANGED: ['activationId', 'pdId', 'previousParticipantId', 'newParticipantId', 'reason', 'ledgerId'],
   VP_CHANGED: ['activationId', 'participantId', 'reason', 'delta', 'balanceAfter', 'ledgerId'],
   CAMPAIGN_ACTIVATION_COMPLETED: ['activationId', 'campaignId', 'traceId', 'placedCount', 'vpDelta', 'influenceResolutionId'],
+  CLEANUP_STARTED: [],
+  CAMPAIGN_AGED: ['campaignId', 'row'],
+  CAMPAIGN_DISCARDED: ['campaignId'],
+  TURN_FLAGS_RESET: [],
+  CLEANUP_COMPLETED: ['nextPhase'],
 };
 
 const facilitatorAuditPayloadKeys: Readonly<Partial<Record<SetupGameEventType, readonly string[]>>> = {

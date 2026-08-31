@@ -18,6 +18,8 @@ import {
   type SetupGameState,
 } from '@malign-ai/domain';
 import { dispatchAtomicCommand, InMemoryAtomicStateStore } from './atomic-dispatch.js';
+import { applyM2StateToCanonical, buildM2StateFromCanonical } from './m2-integrated-state.js';
+import { cleanupCampaignAging, resetTurnFlags } from './m2b-lifecycle.js';
 
 export type SetupCommandType =
   | 'CREATE_GAME'
@@ -394,6 +396,43 @@ export class SetupCommandDispatcher {
           resultPayload: structuredClone(working.currentRevealedAction),
           emittedEventRefs: [event.id],
         };
+      },
+    });
+  }
+
+  runM2Cleanup(options: {
+    readonly gameId: string;
+    readonly expectedGameVersion: number;
+    readonly commandId: string;
+    readonly idempotencyKey: string;
+    readonly correlationId?: string;
+  }): EngineCommandResult {
+    const envelope: CommandEnvelope<'INTERNAL_RUN_M2_CLEANUP', Record<string, never>> = {
+      engineContractVersion: M1_0_BASELINE_VERSIONS.engineContractVersion,
+      commandId: options.commandId, idempotencyKey: options.idempotencyKey, gameId: options.gameId,
+      actorContext: { actorId: 'M2_INTERNAL_COORDINATOR', actorType: 'SYSTEM', authenticatedSessionId: 'internal:m2', permissions: ['game:internal-cleanup'] },
+      expectedGameVersion: options.expectedGameVersion, commandType: 'INTERNAL_RUN_M2_CLEANUP',
+      payloadSchemaVersion: M1_0_BASELINE_VERSIONS.fixtureSchemaVersion, payload: {},
+      ...(options.correlationId === undefined ? {} : { correlationId: options.correlationId }),
+    };
+    return dispatchAtomicCommand({
+      envelope, store: this.store, now: this.now,
+      prepare: (before, candidate) => {
+        const version = before?.version ?? 0;
+        if (before === undefined) return { error: 'GAME_NOT_FOUND' as const, version };
+        if (candidate.expectedGameVersion !== before.version) return { error: 'STALE_STATE_VERSION' as const, version: before.version };
+        if (before.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const, version: before.version };
+        if (before.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const, version: before.version };
+        const working = structuredClone(before); const events: SetupGameEvent[] = [];
+        events.push(this.appendEvent(working, candidate, 'CLEANUP_STARTED', {}));
+        const cleanup = cleanupCampaignAging(buildM2StateFromCanonical(working));
+        resetTurnFlags(cleanup.state); applyM2StateToCanonical(working, cleanup.state);
+        for (const campaignId of cleanup.discardedCampaignIds) events.push(this.appendEvent(working, candidate, 'CAMPAIGN_DISCARDED', { campaignId }));
+        for (const campaignId of cleanup.agedCampaignIds) events.push(this.appendEvent(working, candidate, 'CAMPAIGN_AGED', { campaignId, row: 'II' }));
+        events.push(this.appendEvent(working, candidate, 'TURN_FLAGS_RESET', {}));
+        working.phase = 'INITIATIVE_STAGE';
+        events.push(this.appendEvent(working, candidate, 'CLEANUP_COMPLETED', { nextPhase: working.phase }));
+        return { nextState: working, resultCode: 'M2_CLEANUP_COMPLETED', resultPayload: { agedCampaignIds: cleanup.agedCampaignIds, discardedCampaignIds: cleanup.discardedCampaignIds, nextPhase: working.phase }, emittedEventRefs: events.map(({ id }) => id) };
       },
     });
   }

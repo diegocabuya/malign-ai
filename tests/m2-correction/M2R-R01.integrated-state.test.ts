@@ -18,4 +18,16 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(state.adjudication.legitimacyByPd.ARDEN_PD_1).toBe('P1');
     expect(state.adjudication.scheduler.status).toBe('COMPLETE');
   });
+
+  it('runs Cleanup through atomic dispatcher with phase, CAS and idempotency enforcement', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const options = { gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-CLEANUP-1', idempotencyKey: 'M2-CLEANUP-K1' };
+    const first = testHarness.dispatcher.runM2Cleanup(options);
+    expect(first).toMatchObject({ status: 'RESOLVED', resultCode: 'M2_CLEANUP_COMPLETED', gameVersionAfter: state.version + 1 });
+    expect(testHarness.store.snapshot(state.id)).toMatchObject({ phase: 'INITIATIVE_STAGE' });
+    expect(testHarness.dispatcher.runM2Cleanup(options)).toEqual(first);
+    const stale = testHarness.dispatcher.runM2Cleanup({ ...options, commandId: 'M2-CLEANUP-2', idempotencyKey: 'M2-CLEANUP-K2' });
+    expect(stale).toMatchObject({ status: 'REJECTED', error: { code: 'STALE_STATE_VERSION' } });
+  });
 });
