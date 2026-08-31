@@ -3,7 +3,6 @@ import { InMemorySessionAuthority } from '@malign-ai/authz';
 import { engineErrorFor, type AnyEngineErrorCode, type EngineCommandResult } from '@malign-ai/contracts';
 import {
   M1AdjudicationEngine,
-  type M2CoreOperation,
   type SetupCommandPayload,
   type SetupCommandType,
   SetupCommandDispatcher,
@@ -26,6 +25,7 @@ import {
 import type { ActorContext } from '@malign-ai/contracts';
 import type {
   DurableAcceptedEngineResult,
+  M2CoreOperation,
   ReactionTrigger,
   SetupGameState,
   TransactionalRandomProvider,
@@ -128,10 +128,15 @@ export interface InternalM2EffectPort {
 
 export interface InternalM2CoreOperationInput extends DurableOperationInput {
   readonly operation: M2CoreOperation;
+  readonly schedulerPlan?: { readonly id: string; readonly operations: readonly M2CoreOperation[]; readonly index: number };
 }
 
 export interface InternalM2CoreOperationPort {
   executeM2CoreOperation(input: InternalM2CoreOperationInput): Promise<EngineCommandResult>;
+}
+
+export interface InternalM2CoreSchedulerPort {
+  runM2CoreScheduler(gameId: string, schedulerId: string, operations: readonly M2CoreOperation[]): Promise<readonly EngineCommandResult[]>;
 }
 
 export interface TransactionalApplicationClock {
@@ -569,7 +574,7 @@ interface DurableOperationInput {
 }
 
 /** Durable composition adapter: authenticated boundary → authoritative Engine → PostgreSQL. */
-export class PostgresGameSessionApplication implements GameSessionApplicationPort, InternalM1SchedulerPort, InternalM2CleanupPort, InternalM2EndGamePort, InternalM2ReactionPort, InternalM2EffectPort, InternalM2CoreOperationPort {
+export class PostgresGameSessionApplication implements GameSessionApplicationPort, InternalM1SchedulerPort, InternalM2CleanupPort, InternalM2EndGamePort, InternalM2ReactionPort, InternalM2EffectPort, InternalM2CoreOperationPort, InternalM2CoreSchedulerPort {
   private readonly randomByGame = new Map<string, TransactionalRandomProvider>();
   private readonly clockByGame = new Map<string, TransactionalApplicationClock>();
   private readonly writerTailByGame = new Map<string, Promise<void>>();
@@ -852,6 +857,7 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
   async executeM2CoreOperation(input: InternalM2CoreOperationInput): Promise<EngineCommandResult> {
     const fingerprintSha256=createHash('sha256').update(deterministicJsonSerialize({
       commandType:'INTERNAL_EXECUTE_M2_CORE_OPERATION',beforeVersion:input.expectedGameVersion,operation:input.operation,
+      schedulerPlan:input.schedulerPlan??null,
     })).digest('hex');
     return this.coordinateDurableOperation({
       input, actorId:'M2_INTERNAL_COORDINATOR', fingerprintSha256,
@@ -867,6 +873,27 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
           }};
       },
     });
+  }
+
+  async runM2CoreScheduler(gameId: string, schedulerId: string, operations: readonly M2CoreOperation[]): Promise<readonly EngineCommandResult[]> {
+    const results: EngineCommandResult[] = [];
+    for (let guard = 0; guard <= operations.length; guard += 1) {
+      const state = await this.recoverState(gameId);
+      if (state === undefined) return results;
+      const continuation = state.m2CoreScheduler;
+      if (continuation?.id === schedulerId && continuation.status === 'COMPLETE') return results;
+      const index = continuation?.id === schedulerId ? continuation.nextIndex : 0;
+      const operation = operations[index];
+      if (operation === undefined) return results;
+      const result = await this.executeM2CoreOperation({
+        gameId, expectedGameVersion: state.version, commandId: `m2-core-scheduler:${schedulerId}:${index}`,
+        idempotencyKey: `m2-core-scheduler:${schedulerId}:${index}`, operation,
+        schedulerPlan: { id: schedulerId, operations, index },
+      });
+      results.push(result);
+      if (result.status !== 'RESOLVED') return results;
+    }
+    throw new Error('M2 core scheduler exceeded its deterministic guard');
   }
 
   private async coordinateDurableOperation(options: {

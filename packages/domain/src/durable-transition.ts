@@ -149,6 +149,7 @@ const familyImage = (state: SetupGameState | null, family: DurableNormalizedFami
     case 'CONTINUATIONS': return {
       pendingResolution: state.adjudication.pendingResolution ?? null,
       reactionContinuation: state.reactionContinuation ?? null,
+      m2CoreScheduler: state.m2CoreScheduler ?? null,
     };
     case 'EVENTS_TRACES': return { events: state.events, traces: state.adjudication.traces, m2Audit: state.m2Audit ?? [] };
   }

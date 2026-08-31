@@ -10,6 +10,7 @@ import {
   type DiceMode,
   type M1ActionPlanSlot,
   type M1ActionType,
+  type M2CoreOperation,
   type PdObjectiveMetrics,
   type ReactionTrigger,
   type TransactionalRandomProvider,
@@ -19,6 +20,7 @@ import {
   type SetupGameEventType,
   type SetupGameState,
 } from '@malign-ai/domain';
+import { sha256CanonicalJson } from '@malign-ai/shared';
 import { dispatchAtomicCommand, InMemoryAtomicStateStore } from './atomic-dispatch.js';
 import { applyM2StateToCanonical, buildM2StateFromCanonical } from './m2-integrated-state.js';
 import { cleanupCampaignAging, resetTurnFlags } from './m2b-lifecycle.js';
@@ -109,14 +111,6 @@ export interface PlayReactionPayload {
   readonly cardId: string;
   readonly effectId: string;
 }
-
-export type M2CoreOperation =
-  | { readonly kind: 'APPLY_BACKLASH'; readonly actorParticipantId: string; readonly pdId: string; readonly amount: number }
-  | { readonly kind: 'ESTABLISH_LEGITIMACY'; readonly actorParticipantId: string; readonly pdId: string; readonly replacePdId?: string }
-  | { readonly kind: 'MODIFY_CAMPAIGN'; readonly actorParticipantId: string; readonly campaignId: string; readonly oldCardId: string; readonly replacementCardId: string }
-  | { readonly kind: 'DISCARD_CAMPAIGN'; readonly actorParticipantId: string; readonly campaignId: string }
-  | { readonly kind: 'PLAY_STARTER'; readonly actorParticipantId: string; readonly cardId: string }
-  | { readonly kind: 'STEAL_BLIND_CARD'; readonly actorParticipantId: string; readonly targetParticipantId: string };
 
 export type SetupCommandPayload =
   | CreateGamePayload
@@ -596,6 +590,7 @@ export class SetupCommandDispatcher {
     readonly commandId: string;
     readonly idempotencyKey: string;
     readonly operation: M2CoreOperation;
+    readonly schedulerPlan?: { readonly id: string; readonly operations: readonly M2CoreOperation[]; readonly index: number };
     readonly correlationId?: string;
   }): EngineCommandResult {
     if (this.randomTransactionOwner === 'APPLICATION') return this.executeM2CoreOperationAtomic(options);
@@ -617,6 +612,7 @@ export class SetupCommandDispatcher {
     readonly commandId: string;
     readonly idempotencyKey: string;
     readonly operation: M2CoreOperation;
+    readonly schedulerPlan?: { readonly id: string; readonly operations: readonly M2CoreOperation[]; readonly index: number };
     readonly correlationId?: string;
   }): EngineCommandResult {
     const envelope: CommandEnvelope<'INTERNAL_EXECUTE_M2_CORE_OPERATION', Record<string, never>> = {
@@ -637,6 +633,22 @@ export class SetupCommandDispatcher {
         if (before.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const, version: before.version };
         const operation = options.operation;
         if (before.participants[operation.actorParticipantId]?.role !== 'PLAYER') return { error: 'PARTICIPANT_NOT_FOUND' as const, version: before.version };
+        const schedulerPlan = options.schedulerPlan;
+        const planSha256 = schedulerPlan === undefined ? undefined : sha256CanonicalJson(schedulerPlan.operations);
+        if (schedulerPlan !== undefined) {
+          const continuation = before.m2CoreScheduler;
+          const activeContinuation = continuation?.status === 'COMPLETE' ? undefined : continuation;
+          if (schedulerPlan.operations.length === 0 || schedulerPlan.operations[schedulerPlan.index] === undefined ||
+              sha256CanonicalJson(schedulerPlan.operations[schedulerPlan.index]) !== sha256CanonicalJson(operation)) {
+            return { error: 'INVALID_EFFECT_INPUT' as const, version: before.version };
+          }
+          if (activeContinuation !== undefined && (activeContinuation.id !== schedulerPlan.id || activeContinuation.operationPlanSha256 !== planSha256 || activeContinuation.operationCount !== schedulerPlan.operations.length)) {
+            return { error: 'STALE_CONTINUATION' as const, version: before.version };
+          }
+          if ((activeContinuation?.nextIndex ?? 0) !== schedulerPlan.index) {
+            return { error: 'STALE_CONTINUATION' as const, version: before.version };
+          }
+        }
         const working = structuredClone(before); const m2 = buildM2StateFromCanonical(working);
         let error: AnyEngineErrorCode | undefined; let subjectId = ''; let detail: Readonly<Record<string, unknown>> = {};
         if (operation.kind === 'APPLY_BACKLASH') {
@@ -673,6 +685,14 @@ export class SetupCommandDispatcher {
         if (error !== undefined) return { error, version: before.version };
         m2.audit.push({ type: operation.kind, actorParticipantId: operation.actorParticipantId, payload: { subjectId } });
         applyM2StateToCanonical(working, m2);
+        if (schedulerPlan !== undefined && planSha256 !== undefined) {
+          const nextIndex = schedulerPlan.index + 1;
+          working.m2CoreScheduler = {
+            id: schedulerPlan.id, schemaVersion: 1, operationPlanSha256: planSha256,
+            operationCount: schedulerPlan.operations.length, nextIndex,
+            status: nextIndex === schedulerPlan.operations.length ? 'COMPLETE' : 'READY',
+          };
+        }
         const event = this.appendEvent(working, candidate, 'M2_CORE_OPERATION_EXECUTED', {
           operation: operation.kind, actorParticipantId: operation.actorParticipantId, subjectId,
           ...(operation.kind === 'STEAL_BLIND_CARD' ? { ownerParticipantId: operation.actorParticipantId } : {}),

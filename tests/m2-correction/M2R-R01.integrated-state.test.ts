@@ -146,19 +146,34 @@ describe('M2R-R01 canonical state integration seam', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     state.adjudication.vpByParticipant.P1 = 5;
     expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
-    const legitimacy = testHarness.dispatcher.executeM2CoreOperation({
+    const operations = [
+      { kind: 'ESTABLISH_LEGITIMACY' as const, actorParticipantId: 'P1', pdId: 'PRESQUE_PD_1' },
+      { kind: 'APPLY_BACKLASH' as const, actorParticipantId: 'P1', pdId: 'PRESQUE_PD_1', amount: 2 },
+    ];
+    const legitimacyOptions = {
       gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-CORE-LEG-1', idempotencyKey: 'M2-CORE-LEG-K1',
-      operation: { kind: 'ESTABLISH_LEGITIMACY', actorParticipantId: 'P1', pdId: 'PRESQUE_PD_1' },
-    });
+      operation: operations[0]!, schedulerPlan: { id: 'SCHEDULER-1', operations, index: 0 },
+    };
+    const legitimacy = testHarness.dispatcher.executeM2CoreOperation(legitimacyOptions);
     expect(legitimacy).toMatchObject({ status: 'RESOLVED', resultCode: 'M2_CORE_OPERATION_EXECUTED' });
     const afterLegitimacy = testHarness.store.snapshot(state.id)!;
     expect(afterLegitimacy.adjudication.legitimacyByPd.PRESQUE_PD_1).toBe('P1');
-    const backlash = testHarness.dispatcher.executeM2CoreOperation({
+    expect(afterLegitimacy.m2CoreScheduler).toMatchObject({ id: 'SCHEDULER-1', nextIndex: 1, status: 'READY' });
+    const beforeAlteredPlan = testHarness.store.snapshot(state.id);
+    expect(testHarness.dispatcher.executeM2CoreOperation({
+      gameId: state.id, expectedGameVersion: afterLegitimacy.version, commandId: 'M2-CORE-ALTERED-1', idempotencyKey: 'M2-CORE-ALTERED-K1',
+      operation: operations[1]!, schedulerPlan: { id: 'SCHEDULER-1', operations: [operations[1]!, operations[1]!], index: 1 },
+    })).toMatchObject({ status: 'REJECTED', error: { code: 'STALE_CONTINUATION' } });
+    expect(testHarness.store.snapshot(state.id)).toEqual(beforeAlteredPlan);
+    const restarted = harness({ store: testHarness.store });
+    const backlash = restarted.dispatcher.executeM2CoreOperation({
       gameId: state.id, expectedGameVersion: afterLegitimacy.version, commandId: 'M2-CORE-BACKLASH-1', idempotencyKey: 'M2-CORE-BACKLASH-K1',
-      operation: { kind: 'APPLY_BACKLASH', actorParticipantId: 'P1', pdId: 'PRESQUE_PD_1', amount: 2 },
+      operation: operations[1]!, schedulerPlan: { id: 'SCHEDULER-1', operations, index: 1 },
     });
     expect(backlash).toMatchObject({ status: 'RESOLVED', resultPayload: { operation: 'APPLY_BACKLASH' } });
+    expect(testHarness.store.snapshot(state.id)?.m2CoreScheduler).toMatchObject({ nextIndex: 2, status: 'COMPLETE' });
     expect(testHarness.store.snapshot(state.id)?.m2Audit?.slice(-2).map(({ type }) => type)).toEqual(['ESTABLISH_LEGITIMACY', 'APPLY_BACKLASH']);
+    expect(restarted.dispatcher.executeM2CoreOperation(legitimacyOptions)).toEqual(legitimacy);
   });
 
   it('uses transactional RNG for blind steal and preserves its idempotent result', () => {

@@ -69,6 +69,23 @@ export interface M2BEffectContext {
   readonly parameters: Readonly<Record<string, unknown>>;
 }
 
+export type M2CoreOperation =
+  | { readonly kind: 'APPLY_BACKLASH'; readonly actorParticipantId: string; readonly pdId: string; readonly amount: number }
+  | { readonly kind: 'ESTABLISH_LEGITIMACY'; readonly actorParticipantId: string; readonly pdId: string; readonly replacePdId?: string }
+  | { readonly kind: 'MODIFY_CAMPAIGN'; readonly actorParticipantId: string; readonly campaignId: string; readonly oldCardId: string; readonly replacementCardId: string }
+  | { readonly kind: 'DISCARD_CAMPAIGN'; readonly actorParticipantId: string; readonly campaignId: string }
+  | { readonly kind: 'PLAY_STARTER'; readonly actorParticipantId: string; readonly cardId: string }
+  | { readonly kind: 'STEAL_BLIND_CARD'; readonly actorParticipantId: string; readonly targetParticipantId: string };
+
+export interface M2CoreSchedulerContinuation {
+  readonly id: string;
+  readonly schemaVersion: 1;
+  readonly operationPlanSha256: string;
+  readonly operationCount: number;
+  nextIndex: number;
+  status: 'READY' | 'COMPLETE';
+}
+
 export type M2BEffectError =
   | 'EFFECT_UNKNOWN'
   | 'EFFECT_DISABLED'
