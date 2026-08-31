@@ -106,7 +106,16 @@ export type M1AdjudicationErrorCode =
   | 'SCHEDULER_SUSPENDED'
   | 'SCHEDULER_COMPLETE';
 
-export type AnyEngineErrorCode = EngineErrorCode | SetupEngineErrorCode | M1AdjudicationErrorCode;
+export type M2ReactionErrorCode =
+  | 'REACTION_WINDOW_CLOSED'
+  | 'REACTION_WINDOW_ACTIVE'
+  | 'REACTION_NOT_ELIGIBLE'
+  | 'REACTION_NOT_PRIORITY'
+  | 'VETO_ABUSE'
+  | 'STALE_CONTINUATION'
+  | 'INVALID_REACTION_INPUT';
+
+export type AnyEngineErrorCode = EngineErrorCode | SetupEngineErrorCode | M1AdjudicationErrorCode | M2ReactionErrorCode;
 
 export type EngineErrorCategory = 'AUTHORIZATION' | 'PHASE_STATE' | 'CONCURRENCY' | 'RESOURCE' | 'CARD' | 'CAMPAIGN' | 'TARGETING' | 'CHOICE' | 'RULE_INVARIANT' | 'CONTRACT';
 export interface EngineError {
@@ -140,6 +149,7 @@ export const engineErrorFor = (code: AnyEngineErrorCode): EngineError => {
   else if (code.startsWith('INVALID_DT') || code.startsWith('INVALID_TARGET')) category = 'TARGETING';
   else if (code.startsWith('CHOICE_') || code === 'INVALID_CHOICE_OPTION' || code === 'NARRATIVE_NOT_AUTHORIZED') category = 'CHOICE';
   else if (code.startsWith('REALTIME_CURSOR_')) category = code.endsWith('SCOPE_MISMATCH') ? 'AUTHORIZATION' : 'CONTRACT';
+  else if (code.startsWith('REACTION_') || code === 'VETO_ABUSE' || code === 'STALE_CONTINUATION') category = 'RULE_INVARIANT';
   else if (code.startsWith('CAMPAIGN_') || code === 'INVALID_SLOT') category = 'CAMPAIGN';
   else if (code === 'COST_PAYMENT_FAILED') category = 'RESOURCE';
   else if (code.startsWith('UNSUPPORTED_') || code === 'INVALID_COMMAND_PAYLOAD') category = 'CONTRACT';

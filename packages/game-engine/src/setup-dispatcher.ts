@@ -11,6 +11,7 @@ import {
   type M1ActionPlanSlot,
   type M1ActionType,
   type PdObjectiveMetrics,
+  type ReactionTrigger,
   type TransactionalRandomProvider,
   type SetupCardInstance,
   type SetupEventVisibilityClass,
@@ -22,6 +23,7 @@ import { dispatchAtomicCommand, InMemoryAtomicStateStore } from './atomic-dispat
 import { applyM2StateToCanonical, buildM2StateFromCanonical } from './m2-integrated-state.js';
 import { cleanupCampaignAging, resetTurnFlags } from './m2b-lifecycle.js';
 import { finalizeGame } from './m2b-endgame.js';
+import { makeReactionContinuation, openReactionWindow, passReactionPriority, playReaction } from './m2b-reaction.js';
 
 export type SetupCommandType =
   | 'CREATE_GAME'
@@ -39,7 +41,9 @@ export type SetupCommandType =
   | 'SET_ACTION_PLAN'
   | 'LOCK_ACTION_PLAN'
   | 'CONSTRUCT_CAMPAIGN'
-  | 'END_GAME_SCORING';
+  | 'END_GAME_SCORING'
+  | 'PASS_REACTION'
+  | 'PLAY_REACTION';
 
 export interface CreateGamePayload {
   readonly scenarioDefinitionId: 'BASE_2025';
@@ -90,6 +94,11 @@ export interface ResumeGamePayload {
   readonly reasonCode?: string;
 }
 
+export interface PlayReactionPayload {
+  readonly cardId: string;
+  readonly effectId: string;
+}
+
 export type SetupCommandPayload =
   | CreateGamePayload
   | AssignPlayerSeatPayload
@@ -99,6 +108,7 @@ export type SetupCommandPayload =
   | SetM1ActionPlanPayload
   | PauseGamePayload
   | ResumeGamePayload
+  | PlayReactionPayload
   | Record<string, never>;
 
 type SetupEnvelope = CommandEnvelope<SetupCommandType, SetupCommandPayload>;
@@ -131,7 +141,19 @@ const pauseBlockedCommands = new Set<SetupCommandType>([
   'LOCK_ACTION_PLAN',
   'CONSTRUCT_CAMPAIGN',
   'END_GAME_SCORING',
+  'PASS_REACTION',
+  'PLAY_REACTION',
 ]);
+
+const reactionDefinitionByEffect: Readonly<Record<string, string>> = {
+  CARD_EFFECT_BASE_2025_E010: 'BASE_CARD_018',
+  CARD_EFFECT_BASE_2025_E012: 'BASE_CARD_021',
+  CARD_EFFECT_BASE_2025_E022: 'BASE_CARD_043',
+  CARD_EFFECT_BASE_2025_E036: 'BASE_CARD_065',
+  CARD_EFFECT_BASE_2025_E040: 'BASE_CARD_073',
+  CARD_EFFECT_BASE_2025_E048: 'BASE_CARD_085',
+  CARD_EFFECT_BASE_2025_E054: 'BASE_CARD_094',
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -279,6 +301,12 @@ export const validateSetupCommandPayload = (
       ) return 'INVALID_ACTION_PLAN';
       return undefined;
     }
+    case 'PASS_REACTION':
+      return hasExactKeys(payload, []) ? undefined : 'INVALID_COMMAND_PAYLOAD';
+    case 'PLAY_REACTION':
+      return hasExactKeys(payload, ['cardId', 'effectId']) && isNonEmptyString(payload.cardId) && isNonEmptyString(payload.effectId)
+        ? undefined
+        : 'INVALID_COMMAND_PAYLOAD';
   }
   return 'INVALID_COMMAND_PAYLOAD';
 };
@@ -435,6 +463,52 @@ export class SetupCommandDispatcher {
         working.phase = 'INITIATIVE_STAGE';
         events.push(this.appendEvent(working, candidate, 'CLEANUP_COMPLETED', { nextPhase: working.phase }));
         return { nextState: working, resultCode: 'M2_CLEANUP_COMPLETED', resultPayload: { agedCampaignIds: cleanup.agedCampaignIds, discardedCampaignIds: cleanup.discardedCampaignIds, nextPhase: working.phase }, emittedEventRefs: events.map(({ id }) => id) };
+      },
+    });
+  }
+
+  openM2Reaction(options: {
+    readonly gameId: string;
+    readonly expectedGameVersion: number;
+    readonly commandId: string;
+    readonly idempotencyKey: string;
+    readonly trigger: ReactionTrigger;
+    readonly triggeringParticipantId: string;
+    readonly correlationId?: string;
+  }): EngineCommandResult {
+    const envelope: CommandEnvelope<'INTERNAL_OPEN_M2_REACTION', { readonly trigger: ReactionTrigger; readonly triggeringParticipantId: string }> = {
+      engineContractVersion: M1_0_BASELINE_VERSIONS.engineContractVersion,
+      commandId: options.commandId, idempotencyKey: options.idempotencyKey, gameId: options.gameId,
+      actorContext: { actorId: 'M2_INTERNAL_COORDINATOR', actorType: 'SYSTEM', authenticatedSessionId: 'internal:m2', permissions: ['game:internal-reaction'] },
+      expectedGameVersion: options.expectedGameVersion, commandType: 'INTERNAL_OPEN_M2_REACTION',
+      payloadSchemaVersion: M1_0_BASELINE_VERSIONS.fixtureSchemaVersion,
+      payload: { trigger: options.trigger, triggeringParticipantId: options.triggeringParticipantId },
+      ...(options.correlationId === undefined ? {} : { correlationId: options.correlationId }),
+    };
+    return dispatchAtomicCommand({
+      envelope, store: this.store, now: this.now,
+      prepare: (before, candidate) => {
+        const version = before?.version ?? 0;
+        if (before === undefined) return { error: 'GAME_NOT_FOUND' as const, version };
+        if (candidate.expectedGameVersion !== before.version) return { error: 'STALE_STATE_VERSION' as const, version: before.version };
+        if (before.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const, version: before.version };
+        if (before.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const, version: before.version };
+        if (before.participants[options.triggeringParticipantId]?.role !== 'PLAYER') return { error: 'PARTICIPANT_NOT_FOUND' as const, version: before.version };
+        if (before.reactionContinuation?.window.status !== undefined && before.reactionContinuation.window.status !== 'CLOSED') {
+          return { error: 'REACTION_WINDOW_ACTIVE' as const, version: before.version };
+        }
+        const working = structuredClone(before);
+        const window = openReactionWindow(
+          `${working.id}:reaction:${working.version + 1}`,
+          options.trigger,
+          options.triggeringParticipantId,
+          working.initiative.orderParticipantIds,
+        );
+        working.reactionContinuation = makeReactionContinuation(`${window.id}:continuation`, working.version + 1, window);
+        const event = this.appendEvent(working, candidate, 'REACTION_WINDOW_OPENED', {
+          windowId: window.id, trigger: window.trigger, currentParticipantId: window.priorityParticipantIds[0] ?? '',
+        });
+        return { nextState: working, resultCode: 'REACTION_WINDOW_OPENED', resultPayload: { windowId: window.id, status: window.status }, emittedEventRefs: [event.id] };
       },
     });
   }
@@ -749,8 +823,53 @@ export class SetupCommandDispatcher {
         return { error: 'WRONG_PHASE' };
       case 'END_GAME_SCORING':
         return { error: 'ILLEGAL_STATE_TRANSITION' };
+      case 'PASS_REACTION': return this.passReaction(state, envelope);
+      case 'PLAY_REACTION': return this.playReaction(state, envelope);
       case 'CREATE_GAME': return { error: 'GAME_ALREADY_EXISTS' };
     }
+  }
+
+  private passReaction(state: SetupGameState, envelope: SetupEnvelope) {
+    if (state.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const };
+    const participantId = envelope.actorContext.participantId;
+    if (participantId === undefined) return { error: 'INVALID_ACTOR_CONTEXT' as const };
+    const continuation = state.reactionContinuation;
+    if (continuation === undefined) return { error: 'REACTION_WINDOW_CLOSED' as const };
+    const error = passReactionPriority(continuation.window, participantId);
+    if (error !== undefined) return { error };
+    const events = [this.appendEvent(state, envelope, 'REACTION_PRIORITY_PASSED', {
+      windowId: continuation.window.id, participantId,
+    })];
+    if (continuation.window.status === 'CLOSED') events.push(this.appendEvent(state, envelope, 'REACTION_WINDOW_CLOSED', { windowId: continuation.window.id }));
+    return { resultCode: 'REACTION_PRIORITY_PASSED', resultPayload: { windowId: continuation.window.id, status: continuation.window.status }, events };
+  }
+
+  private playReaction(state: SetupGameState, envelope: SetupEnvelope) {
+    if (state.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const };
+    const participantId = envelope.actorContext.participantId;
+    if (participantId === undefined) return { error: 'INVALID_ACTOR_CONTEXT' as const };
+    const continuation = state.reactionContinuation;
+    if (continuation === undefined) return { error: 'REACTION_WINDOW_CLOSED' as const };
+    const payload = envelope.payload as PlayReactionPayload;
+    const card = state.cards[payload.cardId];
+    if (card === undefined || card.definitionId !== reactionDefinitionByEffect[payload.effectId]) return { error: 'REACTION_NOT_ELIGIBLE' as const };
+    const m2 = buildM2StateFromCanonical(state);
+    const needsRoll = payload.effectId === 'CARD_EFFECT_BASE_2025_E036' || payload.effectId === 'CARD_EFFECT_BASE_2025_E040';
+    const result = playReaction(m2, continuation.window, {
+      participantId, cardId: payload.cardId, effectId: payload.effectId,
+      ...(needsRoll ? { roll: this.random.integer(1, 10) } : {}),
+    });
+    if (result.error !== undefined) return { error: result.error };
+    applyM2StateToCanonical(state, m2);
+    if (result.child !== undefined) {
+      state.reactionContinuation = makeReactionContinuation(`${result.child.id}:continuation`, state.version + 1, result.child, continuation);
+    }
+    const active = state.reactionContinuation!;
+    const events = [this.appendEvent(state, envelope, 'REACTION_PLAYED', {
+      windowId: continuation.window.id, participantId, cardId: payload.cardId, effectId: payload.effectId, negated: result.negated ?? false,
+    })];
+    if (active.window.status === 'CLOSED') events.push(this.appendEvent(state, envelope, 'REACTION_WINDOW_CLOSED', { windowId: active.window.id }));
+    return { resultCode: 'REACTION_PLAYED', resultPayload: { windowId: active.window.id, status: active.window.status, negated: result.negated ?? false }, events };
   }
 
   private join(state: SetupGameState, envelope: SetupEnvelope) {

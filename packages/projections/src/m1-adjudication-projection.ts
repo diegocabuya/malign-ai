@@ -142,6 +142,10 @@ const canonicalPayloadKeys: Readonly<Record<SetupGameEventType, readonly string[
   CLEANUP_COMPLETED: ['nextPhase'],
   OBJECTIVE_AWARDED: ['participantId', 'countryId', 'baseVp', 'objectiveVp', 'finalVp'],
   GAME_COMPLETED: ['winnerParticipantIds', 'sharedVictory'],
+  REACTION_WINDOW_OPENED: ['windowId', 'trigger', 'currentParticipantId'],
+  REACTION_PRIORITY_PASSED: ['windowId', 'participantId'],
+  REACTION_PLAYED: ['windowId', 'participantId', 'cardId', 'effectId', 'negated'],
+  REACTION_WINDOW_CLOSED: ['windowId'],
 };
 
 const facilitatorAuditPayloadKeys: Readonly<Partial<Record<SetupGameEventType, readonly string[]>>> = {

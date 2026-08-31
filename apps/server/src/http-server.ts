@@ -105,6 +105,7 @@ const setupCommandTypes = new Set<SetupCommandType>([
   'PAUSE_GAME', 'RESUME_GAME', 'SUBMIT_OPERATIONS_DECK', 'LOCK_STRATEGY',
   'REQUEST_INITIATIVE_ROLL', 'SET_INITIATIVE_MAINTENANCE', 'LOCK_INITIATIVE_MAINTENANCE',
   'SET_ACTION_PLAN', 'LOCK_ACTION_PLAN', 'CONSTRUCT_CAMPAIGN', 'END_GAME_SCORING',
+  'PASS_REACTION', 'PLAY_REACTION',
 ]);
 
 export const createAuthoritativeHttpServer = (options: AuthoritativeHttpServerOptions): Server => {

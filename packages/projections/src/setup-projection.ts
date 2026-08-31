@@ -73,6 +73,12 @@ export interface SetupGameProjection {
     readonly sequenceIndex: number;
     readonly actionType: M1ActionPlanSlot['actionType'];
   };
+  readonly reaction?: {
+    readonly windowId: string;
+    readonly status: NonNullable<SetupGameState['reactionContinuation']>['window']['status'];
+    readonly currentParticipantId: string | null;
+    readonly options?: readonly ['PASS', 'PLAY_REACTION'];
+  };
   readonly viewerPrivateState?: ViewerPrivateStateProjection;
 }
 
@@ -195,6 +201,17 @@ export const buildSetupGameProjection = (state: SetupGameState, viewer: ActorCon
       },
     } : {}),
     ...(state.currentRevealedAction === undefined ? {} : { revealedAction: structuredClone(state.currentRevealedAction) }),
+    ...(state.reactionContinuation === undefined ? {} : {
+      reaction: {
+        windowId: state.reactionContinuation.window.id,
+        status: state.reactionContinuation.window.status,
+        currentParticipantId: state.reactionContinuation.window.priorityParticipantIds[state.reactionContinuation.window.priorityIndex] ?? null,
+        ...(participant.role === 'FACILITATOR' ||
+          state.reactionContinuation.window.priorityParticipantIds[state.reactionContinuation.window.priorityIndex] === viewerParticipantId
+          ? { options: ['PASS', 'PLAY_REACTION'] as const }
+          : {}),
+      },
+    }),
     ...(viewerPrivateState === undefined ? {} : { viewerPrivateState }),
   };
 };
