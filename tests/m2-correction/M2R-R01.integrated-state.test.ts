@@ -30,4 +30,20 @@ describe('M2R-R01 canonical state integration seam', () => {
     const stale = testHarness.dispatcher.runM2Cleanup({ ...options, commandId: 'M2-CLEANUP-2', idempotencyKey: 'M2-CLEANUP-K2' });
     expect(stale).toMatchObject({ status: 'REJECTED', error: { code: 'STALE_STATE_VERSION' } });
   });
+
+  it('runs End Game through the atomic dispatcher using canonical demographic and influence state', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const options = { gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-END-1', idempotencyKey: 'M2-END-K1' };
+    const first = testHarness.dispatcher.runM2EndGame(options);
+    expect(first).toMatchObject({ status: 'RESOLVED', resultCode: 'M2_GAME_COMPLETED', gameVersionAfter: state.version + 1 });
+    const committed = testHarness.store.snapshot(state.id)!;
+    expect(committed.endGame?.outcome).toMatchObject({ status: 'GAME_COMPLETED' });
+    expect(committed.endGame?.outcome?.scores).toHaveLength(5);
+    expect(committed.events.filter(({ eventType }) => eventType === 'OBJECTIVE_AWARDED')).toHaveLength(5);
+    expect(committed.events.filter(({ eventType }) => eventType === 'GAME_COMPLETED')).toHaveLength(1);
+    expect(testHarness.dispatcher.runM2EndGame(options)).toEqual(first);
+    const stale = testHarness.dispatcher.runM2EndGame({ ...options, commandId: 'M2-END-2', idempotencyKey: 'M2-END-K2' });
+    expect(stale).toMatchObject({ status: 'REJECTED', error: { code: 'STALE_STATE_VERSION' } });
+  });
 });

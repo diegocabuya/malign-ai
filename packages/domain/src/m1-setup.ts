@@ -11,6 +11,7 @@ export type SetupGamePhase =
 export type SetupGameOverlay = 'ACTIVE' | 'PAUSED';
 export type DiceMode = 'DIGITAL' | 'MANUAL_DIE_INPUT';
 import type { M1AdjudicationState } from './m1-adjudication.js';
+import type { EndGameState } from './m2b-endgame.js';
 
 export type SetupCardZone = 'STARTER_POOL' | 'OPERATIONS_POOL' | 'OPERATIONS_DECK' | 'HAND' | 'DISCARD' | 'CAMPAIGN';
 
@@ -222,7 +223,10 @@ export type SetupGameEventType =
   | 'CAMPAIGN_AGED'
   | 'CAMPAIGN_DISCARDED'
   | 'TURN_FLAGS_RESET'
-  | 'CLEANUP_COMPLETED';
+  | 'CLEANUP_COMPLETED'
+  | 'OBJECTIVE_AWARDED'
+  | 'GAME_COMPLETED';
+
 
 export type SetupEventVisibilityClass = 'PUBLIC' | 'OWNER_AND_FACILITATOR';
 export type SetupEventActorType = ParticipantRole | 'SYSTEM';
@@ -274,6 +278,7 @@ export interface SetupGameState {
   readonly actionPointLedger: ActionPointLedgerEntry[];
   readonly secretVictoryObjectives: Record<string, SecretVictoryObjectiveState[]>;
   readonly adjudication: M1AdjudicationState;
+  endGame?: EndGameState;
   currentRevealedAction?: RevealedActionState;
   readonly events: SetupGameEvent[];
 }

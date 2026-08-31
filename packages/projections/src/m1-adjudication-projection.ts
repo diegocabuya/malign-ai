@@ -140,6 +140,8 @@ const canonicalPayloadKeys: Readonly<Record<SetupGameEventType, readonly string[
   CAMPAIGN_DISCARDED: ['campaignId'],
   TURN_FLAGS_RESET: [],
   CLEANUP_COMPLETED: ['nextPhase'],
+  OBJECTIVE_AWARDED: ['participantId', 'countryId', 'baseVp', 'objectiveVp', 'finalVp'],
+  GAME_COMPLETED: ['winnerParticipantIds', 'sharedVictory'],
 };
 
 const facilitatorAuditPayloadKeys: Readonly<Partial<Record<SetupGameEventType, readonly string[]>>> = {

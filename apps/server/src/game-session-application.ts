@@ -94,6 +94,13 @@ export interface InternalM2CleanupPort {
   runM2Cleanup(input: InternalM2CleanupInput): Promise<EngineCommandResult>;
 }
 
+export type InternalM2EndGameInput = DurableOperationInput;
+
+/** Server-only End Game port; caller cannot supply ActorContext, metrics or permissions. */
+export interface InternalM2EndGamePort {
+  runM2EndGame(input: InternalM2EndGameInput): Promise<EngineCommandResult>;
+}
+
 export interface TransactionalApplicationClock {
   checkpoint(): number;
   now(): Date;
@@ -529,7 +536,7 @@ interface DurableOperationInput {
 }
 
 /** Durable composition adapter: authenticated boundary → authoritative Engine → PostgreSQL. */
-export class PostgresGameSessionApplication implements GameSessionApplicationPort, InternalM1SchedulerPort, InternalM2CleanupPort {
+export class PostgresGameSessionApplication implements GameSessionApplicationPort, InternalM1SchedulerPort, InternalM2CleanupPort, InternalM2EndGamePort {
   private readonly randomByGame = new Map<string, TransactionalRandomProvider>();
   private readonly clockByGame = new Map<string, TransactionalApplicationClock>();
   private readonly writerTailByGame = new Map<string, Promise<void>>();
@@ -739,6 +746,26 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
           execute:(random,now)=>{
             const store=new InMemorySetupGameStore([state]);
             const result=new SetupCommandDispatcher(store,random,now,'APPLICATION').runM2Cleanup(input);
+            const afterState=store.snapshot(input.gameId);
+            return {result,...(afterState===undefined?{}:{afterState})};
+          }};
+      },
+    });
+  }
+
+  async runM2EndGame(input: InternalM2EndGameInput): Promise<EngineCommandResult> {
+    const fingerprintSha256=createHash('sha256').update(deterministicJsonSerialize({
+      commandType:'INTERNAL_RUN_M2_END_GAME',beforeVersion:input.expectedGameVersion,
+    })).digest('hex');
+    return this.coordinateDurableOperation({
+      input, actorId:'M2_INTERNAL_COORDINATOR', fingerprintSha256,
+      prepare:(state):DurableOperationPreparation=>{
+        if(state===undefined)return {ready:false,result:this.reject(input,0,'GAME_NOT_FOUND')};
+        return {ready:true,commandType:'INTERNAL_RUN_M2_END_GAME',beforeState:state,
+          actor:{actorId:'M2_INTERNAL_COORDINATOR',actorType:'SYSTEM',participantId:null,authenticatedSessionId:'internal:m2'},
+          execute:(random,now)=>{
+            const store=new InMemorySetupGameStore([state]);
+            const result=new SetupCommandDispatcher(store,random,now,'APPLICATION').runM2EndGame(input);
             const afterState=store.snapshot(input.gameId);
             return {result,...(afterState===undefined?{}:{afterState})};
           }};

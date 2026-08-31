@@ -10,6 +10,7 @@ import {
   type DiceMode,
   type M1ActionPlanSlot,
   type M1ActionType,
+  type PdObjectiveMetrics,
   type TransactionalRandomProvider,
   type SetupCardInstance,
   type SetupEventVisibilityClass,
@@ -20,6 +21,7 @@ import {
 import { dispatchAtomicCommand, InMemoryAtomicStateStore } from './atomic-dispatch.js';
 import { applyM2StateToCanonical, buildM2StateFromCanonical } from './m2-integrated-state.js';
 import { cleanupCampaignAging, resetTurnFlags } from './m2b-lifecycle.js';
+import { finalizeGame } from './m2b-endgame.js';
 
 export type SetupCommandType =
   | 'CREATE_GAME'
@@ -433,6 +435,97 @@ export class SetupCommandDispatcher {
         working.phase = 'INITIATIVE_STAGE';
         events.push(this.appendEvent(working, candidate, 'CLEANUP_COMPLETED', { nextPhase: working.phase }));
         return { nextState: working, resultCode: 'M2_CLEANUP_COMPLETED', resultPayload: { agedCampaignIds: cleanup.agedCampaignIds, discardedCampaignIds: cleanup.discardedCampaignIds, nextPhase: working.phase }, emittedEventRefs: events.map(({ id }) => id) };
+      },
+    });
+  }
+
+  runM2EndGame(options: {
+    readonly gameId: string;
+    readonly expectedGameVersion: number;
+    readonly commandId: string;
+    readonly idempotencyKey: string;
+    readonly correlationId?: string;
+  }): EngineCommandResult {
+    const envelope: CommandEnvelope<'INTERNAL_RUN_M2_END_GAME', Record<string, never>> = {
+      engineContractVersion: M1_0_BASELINE_VERSIONS.engineContractVersion,
+      commandId: options.commandId,
+      idempotencyKey: options.idempotencyKey,
+      gameId: options.gameId,
+      actorContext: {
+        actorId: 'M2_INTERNAL_COORDINATOR',
+        actorType: 'SYSTEM',
+        authenticatedSessionId: 'internal:m2',
+        permissions: ['game:internal-end-game'],
+      },
+      expectedGameVersion: options.expectedGameVersion,
+      commandType: 'INTERNAL_RUN_M2_END_GAME',
+      payloadSchemaVersion: M1_0_BASELINE_VERSIONS.fixtureSchemaVersion,
+      payload: {},
+      ...(options.correlationId === undefined ? {} : { correlationId: options.correlationId }),
+    };
+    return dispatchAtomicCommand({
+      envelope,
+      store: this.store,
+      now: this.now,
+      prepare: (before, candidate) => {
+        const version = before?.version ?? 0;
+        if (before === undefined) return { error: 'GAME_NOT_FOUND' as const, version };
+        if (candidate.expectedGameVersion !== before.version) {
+          return { error: 'STALE_STATE_VERSION' as const, version: before.version };
+        }
+        if (before.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const, version: before.version };
+        if (before.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const, version: before.version };
+
+        const working = structuredClone(before);
+        working.endGame ??= { idempotencyResults: {}, awardedObjectiveKeys: [] };
+        const metrics: Record<string, PdObjectiveMetrics> = {};
+        for (const pd of Object.values(working.populationDemographics)) {
+          const attributedMalign: Partial<Record<CountryId, number>> = {};
+          const attributedResiliency: Partial<Record<CountryId, number>> = {};
+          let totalMalign = 0;
+          let totalResiliency = 0;
+          for (const stack of working.adjudication.influenceStacks.filter(({ pdId }) => pdId === pd.id)) {
+            const target = stack.type === 'MALIGN' ? attributedMalign : attributedResiliency;
+            target[stack.attributionCountryId] = (target[stack.attributionCountryId] ?? 0) + stack.count;
+            if (stack.type === 'MALIGN') totalMalign += stack.count;
+            else totalResiliency += stack.count;
+          }
+          metrics[pd.id] = {
+            hostCountryId: pd.hostCountryId,
+            traits: pd.demographicTokenIds.map((token) => token.slice(token.indexOf(':') + 1)),
+            totalMalign,
+            totalResiliency,
+            attributedMalign,
+            attributedResiliency,
+          };
+        }
+
+        const outcome = finalizeGame(
+          working.endGame,
+          buildM2StateFromCanonical(working),
+          metrics,
+          candidate.idempotencyKey,
+        );
+        const events = outcome.scores.map((score) => {
+          working.adjudication.vpByParticipant[score.participantId] = score.finalVp;
+          return this.appendEvent(working, candidate, 'OBJECTIVE_AWARDED', {
+            participantId: score.participantId,
+            countryId: score.countryId,
+            baseVp: score.baseVp,
+            objectiveVp: score.objectiveVp,
+            finalVp: score.finalVp,
+          });
+        });
+        events.push(this.appendEvent(working, candidate, 'GAME_COMPLETED', {
+          winnerParticipantIds: outcome.winnerParticipantIds.join(','),
+          sharedVictory: outcome.sharedVictory,
+        }));
+        return {
+          nextState: working,
+          resultCode: 'M2_GAME_COMPLETED',
+          resultPayload: structuredClone(outcome),
+          emittedEventRefs: events.map(({ id }) => id),
+        };
       },
     });
   }
