@@ -19,6 +19,8 @@ La cifra anterior demuestra que los ejecutables actuales pasan; no demuestra por
 
 `packages/game-engine/src/m2b*.ts` sólo es importado por sus propios módulos y tests. `SetupCommandDispatcher`, `M1AdjudicationEngine`, server/application commands y scheduler productivo no invocan M2-B, Reaction, Cleanup o End Game. Los comandos de los owners no atraviesan phase enforcement, actoría, idempotencia ni CAS application-wide.
 
+**Corrección en progreso:** se añadió un seam bidireccional tipado `buildM2StateFromCanonical` / `applyM2StateToCanonical`, con regresión `M2R-R01.integrated-state`, para que Resources, VP, cards/campaigns, influence, legitimacy y scheduler utilicen el `SetupGameState` canónico. M2R-R01 permanece **OPEN** hasta que commands/scheduler invoquen este seam dentro del application UoW.
+
 ### M2R-R02 — Persistencia, replay y outbox ausentes para M2-3…M2-7
 
 `M2BState`, `ReactionContinuation`, `CleanupContinuation` y `EndGameState` no aparecen en persistence, recovery, AuthorizedProjection ni server. Reaction/Veto, viral, awards y `GAME_COMPLETED` no se materializan mediante el UoW PostgreSQL, ledgers, traces, events y outbox aprobados.

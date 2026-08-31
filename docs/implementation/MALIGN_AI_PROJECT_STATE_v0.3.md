@@ -149,7 +149,7 @@
 | Suite acumulada tras M2-6 | **474/474 PASS en 42 archivos, 0 skips, 0 todo, 0 waivers** |
 | M2-7 — Objectives, Victory and End Game | **IMPLEMENTED / PENDING REVIEW mediante DEC-087 — 30/30 owners; gate 38/38** |
 | Suite acumulada tras M2-7 | **512/512 PASS en 44 archivos, 0 skips, 0 todo, 0 waivers** |
-| M2 technical review v0.1 | **CHANGES REQUIRED — M2R-R01…R06 OPEN** |
+| M2 technical review v0.1 | **CHANGES REQUIRED — M2R-R01 correction in progress; M2R-R02…R06 OPEN** |
 | M2 | **NOT APPROVED / NOT CLOSED — integration and owner-evidence correction required** |
 | M3 | **NOT AUTHORIZED** |
 
