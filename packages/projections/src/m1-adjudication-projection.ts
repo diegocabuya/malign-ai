@@ -6,6 +6,7 @@ import type {
   SetupGameEvent,
   SetupGameEventType,
   SetupGameState,
+  M2BAuditRecord,
 } from '@malign-ai/domain';
 import { buildSetupGameProjection, type SetupGameProjection } from './setup-projection.js';
 
@@ -36,6 +37,8 @@ export interface M1AdjudicationProjection {
     readonly legitimacyLedgerEntries: number;
     readonly vpLedgerEntries: number;
     readonly traces: readonly (AdjudicationTrace | PublicAdjudicationTraceProjection)[];
+    readonly m2AuditEntries: number;
+    readonly m2Audit?: readonly M2BAuditRecord[];
   };
 }
 
@@ -236,6 +239,8 @@ export const buildM1AdjudicationProjection = (state: SetupGameState, viewer: Act
       traces: participant.role === 'FACILITATOR'
         ? structuredClone(state.adjudication.traces)
         : state.adjudication.traces.map(publicTrace),
+      m2AuditEntries: state.m2Audit?.length ?? 0,
+      ...(participant.role === 'FACILITATOR' ? { m2Audit: structuredClone(state.m2Audit ?? []) } : {}),
     },
   };
 };

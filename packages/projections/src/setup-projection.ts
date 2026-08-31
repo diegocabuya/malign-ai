@@ -79,6 +79,7 @@ export interface SetupGameProjection {
     readonly currentParticipantId: string | null;
     readonly options?: readonly ['PASS', 'PLAY_REACTION'];
   };
+  readonly outcome?: NonNullable<NonNullable<SetupGameState['endGame']>['outcome']>;
   readonly viewerPrivateState?: ViewerPrivateStateProjection;
 }
 
@@ -212,6 +213,7 @@ export const buildSetupGameProjection = (state: SetupGameState, viewer: ActorCon
           : {}),
       },
     }),
+    ...(state.endGame?.outcome === undefined ? {} : { outcome: structuredClone(state.endGame.outcome) }),
     ...(viewerPrivateState === undefined ? {} : { viewerPrivateState }),
   };
 };

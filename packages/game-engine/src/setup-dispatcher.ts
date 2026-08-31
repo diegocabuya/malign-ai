@@ -675,7 +675,8 @@ export class SetupCommandDispatcher {
         applyM2StateToCanonical(working, m2);
         const event = this.appendEvent(working, candidate, 'M2_CORE_OPERATION_EXECUTED', {
           operation: operation.kind, actorParticipantId: operation.actorParticipantId, subjectId,
-        });
+          ...(operation.kind === 'STEAL_BLIND_CARD' ? { ownerParticipantId: operation.actorParticipantId } : {}),
+        }, operation.kind === 'STEAL_BLIND_CARD' ? 'OWNER_AND_FACILITATOR' : undefined);
         return { nextState: working, resultCode: 'M2_CORE_OPERATION_EXECUTED', resultPayload: { operation: operation.kind, subjectId, ...detail }, emittedEventRefs: [event.id] };
       },
     });
@@ -1752,6 +1753,7 @@ export class SetupCommandDispatcher {
     envelope: CommandEnvelope<string, unknown>,
     type: SetupGameEventType,
     payload: Readonly<Record<string, string | number | boolean>>,
+    visibilityOverride?: SetupEventVisibilityClass,
   ): SetupGameEvent {
     const sequenceNumber = state.events.length + 1;
     const eventId = `${state.id}:event:${sequenceNumber}`;
@@ -1759,7 +1761,7 @@ export class SetupCommandDispatcher {
       ? null
       : envelope.actorContext.participantId;
     if (actorParticipantId === undefined) throw new Error('Human setup events require a verified participant actor');
-    const visibilityClass: SetupEventVisibilityClass = [
+    const visibilityClass: SetupEventVisibilityClass = visibilityOverride ?? ([
       'CARD_DRAWN',
       'CARD_MOVED',
       'DECK_SHUFFLED',
@@ -1767,7 +1769,7 @@ export class SetupCommandDispatcher {
       'ACTION_PLAN_LOCKED',
     ].includes(type)
       ? 'OWNER_AND_FACILITATOR'
-      : 'PUBLIC';
+      : 'PUBLIC');
     const event: SetupGameEvent = {
       id: eventId,
       eventId,

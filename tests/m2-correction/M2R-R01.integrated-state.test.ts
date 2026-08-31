@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { applyM2StateToCanonical, buildM2StateFromCanonical, M2_EFFECT_MANIFEST, M2_IMPLEMENTED_EFFECT_IDS } from '../../packages/game-engine/src/index.js';
+import { applyM2StateToCanonical, buildDurableEngineTransition, buildM2StateFromCanonical, M2_EFFECT_MANIFEST, M2_IMPLEMENTED_EFFECT_IDS } from '../../packages/game-engine/src/index.js';
 import { command, completeAndStart, harness, trustedBindings } from '../m1-0/test-fixtures.js';
 
 describe('M2R-R01 canonical state integration seam', () => {
@@ -43,6 +43,8 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(committed.endGame?.outcome?.scores).toHaveLength(5);
     expect(committed.events.filter(({ eventType }) => eventType === 'OBJECTIVE_AWARDED')).toHaveLength(5);
     expect(committed.events.filter(({ eventType }) => eventType === 'GAME_COMPLETED')).toHaveLength(1);
+    const p1Session = trustedBindings().find(({ participantId }) => participantId === 'P1')!.authenticatedSessionId;
+    expect(testHarness.app.getGameProjection(p1Session, state.id)).toMatchObject({ ok: true, projection: { outcome: { status: 'GAME_COMPLETED' } } });
     expect(testHarness.dispatcher.runM2EndGame(options)).toEqual(first);
     const stale = testHarness.dispatcher.runM2EndGame({ ...options, commandId: 'M2-END-2', idempotencyKey: 'M2-END-K2' });
     expect(stale).toMatchObject({ status: 'REJECTED', error: { code: 'STALE_STATE_VERSION' } });
@@ -170,6 +172,35 @@ describe('M2R-R01 canonical state integration seam', () => {
     const first = testHarness.dispatcher.executeM2CoreOperation(options);
     expect(first).toMatchObject({ status: 'RESOLVED', resultPayload: { operation: 'STEAL_BLIND_CARD', stolenCardId: targetCard.id } });
     expect(testHarness.store.snapshot(state.id)?.cards[targetCard.id]).toMatchObject({ controllerParticipantId: 'P1', returnToOwnerOnDiscard: true });
+    const p1Session = trustedBindings().find(({ participantId }) => participantId === 'P1')!.authenticatedSessionId;
+    const p2Session = trustedBindings().find(({ participantId }) => participantId === 'P2')!.authenticatedSessionId;
+    const facilitatorSession = trustedBindings().find(({ participantId }) => participantId === 'F1')!.authenticatedSessionId;
+    const ownerProjection = testHarness.app.getM1AdjudicationProjection(p1Session, state.id);
+    const rivalProjection = testHarness.app.getM1AdjudicationProjection(p2Session, state.id);
+    const facilitatorProjection = testHarness.app.getM1AdjudicationProjection(facilitatorSession, state.id);
+    expect(ownerProjection).toMatchObject({ ok: true, projection: { audit: { m2AuditEntries: 1 } } });
+    expect((ownerProjection as { projection: { audit: unknown } }).projection.audit).not.toHaveProperty('m2Audit');
+    expect(facilitatorProjection).toMatchObject({ ok: true, projection: { audit: { m2AuditEntries: 1, m2Audit: [{ type: 'STEAL_BLIND_CARD' }] } } });
+    expect((ownerProjection as { projection: { events: { payload: unknown }[] } }).projection.events.at(-1)?.payload).toMatchObject({ subjectId: targetCard.id });
+    expect((rivalProjection as { projection: { events: { payload: unknown }[] } }).projection.events.at(-1)?.payload).toEqual({ redacted: true });
     expect(testHarness.dispatcher.executeM2CoreOperation(options)).toEqual(first);
+  });
+
+  it('captures Reaction, End Game and M2 audit in durable normalized family hashes', () => {
+    const testHarness = harness(); const before = completeAndStart(testHarness); const after = structuredClone(before);
+    after.version += 1;
+    after.reactionContinuation = {
+      kind: 'REACTION', schemaVersion: 1, id: 'RX-CONT-1', gameVersion: after.version,
+      window: { id: 'RX-1', version: 1, trigger: 'PRE_ROLL', triggeringParticipantId: 'P1', priorityParticipantIds: ['P2'], priorityIndex: 0, status: 'WAITING_FOR_PRIORITY_PLAYER', expiresAt: null, passes: [], plays: [] },
+    };
+    after.endGame = { idempotencyResults: {}, awardedObjectiveKeys: [] };
+    after.m2Audit = [{ type: 'TEST', actorParticipantId: 'P1', payload: { value: 1 } }];
+    const transition = buildDurableEngineTransition({
+      gameId: after.id, commandType: 'TEST_M2_DURABILITY', idempotencyKey: 'TEST-M2-DURABILITY-K1', fingerprintSha256: '0'.repeat(64),
+      actor: { actorId: 'SYSTEM', actorType: 'SYSTEM', participantId: null, authenticatedSessionId: 'internal:test' },
+      beforeState: before, afterState: after,
+      engineResult: { commandId: 'TEST-M2-DURABILITY-1', gameId: after.id, status: 'RESOLVED', gameVersionBefore: before.version, gameVersionAfter: after.version, resultCode: 'TEST', emittedEventRefs: [], adjudicationTraceRefs: [], resolvedAt: '2026-08-31T00:00:00.000Z' },
+    });
+    expect(transition.normalizedMutations.map(({ family }) => family).sort()).toEqual(['CONTINUATIONS', 'EVENTS_TRACES', 'SESSION_LIFECYCLE']);
   });
 });

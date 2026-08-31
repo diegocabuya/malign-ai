@@ -116,6 +116,7 @@ const familyImage = (state: SetupGameState | null, family: DurableNormalizedFami
         facilitatorParticipantId: state.facilitatorParticipantId ?? null,
         turnLimit: state.turnLimit,
         diceMode: state.diceMode,
+        endGame: state.endGame ?? null,
       };
     case 'PARTICIPANTS_SEATS': return { participants: state.participants, seats: state.seats };
     case 'PHASE_INITIATIVE': return { phase: state.phase, initiative: state.initiative, currentRevealedAction: state.currentRevealedAction ?? null };
@@ -145,8 +146,11 @@ const familyImage = (state: SetupGameState | null, family: DurableNormalizedFami
       narrativesByCampaign: state.adjudication.narrativesByCampaign,
     };
     case 'DIE_ROLLS': return state.adjudication.dieRolls;
-    case 'CONTINUATIONS': return state.adjudication.pendingResolution ?? null;
-    case 'EVENTS_TRACES': return { events: state.events, traces: state.adjudication.traces };
+    case 'CONTINUATIONS': return {
+      pendingResolution: state.adjudication.pendingResolution ?? null,
+      reactionContinuation: state.reactionContinuation ?? null,
+    };
+    case 'EVENTS_TRACES': return { events: state.events, traces: state.adjudication.traces, m2Audit: state.m2Audit ?? [] };
   }
 };
 
