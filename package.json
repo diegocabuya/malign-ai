@@ -20,6 +20,7 @@
     "test:m2-4": "vitest run tests/m2-b/GE-M2-4.owner.test.ts tests/m2-b/M2-4.regressions.test.ts",
     "test:m2-5": "vitest run tests/m2-5/GE-M2-5.owner.test.ts tests/m2-5/M2-5.regressions.test.ts",
     "test:m2-6": "vitest run tests/m2-6/GE-M2-6.owner.test.ts tests/m2-6/M2-6.regressions.test.ts",
+    "test:m2-7": "vitest run tests/m2-7/GE-M2-7.owner.test.ts tests/m2-7/M2-7.regressions.test.ts",
     "db:migrate": "tsx packages/persistence/src/cli.ts migrate",
     "db:seed": "tsx packages/persistence/src/cli.ts seed",
     "db:verify": "tsx packages/persistence/src/cli.ts verify"
