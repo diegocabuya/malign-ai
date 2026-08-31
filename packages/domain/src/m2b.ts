@@ -21,6 +21,7 @@ export interface M2BCampaign {
   row: 'I' | 'II';
   readonly cardIds: string[];
   activationCountThisTurn: number;
+  targetDtId?: string;
 }
 
 export interface M2BInfluenceStack {

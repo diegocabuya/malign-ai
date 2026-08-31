@@ -31,6 +31,8 @@ import {
   discardCampaign,
   discardWithLifecycle,
   establishLegitimacy,
+  M2_PAIR_BONUS_EFFECT_IDS,
+  M2_TARGET_DT_EFFECT_IDS,
   M2BEffectDispatcher,
   modifyCampaignCard,
   playStarter,
@@ -559,18 +561,28 @@ export class SetupCommandDispatcher {
         const registryDefinitionId = m2EffectSourceDefinition(options.effectId);
         const serial = registryDefinitionId?.match(/D(\d{3})$/u)?.[1];
         const expectedDefinitionId = serial === undefined ? undefined : `BASE_CARD_${serial}`;
-        const expectedZone = options.effectId === 'CARD_EFFECT_BASE_2025_E002' ? 'CAMPAIGN' : 'HAND';
+        const pairBonusEffect = (M2_PAIR_BONUS_EFFECT_IDS as readonly string[]).includes(options.effectId);
+        const targetDtEffect = (M2_TARGET_DT_EFFECT_IDS as readonly string[]).includes(options.effectId);
+        const expectedZone = pairBonusEffect || targetDtEffect ? 'CAMPAIGN' : 'HAND';
         if (source === undefined || source.controllerParticipantId !== options.actorParticipantId || source.definitionId !== expectedDefinitionId || source.zone !== expectedZone) {
           return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
         }
         const working = structuredClone(before);
         const m2 = buildM2StateFromCanonical(working);
+        if (targetDtEffect) {
+          const targetDtId = options.parameters.targetDtId;
+          const validTarget = typeof targetDtId === 'string' && Object.values(working.populationDemographics)
+            .some(({ demographicTokenIds }) => demographicTokenIds.includes(targetDtId));
+          if (!validTarget) return { error: 'INVALID_DT' as const, version: before.version };
+        }
         const result = new M2BEffectDispatcher('M2-4').dispatch(m2, {
           actorParticipantId: options.actorParticipantId, effectId: options.effectId,
-          effectVersion: options.effectVersion, parameters: options.parameters,
+          effectVersion: options.effectVersion,
+          parameters: { ...options.parameters, sourceCardInstanceId: options.sourceCardInstanceId },
         });
         if (!result.ok) return { error: result.error, version: before.version };
-        if (options.effectId !== 'CARD_EFFECT_BASE_2025_E002') discardWithLifecycle(result.state, options.sourceCardInstanceId);
+        if (options.effectId === 'CARD_EFFECT_BASE_2025_E042' || options.effectId === 'CARD_EFFECT_BASE_2025_E034') result.state.cards[options.sourceCardInstanceId]!.zone = 'REMOVED_FROM_GAME';
+        else if (!pairBonusEffect && !targetDtEffect) discardWithLifecycle(result.state, options.sourceCardInstanceId);
         applyM2StateToCanonical(working, result.state);
         const event = this.appendEvent(working, candidate, 'M2_EFFECT_EXECUTED', {
           effectId: options.effectId, actorParticipantId: options.actorParticipantId,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { applyM2StateToCanonical, buildDurableEngineTransition, buildM2StateFromCanonical, M2_EFFECT_MANIFEST, M2_IMPLEMENTED_EFFECT_IDS } from '../../packages/game-engine/src/index.js';
+import { applyM2StateToCanonical, BASE_2025_PAIR_BONUSES, buildDurableEngineTransition, buildM2StateFromCanonical, M2BEffectDispatcher, M2_EFFECT_MANIFEST, M2_IMPLEMENTED_EFFECT_IDS, M2_PAIR_BONUS_EFFECT_IDS } from '../../packages/game-engine/src/index.js';
 import { command, completeAndStart, harness, trustedBindings } from '../m1-0/test-fixtures.js';
 
 describe('M2R-R01 canonical state integration seam', () => {
@@ -130,16 +130,57 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(M2_EFFECT_MANIFEST).toEqual(registry.effect_definitions.map(({ effect_id, source_definition_id }) => ({
       effectId: effect_id, sourceDefinitionId: source_definition_id,
     })));
-    expect(M2_IMPLEMENTED_EFFECT_IDS).toHaveLength(8);
+    expect(M2_IMPLEMENTED_EFFECT_IDS).toHaveLength(39);
+    const manifestHarness = harness(); const manifestState = completeAndStart(manifestHarness);
+    M2_PAIR_BONUS_EFFECT_IDS.forEach((effectId, index) => {
+      const pair = BASE_2025_PAIR_BONUSES[index]!;
+      const result = new M2BEffectDispatcher('M2-3').dispatch(buildM2StateFromCanonical(manifestState), {
+        actorParticipantId: 'P1', effectId, effectVersion: '0.1', parameters: { definitionIds: pair },
+      });
+      expect(result).toMatchObject({ ok: true, emitted: [{ type: 'REGISTERED_PAIR_BONUS_CALCULATED', payload: { amount: 2 } }] });
+    });
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
-    const source = state.cards['ARDEN-CARD-008']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
+    const source = state.cards['ARDEN-CARD-012']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
     expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
     const before = testHarness.store.snapshot(state.id);
     expect(testHarness.dispatcher.executeM2Effect({
       gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-EFFECT-DISABLED-1', idempotencyKey: 'M2-EFFECT-DISABLED-K1',
-      actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E003', effectVersion: '0.1', parameters: {},
+      actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E006', effectVersion: '0.1', parameters: {},
     })).toMatchObject({ status: 'REJECTED', error: { code: 'EFFECT_DISABLED' } });
     expect(testHarness.store.snapshot(state.id)).toEqual(before);
+  });
+
+  it('executes fixed registry resource effects and honors remove-from-game lifecycle', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    const source = state.cards['ARDEN-CARD-075']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const resourcesBefore = state.countries.ARDEN.resources;
+    expect(testHarness.dispatcher.executeM2Effect({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-EFFECT-GAIN-1', idempotencyKey: 'M2-EFFECT-GAIN-K1',
+      actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E042', effectVersion: '0.1', parameters: {},
+    })).toMatchObject({ status: 'RESOLVED', resultCode: 'M2_EFFECT_EXECUTED' });
+    expect(testHarness.store.snapshot(state.id)).toMatchObject({
+      countries: { ARDEN: { resources: resourcesBefore + 4 } },
+      cards: { [source.id]: { zone: 'REMOVED_FROM_GAME' } },
+    });
+  });
+
+  it('sets an approved DT through a campaign-bound registry effect', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    const source = state.cards['ARDEN-CARD-096']!; source.controllerParticipantId = 'P1'; source.zone = 'CAMPAIGN';
+    state.adjudication.campaigns.CAMPAIGN_TARGET = {
+      id: 'CAMPAIGN_TARGET', ownerParticipantId: 'P1', row: 'I', alignment: 'MALIGN', targetDtId: 'RELIGION:NONE',
+      assignments: [{ slot: 'INTENT', cardInstanceId: source.id, definitionId: source.definitionId, influenceValue: 1 }], activationCountThisTurn: 0,
+    };
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const options = {
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-EFFECT-TARGET-1', idempotencyKey: 'M2-EFFECT-TARGET-K1',
+      actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E055', effectVersion: '0.1',
+      parameters: { campaignId: 'CAMPAIGN_TARGET', targetDtId: 'RELIGION:CHRISTIAN' },
+    };
+    expect(testHarness.dispatcher.executeM2Effect(options)).toMatchObject({ status: 'RESOLVED' });
+    expect(testHarness.store.snapshot(state.id)?.adjudication.campaigns.CAMPAIGN_TARGET).toMatchObject({ targetDtId: 'RELIGION:CHRISTIAN' });
+    expect(testHarness.store.snapshot(state.id)?.cards[source.id]).toMatchObject({ zone: 'CAMPAIGN' });
   });
 
   it('executes core legitimacy and backlash operations through canonical atomic state', () => {

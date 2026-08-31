@@ -27,6 +27,7 @@ export const buildM2StateFromCanonical = (state: SetupGameState): M2BState => ({
   campaigns: Object.fromEntries(Object.values(state.adjudication.campaigns).map((campaign) => [campaign.id, {
     id: campaign.id, ownerParticipantId: campaign.ownerParticipantId, row: campaign.row,
     cardIds: campaign.assignments.map(({ cardInstanceId }) => cardInstanceId), activationCountThisTurn: campaign.activationCountThisTurn,
+    ...(campaign.targetDtId === undefined ? {} : { targetDtId: campaign.targetDtId }),
   }])),
   influence: structuredClone(state.adjudication.influenceStacks),
   legitimacyByPd: structuredClone(state.adjudication.legitimacyByPd),
@@ -59,7 +60,11 @@ export const applyM2StateToCanonical = (target: SetupGameState, source: M2BState
   }
   for (const campaign of Object.values(source.campaigns)) {
     const canonical = target.adjudication.campaigns[campaign.id];
-    if (canonical !== undefined) { (canonical as { row: 'I' | 'II' }).row = campaign.row; canonical.activationCountThisTurn = campaign.activationCountThisTurn; }
+    if (canonical !== undefined) {
+      (canonical as { row: 'I' | 'II' }).row = campaign.row;
+      canonical.activationCountThisTurn = campaign.activationCountThisTurn;
+      if (campaign.targetDtId !== undefined) (canonical as { targetDtId: string }).targetDtId = campaign.targetDtId;
+    }
   }
   target.adjudication.influenceStacks.splice(0, target.adjudication.influenceStacks.length, ...structuredClone(source.influence));
   for (const key of Object.keys(target.adjudication.legitimacyByPd)) delete target.adjudication.legitimacyByPd[key];

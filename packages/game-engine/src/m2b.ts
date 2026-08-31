@@ -109,6 +109,23 @@ const handlers: Record<string, M2BEffectHandler> = {
     const target = stringParameter(context, 'targetParticipantId'); const amount = integerParameter(context, 'amount');
     return target === undefined || amount === undefined ? 'INVALID_EFFECT_INPUT' : transfer(state, context, target, amount);
   },
+  FIXED_SPEND_1: (state, context) => pay(state, context, 1),
+  FIXED_SPEND_3: (state, context) => pay(state, context, 3),
+  FIXED_GAIN_4: (state, context) => {
+    const participant = actor(state, context); if (participant === undefined) return 'INVALID_EFFECT_INPUT';
+    participant.resources += 4; audit(state, context, 'RESOURCE_GAINED', { amount: 4 }); return undefined;
+  },
+  TARGET_DT_SET: (state, context) => {
+    const campaignId = stringParameter(context, 'campaignId');
+    const targetDtId = stringParameter(context, 'targetDtId');
+    const sourceCardInstanceId = stringParameter(context, 'sourceCardInstanceId');
+    const campaign = campaignId === undefined ? undefined : state.campaigns[campaignId];
+    if (campaignId === undefined || campaign === undefined || targetDtId === undefined || sourceCardInstanceId === undefined ||
+        campaign.ownerParticipantId !== context.actorParticipantId || !campaign.cardIds.includes(sourceCardInstanceId)) return 'INVALID_EFFECT_INPUT';
+    campaign.targetDtId = targetDtId;
+    audit(state, context, 'CAMPAIGN_TARGET_DT_SET', { campaignId, targetDtId });
+    return undefined;
+  },
   SANCTIONS: (state, context) => {
     const targetId = stringParameter(context, 'targetParticipantId'); const participant = actor(state, context); const target = targetId === undefined ? undefined : state.participants[targetId];
     if (participant === undefined || target === undefined || participant.id === target.id) return 'INVALID_EFFECT_INPUT';
@@ -157,13 +174,45 @@ const handlers: Record<string, M2BEffectHandler> = {
   },
 };
 
+export const M2_PAIR_BONUS_EFFECT_IDS = [
+  'CARD_EFFECT_BASE_2025_E002', 'CARD_EFFECT_BASE_2025_E003', 'CARD_EFFECT_BASE_2025_E004',
+  'CARD_EFFECT_BASE_2025_E005', 'CARD_EFFECT_BASE_2025_E007', 'CARD_EFFECT_BASE_2025_E008',
+  'CARD_EFFECT_BASE_2025_E009', 'CARD_EFFECT_BASE_2025_E011', 'CARD_EFFECT_BASE_2025_E018',
+  'CARD_EFFECT_BASE_2025_E020', 'CARD_EFFECT_BASE_2025_E023', 'CARD_EFFECT_BASE_2025_E024',
+  'CARD_EFFECT_BASE_2025_E027', 'CARD_EFFECT_BASE_2025_E029', 'CARD_EFFECT_BASE_2025_E030',
+  'CARD_EFFECT_BASE_2025_E032', 'CARD_EFFECT_BASE_2025_E037', 'CARD_EFFECT_BASE_2025_E038',
+  'CARD_EFFECT_BASE_2025_E041', 'CARD_EFFECT_BASE_2025_E043', 'CARD_EFFECT_BASE_2025_E044',
+  'CARD_EFFECT_BASE_2025_E049', 'CARD_EFFECT_BASE_2025_E052',
+] as const;
+
+export const M2_TARGET_DT_EFFECT_IDS = [
+  'CARD_EFFECT_BASE_2025_E034', 'CARD_EFFECT_BASE_2025_E055', 'CARD_EFFECT_BASE_2025_E056',
+  'CARD_EFFECT_BASE_2025_E057', 'CARD_EFFECT_BASE_2025_E058', 'CARD_EFFECT_BASE_2025_E059',
+] as const;
+
+const registeredPairBonusHandler: M2BEffectHandler = (state, context) => {
+  const definitionIds = context.parameters.definitionIds;
+  if (!Array.isArray(definitionIds) || !definitionIds.every((value) => typeof value === 'string')) return 'INVALID_EFFECT_INPUT';
+  const index = (M2_PAIR_BONUS_EFFECT_IDS as readonly string[]).indexOf(context.effectId);
+  const pair = BASE_2025_PAIR_BONUSES[index];
+  if (pair === undefined) return 'EFFECT_UNKNOWN';
+  const present = new Set(definitionIds);
+  const amount = present.has(pair[0]) && present.has(pair[1]) ? 2 : 0;
+  audit(state, context, 'REGISTERED_PAIR_BONUS_CALCULATED', { amount });
+  return undefined;
+};
+
 const definitions: readonly M2BEffectDefinition[] = [
-  { effectId: 'CARD_EFFECT_BASE_2025_E002', version: '0.1', enabledBlock: 'M2-3', handler: handlers.PAIR_BONUS! },
+  ...M2_PAIR_BONUS_EFFECT_IDS.map((effectId) => ({ effectId, version: '0.1' as const, enabledBlock: 'M2-3' as const, handler: registeredPairBonusHandler })),
   { effectId: 'CARD_EFFECT_BASE_2025_E001', version: '0.1', enabledBlock: 'M2-4', handler: handlers.TRADE_AGREEMENTS! },
   { effectId: 'CARD_EFFECT_BASE_2025_E014', version: '0.1', enabledBlock: 'M2-4', handler: handlers.DIRECT_INFLUENCE! },
   { effectId: 'CARD_EFFECT_BASE_2025_E015', version: '0.1', enabledBlock: 'M2-4', handler: handlers.PAY_AND_DIRECT_INFLUENCE! },
   { effectId: 'CARD_EFFECT_BASE_2025_E019', version: '0.1', enabledBlock: 'M2-4', handler: handlers.SANCTIONS! },
   { effectId: 'CARD_EFFECT_BASE_2025_E025', version: '0.1', enabledBlock: 'M2-4', handler: handlers.DOUBLE_ACTION! },
+  { effectId: 'CARD_EFFECT_BASE_2025_E026', version: '0.1', enabledBlock: 'M2-4', handler: handlers.FIXED_SPEND_1! },
+  { effectId: 'CARD_EFFECT_BASE_2025_E039', version: '0.1', enabledBlock: 'M2-4', handler: handlers.FIXED_SPEND_3! },
+  { effectId: 'CARD_EFFECT_BASE_2025_E042', version: '0.1', enabledBlock: 'M2-4', handler: handlers.FIXED_GAIN_4! },
+  ...M2_TARGET_DT_EFFECT_IDS.map((effectId) => ({ effectId, version: '0.1' as const, enabledBlock: 'M2-4' as const, handler: handlers.TARGET_DT_SET! })),
   { effectId: 'CARD_EFFECT_BASE_2025_E051', version: '0.1', enabledBlock: 'M2-4', handler: handlers.CORRUPTION! },
   { effectId: 'REGIME_EFFECT_ARDEN', version: '0.1', enabledBlock: 'M2-4', handler: handlers.REGIME_DIE_REMOVE! },
 ] as const;
