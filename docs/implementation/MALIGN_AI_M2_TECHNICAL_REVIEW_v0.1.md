@@ -19,7 +19,7 @@ La cifra anterior demuestra que los ejecutables actuales pasan; no demuestra por
 
 `packages/game-engine/src/m2b*.ts` sólo es importado por sus propios módulos y tests. `SetupCommandDispatcher`, `M1AdjudicationEngine`, server/application commands y scheduler productivo no invocan M2-B, Reaction, Cleanup o End Game. Los comandos de los owners no atraviesan phase enforcement, actoría, idempotencia ni CAS application-wide.
 
-**Corrección en progreso:** se añadió un seam bidireccional tipado `buildM2StateFromCanonical` / `applyM2StateToCanonical`, con regresión `M2R-R01.integrated-state`, para que Resources, VP, cards/campaigns, influence, legitimacy y scheduler utilicen el `SetupGameState` canónico. Cleanup y End Game ya atraviesan `dispatchAtomicCommand` con phase/CAS/idempotencia/eventos y sus puertos internos usan `PostgresGameSessionApplication.coordinateDurableOperation`. Reaction se abre exclusivamente por `InternalM2ReactionPort`; `PASS_REACTION` y `PLAY_REACTION` cruzan la sesión autenticada, validan prioridad, binding effect/card, zona y control, usan RNG transaccional cuando aplica y persisten la continuation en el mismo estado. AuthorizedProjection expone opciones sólo al actor prioritario y a F1. Ninguna de estas fronteras acepta ActorContext, permisos, métricas o rolls suministrados libremente por caller. M2R-R01 permanece **OPEN** hasta conectar los comandos de efectos M2-3…M2-5 por la misma frontera.
+**Corrección en progreso:** se añadió un seam bidireccional tipado `buildM2StateFromCanonical` / `applyM2StateToCanonical`, con regresión `M2R-R01.integrated-state`, para que Resources, VP, cards/campaigns, influence, legitimacy y scheduler utilicen el `SetupGameState` canónico. Cleanup y End Game atraviesan `dispatchAtomicCommand` y sus puertos internos usan `PostgresGameSessionApplication.coordinateDurableOperation`. Reaction se abre exclusivamente por `InternalM2ReactionPort`; `PASS_REACTION` y `PLAY_REACTION` cruzan la sesión autenticada con prioridad, binding, zona/control y RNG transaccional. `InternalM2EffectPort` conecta los handlers ejecutables M2-3/M2-4 con binding effect/card del registry, lifecycle, auditoría canónica, CAS e idempotencia durable. AuthorizedProjection limita las opciones de Reaction al actor prioritario y a F1. Ninguna frontera acepta ActorContext, permisos, métricas o rolls libres del caller. M2R-R01 permanece **OPEN** para las operaciones core que aún sólo existen como funciones aisladas; los handlers ausentes se rastrean separadamente en M2R-R04.
 
 ### M2R-R02 — Persistencia, replay y outbox ausentes para M2-3…M2-7
 
@@ -32,6 +32,8 @@ Parte de `GE-M2-3.owner`, `GE-M2-4.owner`, M2-6 y las regresiones modifica fixtu
 ### M2R-R04 — Manifest de efectos incompleto
 
 El dispatcher M2-B registra sólo un subconjunto de IDs, mientras el registry aprobado contiene 59 effect definitions y M2-5 exige cobertura completa final, sin fallback silencioso. `GE-M2-EFX-001 [REGRESSION]` no enumera ni ejecuta exhaustivamente el manifest aprobado.
+
+**Corrección en progreso:** `M2_EFFECT_MANIFEST` materializa y prueba por igualdad exacta los 59 pares `effect_id`/`source_definition_id` del snapshot DEC-077. El dispatcher distingue ID desconocido (`EFFECT_UNKNOWN`) de ID aprobado sin handler (`EFFECT_DISABLED`), siempre sin mutación. Permanecen 51 handlers de cartas sin implementar; por ello M2R-R04 continúa **OPEN** y no se presenta el inventario como cobertura funcional 59/59.
 
 ### M2R-R05 — Atomicidad/idempotencia final insuficiente
 
