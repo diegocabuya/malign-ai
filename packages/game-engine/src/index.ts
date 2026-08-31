@@ -10,6 +10,7 @@ export * from './m2b-reaction.js';
 export * from './m2b-lifecycle.js';
 export * from './m2b-endgame.js';
 export * from './m2-integrated-state.js';
+export * from './m2-effect-manifest.js';
 export {
   buildDurableEngineTransition,
   durableTransitionCompletenessFailures,

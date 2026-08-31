@@ -31,7 +31,7 @@ export const buildM2StateFromCanonical = (state: SetupGameState): M2BState => ({
   influence: structuredClone(state.adjudication.influenceStacks),
   legitimacyByPd: structuredClone(state.adjudication.legitimacyByPd),
   scheduler: structuredClone(state.adjudication.scheduler),
-  audit: [],
+  audit: structuredClone(state.m2Audit ?? []),
 });
 
 export const applyM2StateToCanonical = (target: SetupGameState, source: M2BState): void => {
@@ -55,4 +55,5 @@ export const applyM2StateToCanonical = (target: SetupGameState, source: M2BState
   for (const key of Object.keys(target.adjudication.legitimacyByPd)) delete target.adjudication.legitimacyByPd[key];
   Object.assign(target.adjudication.legitimacyByPd, structuredClone(source.legitimacyByPd));
   Object.assign(target.adjudication.scheduler, structuredClone(source.scheduler));
+  target.m2Audit = structuredClone(source.audit);
 };

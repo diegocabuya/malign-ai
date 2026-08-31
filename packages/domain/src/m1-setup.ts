@@ -13,6 +13,7 @@ export type DiceMode = 'DIGITAL' | 'MANUAL_DIE_INPUT';
 import type { M1AdjudicationState } from './m1-adjudication.js';
 import type { EndGameState } from './m2b-endgame.js';
 import type { ReactionContinuation } from './m2b-reaction.js';
+import type { M2BAuditRecord } from './m2b.js';
 
 export type SetupCardZone = 'STARTER_POOL' | 'OPERATIONS_POOL' | 'OPERATIONS_DECK' | 'HAND' | 'DISCARD' | 'CAMPAIGN';
 
@@ -230,7 +231,8 @@ export type SetupGameEventType =
   | 'REACTION_WINDOW_OPENED'
   | 'REACTION_PRIORITY_PASSED'
   | 'REACTION_PLAYED'
-  | 'REACTION_WINDOW_CLOSED';
+  | 'REACTION_WINDOW_CLOSED'
+  | 'M2_EFFECT_EXECUTED';
 
 
 export type SetupEventVisibilityClass = 'PUBLIC' | 'OWNER_AND_FACILITATOR';
@@ -285,6 +287,7 @@ export interface SetupGameState {
   readonly adjudication: M1AdjudicationState;
   endGame?: EndGameState;
   reactionContinuation?: ReactionContinuation;
+  m2Audit?: M2BAuditRecord[];
   currentRevealedAction?: RevealedActionState;
   readonly events: SetupGameEvent[];
 }

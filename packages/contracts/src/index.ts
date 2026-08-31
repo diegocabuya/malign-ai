@@ -115,7 +115,16 @@ export type M2ReactionErrorCode =
   | 'STALE_CONTINUATION'
   | 'INVALID_REACTION_INPUT';
 
-export type AnyEngineErrorCode = EngineErrorCode | SetupEngineErrorCode | M1AdjudicationErrorCode | M2ReactionErrorCode;
+export type M2EffectErrorCode =
+  | 'EFFECT_UNKNOWN'
+  | 'EFFECT_DISABLED'
+  | 'EFFECT_VERSION_MISMATCH'
+  | 'INVALID_EFFECT_INPUT'
+  | 'REGIME_ABILITY_ALREADY_USED'
+  | 'ROLL_MODIFIER_ALREADY_USED'
+  | 'INVALID_DIE_VALUE';
+
+export type AnyEngineErrorCode = EngineErrorCode | SetupEngineErrorCode | M1AdjudicationErrorCode | M2ReactionErrorCode | M2EffectErrorCode;
 
 export type EngineErrorCategory = 'AUTHORIZATION' | 'PHASE_STATE' | 'CONCURRENCY' | 'RESOURCE' | 'CARD' | 'CAMPAIGN' | 'TARGETING' | 'CHOICE' | 'RULE_INVARIANT' | 'CONTRACT';
 export interface EngineError {
@@ -150,6 +159,7 @@ export const engineErrorFor = (code: AnyEngineErrorCode): EngineError => {
   else if (code.startsWith('CHOICE_') || code === 'INVALID_CHOICE_OPTION' || code === 'NARRATIVE_NOT_AUTHORIZED') category = 'CHOICE';
   else if (code.startsWith('REALTIME_CURSOR_')) category = code.endsWith('SCOPE_MISMATCH') ? 'AUTHORIZATION' : 'CONTRACT';
   else if (code.startsWith('REACTION_') || code === 'VETO_ABUSE' || code === 'STALE_CONTINUATION') category = 'RULE_INVARIANT';
+  else if (code.startsWith('EFFECT_') || code === 'INVALID_EFFECT_INPUT' || code === 'REGIME_ABILITY_ALREADY_USED' || code === 'ROLL_MODIFIER_ALREADY_USED' || code === 'INVALID_DIE_VALUE') category = 'RULE_INVARIANT';
   else if (code.startsWith('CAMPAIGN_') || code === 'INVALID_SLOT') category = 'CAMPAIGN';
   else if (code === 'COST_PAYMENT_FAILED') category = 'RESOURCE';
   else if (code.startsWith('UNSUPPORTED_') || code === 'INVALID_COMMAND_PAYLOAD') category = 'CONTRACT';

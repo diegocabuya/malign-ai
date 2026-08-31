@@ -24,6 +24,8 @@ import { applyM2StateToCanonical, buildM2StateFromCanonical } from './m2-integra
 import { cleanupCampaignAging, resetTurnFlags } from './m2b-lifecycle.js';
 import { finalizeGame } from './m2b-endgame.js';
 import { makeReactionContinuation, openReactionWindow, passReactionPriority, playReaction } from './m2b-reaction.js';
+import { discardWithLifecycle, M2BEffectDispatcher } from './m2b.js';
+import { m2EffectSourceDefinition } from './m2-effect-manifest.js';
 
 export type SetupCommandType =
   | 'CREATE_GAME'
@@ -509,6 +511,64 @@ export class SetupCommandDispatcher {
           windowId: window.id, trigger: window.trigger, currentParticipantId: window.priorityParticipantIds[0] ?? '',
         });
         return { nextState: working, resultCode: 'REACTION_WINDOW_OPENED', resultPayload: { windowId: window.id, status: window.status }, emittedEventRefs: [event.id] };
+      },
+    });
+  }
+
+  executeM2Effect(options: {
+    readonly gameId: string;
+    readonly expectedGameVersion: number;
+    readonly commandId: string;
+    readonly idempotencyKey: string;
+    readonly actorParticipantId: string;
+    readonly sourceCardInstanceId: string;
+    readonly effectId: string;
+    readonly effectVersion: string;
+    readonly parameters: Readonly<Record<string, unknown>>;
+    readonly correlationId?: string;
+  }): EngineCommandResult {
+    const envelope: CommandEnvelope<'INTERNAL_EXECUTE_M2_EFFECT', Record<string, unknown>> = {
+      engineContractVersion: M1_0_BASELINE_VERSIONS.engineContractVersion,
+      commandId: options.commandId, idempotencyKey: options.idempotencyKey, gameId: options.gameId,
+      actorContext: { actorId: 'M2_INTERNAL_COORDINATOR', actorType: 'SYSTEM', authenticatedSessionId: 'internal:m2', permissions: ['game:internal-effect'] },
+      expectedGameVersion: options.expectedGameVersion, commandType: 'INTERNAL_EXECUTE_M2_EFFECT',
+      payloadSchemaVersion: M1_0_BASELINE_VERSIONS.fixtureSchemaVersion,
+      payload: {}, ...(options.correlationId === undefined ? {} : { correlationId: options.correlationId }),
+    };
+    return dispatchAtomicCommand({
+      envelope, store: this.store, now: this.now,
+      prepare: (before, candidate) => {
+        const version = before?.version ?? 0;
+        if (before === undefined) return { error: 'GAME_NOT_FOUND' as const, version };
+        if (candidate.expectedGameVersion !== before.version) return { error: 'STALE_STATE_VERSION' as const, version: before.version };
+        if (before.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const, version: before.version };
+        if (before.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const, version: before.version };
+        if (before.participants[options.actorParticipantId]?.role !== 'PLAYER') return { error: 'PARTICIPANT_NOT_FOUND' as const, version: before.version };
+        const source = before.cards[options.sourceCardInstanceId];
+        const registryDefinitionId = m2EffectSourceDefinition(options.effectId);
+        const serial = registryDefinitionId?.match(/D(\d{3})$/u)?.[1];
+        const expectedDefinitionId = serial === undefined ? undefined : `BASE_CARD_${serial}`;
+        const expectedZone = options.effectId === 'CARD_EFFECT_BASE_2025_E002' ? 'CAMPAIGN' : 'HAND';
+        if (source === undefined || source.controllerParticipantId !== options.actorParticipantId || source.definitionId !== expectedDefinitionId || source.zone !== expectedZone) {
+          return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
+        }
+        const working = structuredClone(before);
+        const m2 = buildM2StateFromCanonical(working);
+        const result = new M2BEffectDispatcher('M2-4').dispatch(m2, {
+          actorParticipantId: options.actorParticipantId, effectId: options.effectId,
+          effectVersion: options.effectVersion, parameters: options.parameters,
+        });
+        if (!result.ok) return { error: result.error, version: before.version };
+        if (options.effectId !== 'CARD_EFFECT_BASE_2025_E002') discardWithLifecycle(result.state, options.sourceCardInstanceId);
+        applyM2StateToCanonical(working, result.state);
+        const event = this.appendEvent(working, candidate, 'M2_EFFECT_EXECUTED', {
+          effectId: options.effectId, actorParticipantId: options.actorParticipantId,
+          sourceCardInstanceId: options.sourceCardInstanceId, auditCount: result.emitted.length,
+        });
+        return {
+          nextState: working, resultCode: 'M2_EFFECT_EXECUTED',
+          resultPayload: { effectId: options.effectId, audit: result.emitted }, emittedEventRefs: [event.id],
+        };
       },
     });
   }

@@ -9,6 +9,7 @@ import type {
   M2BState,
 } from '@malign-ai/domain';
 import { resolveTwoToOne } from '@malign-ai/rules';
+import { M2_EFFECT_MANIFEST } from './m2-effect-manifest.js';
 
 export type M2BEffectHandler = (state: M2BState, context: M2BEffectContext) => M2BEffectError | undefined;
 
@@ -167,6 +168,8 @@ const definitions: readonly M2BEffectDefinition[] = [
   { effectId: 'REGIME_EFFECT_ARDEN', version: '0.1', enabledBlock: 'M2-4', handler: handlers.REGIME_DIE_REMOVE! },
 ] as const;
 
+export const M2_IMPLEMENTED_EFFECT_IDS: readonly string[] = definitions.map(({ effectId }) => effectId);
+
 export const BASE_2025_PAIR_BONUSES: readonly (readonly [string, string])[] = [
   ['CARD_DEF_BASE_2025_D002', 'CARD_DEF_BASE_2025_D098'], ['CARD_DEF_BASE_2025_D008', 'CARD_DEF_BASE_2025_D044'],
   ['CARD_DEF_BASE_2025_D009', 'CARD_DEF_BASE_2025_D029'], ['CARD_DEF_BASE_2025_D010', 'CARD_DEF_BASE_2025_D052'],
@@ -189,11 +192,12 @@ export const calculateRegisteredPairBonus = (definitionIds: readonly string[]): 
 
 export class M2BEffectDispatcher {
   private readonly manifest = new Map(definitions.map((definition) => [definition.effectId, definition]));
+  private readonly approvedEffectIds = new Set(M2_EFFECT_MANIFEST.map(({ effectId }) => effectId));
   constructor(private readonly enabledThrough: 'M2-3' | 'M2-4') {}
 
   dispatch(state: M2BState, context: M2BEffectContext): M2BEffectResult {
     const definition = this.manifest.get(context.effectId);
-    if (definition === undefined) return { ok: false, state, error: 'EFFECT_UNKNOWN', emitted: [] };
+    if (definition === undefined) return { ok: false, state, error: this.approvedEffectIds.has(context.effectId) ? 'EFFECT_DISABLED' : 'EFFECT_UNKNOWN', emitted: [] };
     if (context.effectVersion !== definition.version) return { ok: false, state, error: 'EFFECT_VERSION_MISMATCH', emitted: [] };
     if (this.enabledThrough === 'M2-3' && definition.enabledBlock === 'M2-4') return { ok: false, state, error: 'EFFECT_DISABLED', emitted: [] };
     const draft = clone(state); const auditStart = draft.audit.length;

@@ -146,6 +146,7 @@ const canonicalPayloadKeys: Readonly<Record<SetupGameEventType, readonly string[
   REACTION_PRIORITY_PASSED: ['windowId', 'participantId'],
   REACTION_PLAYED: ['windowId', 'participantId', 'cardId', 'effectId', 'negated'],
   REACTION_WINDOW_CLOSED: ['windowId'],
+  M2_EFFECT_EXECUTED: ['effectId', 'actorParticipantId', 'sourceCardInstanceId', 'auditCount'],
 };
 
 const facilitatorAuditPayloadKeys: Readonly<Partial<Record<SetupGameEventType, readonly string[]>>> = {

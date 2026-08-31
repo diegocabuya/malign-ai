@@ -112,6 +112,19 @@ export interface InternalM2ReactionPort {
   openM2Reaction(input: InternalM2OpenReactionInput): Promise<EngineCommandResult>;
 }
 
+export interface InternalM2EffectInput extends DurableOperationInput {
+  readonly actorParticipantId: string;
+  readonly sourceCardInstanceId: string;
+  readonly effectId: string;
+  readonly effectVersion: string;
+  readonly parameters: Readonly<Record<string, unknown>>;
+}
+
+/** Server-only effect port; actor, source card and parameters are derived by the authoritative scheduler. */
+export interface InternalM2EffectPort {
+  executeM2Effect(input: InternalM2EffectInput): Promise<EngineCommandResult>;
+}
+
 export interface TransactionalApplicationClock {
   checkpoint(): number;
   now(): Date;
@@ -547,7 +560,7 @@ interface DurableOperationInput {
 }
 
 /** Durable composition adapter: authenticated boundary → authoritative Engine → PostgreSQL. */
-export class PostgresGameSessionApplication implements GameSessionApplicationPort, InternalM1SchedulerPort, InternalM2CleanupPort, InternalM2EndGamePort, InternalM2ReactionPort {
+export class PostgresGameSessionApplication implements GameSessionApplicationPort, InternalM1SchedulerPort, InternalM2CleanupPort, InternalM2EndGamePort, InternalM2ReactionPort, InternalM2EffectPort {
   private readonly randomByGame = new Map<string, TransactionalRandomProvider>();
   private readonly clockByGame = new Map<string, TransactionalApplicationClock>();
   private readonly writerTailByGame = new Map<string, Promise<void>>();
@@ -798,6 +811,28 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
           execute:(random,now)=>{
             const store=new InMemorySetupGameStore([state]);
             const result=new SetupCommandDispatcher(store,random,now,'APPLICATION').openM2Reaction(input);
+            const afterState=store.snapshot(input.gameId);
+            return {result,...(afterState===undefined?{}:{afterState})};
+          }};
+      },
+    });
+  }
+
+  async executeM2Effect(input: InternalM2EffectInput): Promise<EngineCommandResult> {
+    const fingerprintSha256=createHash('sha256').update(deterministicJsonSerialize({
+      commandType:'INTERNAL_EXECUTE_M2_EFFECT',beforeVersion:input.expectedGameVersion,
+      actorParticipantId:input.actorParticipantId,sourceCardInstanceId:input.sourceCardInstanceId,
+      effectId:input.effectId,effectVersion:input.effectVersion,parameters:input.parameters,
+    })).digest('hex');
+    return this.coordinateDurableOperation({
+      input, actorId:'M2_INTERNAL_COORDINATOR', fingerprintSha256,
+      prepare:(state):DurableOperationPreparation=>{
+        if(state===undefined)return {ready:false,result:this.reject(input,0,'GAME_NOT_FOUND')};
+        return {ready:true,commandType:'INTERNAL_EXECUTE_M2_EFFECT',beforeState:state,
+          actor:{actorId:'M2_INTERNAL_COORDINATOR',actorType:'SYSTEM',participantId:null,authenticatedSessionId:'internal:m2'},
+          execute:(random,now)=>{
+            const store=new InMemorySetupGameStore([state]);
+            const result=new SetupCommandDispatcher(store,random,now,'APPLICATION').executeM2Effect(input);
             const afterState=store.snapshot(input.gameId);
             return {result,...(afterState===undefined?{}:{afterState})};
           }};

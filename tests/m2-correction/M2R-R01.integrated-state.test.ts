@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { applyM2StateToCanonical, buildM2StateFromCanonical } from '../../packages/game-engine/src/index.js';
+import { readFileSync } from 'node:fs';
+import { applyM2StateToCanonical, buildM2StateFromCanonical, M2_EFFECT_MANIFEST, M2_IMPLEMENTED_EFFECT_IDS } from '../../packages/game-engine/src/index.js';
 import { command, completeAndStart, harness, trustedBindings } from '../m1-0/test-fixtures.js';
 
 describe('M2R-R01 canonical state integration seam', () => {
@@ -96,5 +97,46 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(testHarness.app.execute(p2Session, command('PASS_REACTION', state.id, opened.version, {}, {
       commandId: 'M2-REACTION-PASS-2', idempotencyKey: 'M2-REACTION-PASS-K2',
     }))).toMatchObject({ status: 'REJECTED', error: { code: 'STALE_STATE_VERSION' } });
+  });
+
+  it('executes a registry-bound M2 effect atomically and persists lifecycle plus audit', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    const source = state.cards['ARDEN-CARD-001']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const p1Before = state.countries.ARDEN.resources; const p2Before = state.countries.FLUMA.resources;
+    const options = {
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-EFFECT-1', idempotencyKey: 'M2-EFFECT-K1',
+      actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E001',
+      effectVersion: '0.1', parameters: { targetParticipantId: 'P2' },
+    };
+    const first = testHarness.dispatcher.executeM2Effect(options);
+    expect(first).toMatchObject({ status: 'RESOLVED', resultCode: 'M2_EFFECT_EXECUTED' });
+    const committed = testHarness.store.snapshot(state.id)!;
+    expect(committed.countries.ARDEN.resources).toBe(p1Before + 2);
+    expect(committed.countries.FLUMA.resources).toBe(p2Before + 2);
+    expect(committed.cards[source.id]?.zone).toBe('DISCARD');
+    expect(committed.m2Audit?.at(-1)).toMatchObject({ type: 'RESOURCE_GAINED', actorParticipantId: 'P1' });
+    expect(testHarness.dispatcher.executeM2Effect(options)).toEqual(first);
+  });
+
+  it('inventories exactly 59 registry effects and fails closed for known unimplemented handlers', () => {
+    expect(M2_EFFECT_MANIFEST).toHaveLength(59);
+    expect(new Set(M2_EFFECT_MANIFEST.map(({ effectId }) => effectId)).size).toBe(59);
+    const registry = JSON.parse(readFileSync(new URL('../../docs/normative/MALIGN_AI_CARD_REGISTRY_SNAPSHOT_v0.1.json', import.meta.url), 'utf8')) as {
+      readonly effect_definitions: readonly { readonly effect_id: string; readonly source_definition_id: string }[];
+    };
+    expect(M2_EFFECT_MANIFEST).toEqual(registry.effect_definitions.map(({ effect_id, source_definition_id }) => ({
+      effectId: effect_id, sourceDefinitionId: source_definition_id,
+    })));
+    expect(M2_IMPLEMENTED_EFFECT_IDS).toHaveLength(8);
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    const source = state.cards['ARDEN-CARD-008']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const before = testHarness.store.snapshot(state.id);
+    expect(testHarness.dispatcher.executeM2Effect({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-EFFECT-DISABLED-1', idempotencyKey: 'M2-EFFECT-DISABLED-K1',
+      actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E003', effectVersion: '0.1', parameters: {},
+    })).toMatchObject({ status: 'REJECTED', error: { code: 'EFFECT_DISABLED' } });
+    expect(testHarness.store.snapshot(state.id)).toEqual(before);
   });
 });
