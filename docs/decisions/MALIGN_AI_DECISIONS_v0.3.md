@@ -1345,3 +1345,24 @@ DEC-075 autoriza exclusivamente documentación. No autoriza M2 ni ninguna subeta
 - M2-7 y M3 permanecen **NOT AUTHORIZED**.
 
 **ESTADO:** `APPROVED — M2-6 IMPLEMENTATION AUTHORIZATION ONLY`
+
+---
+
+## DEC-087 — Autorización de implementación M2-7 Objectives, Victory and End Game
+
+**FECHA:** 2026-08-30
+**TEMA:** Implementación del último bloque funcional planificado de M2 sin cierre automático del milestone.
+
+**DECISIÓN:**
+
+- Se autoriza exclusivamente **M2-7 — Objectives, Victory and End Game** sobre el baseline M2-6 publicado.
+- El gate comprende 28 owners oracle, `GE-M2-END-001/002` y ocho regresiones: **30 owners y 38 ejecuciones dirigidas**.
+- Se implementan exactamente los objetivos Arden, Ursaria, Presque, Fluma y Dinesia, incluidos límites estrictos, conteos, tags narrativos y bonuses no duplicables.
+- Awards, VP, outcome y `GAME_COMPLETED` son idempotentes por key y se materializan una sola vez.
+- El tiebreak usa menor malignidad total en el país propio; si persiste, el resultado es compartido y no existe tercer criterio.
+- BASE_2025 no tiene victoria instantánea; el límite de turno decide Initiative o End Game Scoring.
+- Replay/reconnect conserva outcome y winners sin consumir RNG ni crear awards.
+- El resultado queda **IMPLEMENTED / PENDING REVIEW**. DEC-087 no aprueba ni cierra M2-7 ni M2 global.
+- M3 permanece **NOT AUTHORIZED**.
+
+**ESTADO:** `APPROVED — M2-7 IMPLEMENTATION AUTHORIZATION ONLY`

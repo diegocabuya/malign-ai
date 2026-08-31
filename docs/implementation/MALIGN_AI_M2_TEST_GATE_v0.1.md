@@ -5,7 +5,7 @@
 **Autoridad:** DEC-074…DEC-083
 **Oracle:** `MALIGN_AI_GAME_ENGINE_TEST_ACCEPTANCE_SPEC_v0.1.md`
 **Addenda:** M1 v0.1 preservado; M2 v0.1 aprobado como test acceptance baseline
-**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3…M2-6 IMPLEMENTED / PENDING REVIEW mediante DEC-084/085/086; M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
+**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3…M2-7 IMPLEMENTED / PENDING REVIEW mediante DEC-084…087; M2 global IMPLEMENTATION COMPLETE / PENDING REVIEW / NOT YET CLOSED; M3 NOT AUTHORIZED**
 
 > Históricamente, DEC-078 materializó exclusivamente los 22 owner asignados a M2-A/M2-1. DEC-080 aprobó y cerró posteriormente M2-A/M2-1. Los owners y conteos de M2-2…M2-7 permanecen futuros, sin alteración y no autorizados.
 
@@ -319,7 +319,7 @@ Resultado DEC-086 pendiente de revisión: **18/18 owners + 6/6 regresiones = 24/
 
 Riesgo trazado: atomic final awards/outcome, replay/hash, ordering, idempotency, final projection y reconnect. Las repeticiones con persistencia/lifecycle son necesarias porque el golden cruza process restart hasta `GAME_COMPLETED`.
 
-Gate futuro: **38 ejecuciones dirigidas + preservación completa de la suite M2-6**; 30 casos nuevos; mínimo operativo vigente de cierre **457**.
+Resultado DEC-087 pendiente de revisión: **30/30 owners + 8/8 regresiones = 38/38 PASS**, preservando M2-6; suite acumulada **512/512 PASS en 44 archivos**.
 
 ## 12. Cobertura transversal
 

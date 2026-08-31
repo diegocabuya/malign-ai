@@ -3,7 +3,7 @@
 **Fecha:** 2026-08-27
 **Estado:** M2-0 APPROVED AND CLOSED / M2-A/M2-1 IMPLEMENTED AND APPROVED / CLOSED mediante DEC-080
 **Autoridad:** DEC-074…DEC-083
-**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3…M2-6 IMPLEMENTED / PENDING REVIEW mediante DEC-084/085/086; M2-7 NOT AUTHORIZED; M2 global NOT AUTHORIZED / NOT YET CLOSED; M3 NOT AUTHORIZED**
+**Implementación M2:** **M2-A/M2-1 y M2-2 IMPLEMENTED AND APPROVED / CLOSED; M2-3…M2-7 IMPLEMENTED / PENDING REVIEW mediante DEC-084…087; M2 global IMPLEMENTATION COMPLETE / PENDING REVIEW / NOT YET CLOSED; M3 NOT AUTHORIZED**
 
 > DEC-078 autorizó y materializó exclusivamente M2-A/M2-1; DEC-080 aprobó su commit funcional final `85ec047726a68007fbcabf07c6b3fe1b911a3070` y cerró M2A-R01…R30. DEC-080 no autoriza M2-2…M2-7, M2 global o M3.
 
@@ -79,7 +79,7 @@ Quedan fuera de M2: UI final, IA/OpenAI/RAG, editor productivo de escenarios, an
 | M2-4 | Action/Starter Cards and Regime Abilities | M2-3; IQ-M2-010 resuelta | 45 | IMPLEMENTED / PENDING REVIEW — DEC-084 |
 | M2-5 | Reaction, Veto and Deterministic Narrative | M2-3/M2-4; transport recovery para gate productivo | 23 | IMPLEMENTED / PENDING REVIEW — DEC-085 |
 | M2-6 | Cleanup, Viralization and End Turn | M2-3/M2-5 | 18 | IMPLEMENTED / PENDING REVIEW — DEC-086 |
-| M2-7 | Objectives, Victory and End Game | M2-1/M2-2/M2-6 | 30 | NOT AUTHORIZED |
+| M2-7 | Objectives, Victory and End Game | M2-1/M2-2/M2-6 | 30 | IMPLEMENTED / PENDING REVIEW — DEC-087 |
 
 Ningún bloque de implementación supera 50 casos nuevos únicos. La autorización de un bloque requerirá un prompt posterior separado.
 
@@ -195,7 +195,7 @@ Checkpoint implementado: aging simultáneo por snapshot; viral sin cascada, orde
 
 Incluye 18 Victory Objective IDs; cinco `GE-END-*`; `GE-E2E-001…005`; `GE-M2-END-001/002`; golden final BASE_2025 `turn_limit=1`; restart, replay y reconnect hasta `GAME_COMPLETED`.
 
-DoD futuro: awards/outcome/final events/outbox atómicos e idempotentes; tiebreak exacto; replay conserva hash/winner/projections; **30/30 nuevos únicos** y regresiones dirigidas, preservando toda la suite M2-6; mínimo operativo vigente de cierre **457/457**. Los valores 400 y 416 permanecen históricos.
+Checkpoint implementado: objetivos exactos, awards/outcome idempotentes, tiebreak sin criterio inventado y replay estable. **30/30 owners + 8/8 regresiones = 38/38 PASS**; suite acumulada **512/512 en 44 archivos**. Estado **PENDING REVIEW**; M2 aún no está cerrado.
 
 ## 14. Boundaries obligatorios
 
