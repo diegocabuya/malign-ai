@@ -1,7 +1,7 @@
 # MALIGN-AI — PROJECT STATE v0.4
 
 **Fecha:** 2026-08-29
-**Fase actual:** M0 IMPLEMENTED AND APPROVED — M1 IMPLEMENTED AND APPROVED / CLOSED — M2-0 APPROVED AND CLOSED — M2-A/M2-1 IMPLEMENTED AND APPROVED mediante DEC-080 — M2-2 IMPLEMENTED AND APPROVED / CLOSED mediante DEC-083 — M2-3…M2-7 IMPLEMENTED / PENDING REVIEW mediante DEC-084…087 — M2 global IMPLEMENTATION COMPLETE / PENDING REVIEW / NOT YET CLOSED — M3 NOT AUTHORIZED
+**Fase actual:** M0/M1 APPROVED — M2-A/M2-1 y M2-2 APPROVED/CLOSED — M2-3…M2-7 IMPLEMENTED IN ISOLATION / CHANGES REQUIRED — M2 global NOT APPROVED / NOT CLOSED — M3 NOT AUTHORIZED
 **Gate arquitectónico:** APPROVED  
 **Transición:** Este contenido sustituye el estado v0.3. El nombre físico se conserva para mantener estables las referencias documentales existentes.
 
@@ -149,7 +149,8 @@
 | Suite acumulada tras M2-6 | **474/474 PASS en 42 archivos, 0 skips, 0 todo, 0 waivers** |
 | M2-7 — Objectives, Victory and End Game | **IMPLEMENTED / PENDING REVIEW mediante DEC-087 — 30/30 owners; gate 38/38** |
 | Suite acumulada tras M2-7 | **512/512 PASS en 44 archivos, 0 skips, 0 todo, 0 waivers** |
-| M2 | **IMPLEMENTATION COMPLETE / PENDING TECHNICAL REVIEW — NOT YET CLOSED** |
+| M2 technical review v0.1 | **CHANGES REQUIRED — M2R-R01…R06 OPEN** |
+| M2 | **NOT APPROVED / NOT CLOSED — integration and owner-evidence correction required** |
 | M3 | **NOT AUTHORIZED** |
 
 PR-1 fue aprobado técnicamente contra el commit `69ded64d912fc0231b82046fecad024baf8ec67e`. No requiere correcciones de código.

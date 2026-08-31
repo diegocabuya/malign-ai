@@ -1,6 +1,6 @@
 # MALIGN-AI
 
-MALIGN-AI is a fidelity-first, multiplayer web implementation of the Malign serious game. M0 and M1 are approved/closed; M2-0, M2-A/M2-1 and M2-2 are **IMPLEMENTED AND APPROVED / CLOSED**. M2-3…M2-7 are **IMPLEMENTED / PENDING REVIEW** under DEC-084…087. The executable suite is **512/512 PASS in 44 files, 0 skips, 0 todo and 0 waivers**.
+MALIGN-AI is a fidelity-first, multiplayer web implementation of the Malign serious game. M0 and M1 are approved/closed; M2-0, M2-A/M2-1 and M2-2 are **IMPLEMENTED AND APPROVED / CLOSED**. The first technical review of M2-3…M2-7 is **CHANGES REQUIRED** because those slices are not yet integrated with the productive application/persistence/replay boundaries and some owner tests are not representative. The current executable suite remains **512/512 PASS in 44 files, 0 skips, 0 todo and 0 waivers**, but M2 is not approved or closed.
 
 M0 comprises the approved repository bootstrap, pure Rule Kernel, command safety, and in-memory campaign slice. M1 adds:
 
@@ -36,7 +36,7 @@ The implemented baseline consists of a pure deterministic Rule Kernel, an author
 
 M1's deterministic projection/feed policy remains the single authorization source reused by M2-2; WebSocket never adjudicates gameplay commands.
 
-No Auth0 tenant/account, cloud provider, hosting deployment, productive secrets, final UI, or AI/OpenAI/RAG exists. M2 implementation is complete but remains **PENDING TECHNICAL REVIEW / NOT YET CLOSED**; M3 remains **NOT STARTED / NOT AUTHORIZED**.
+No Auth0 tenant/account, cloud provider, hosting deployment, productive secrets, final UI, or AI/OpenAI/RAG exists. M2 requires correction of findings M2R-R01…R06 and remains **NOT APPROVED / NOT CLOSED**; M3 remains **NOT STARTED / NOT AUTHORIZED**.
 
 > **LLM != Game Engine.** AI may eventually explain or suggest actions from an authorized projection, but it never adjudicates deterministic rules.
 
