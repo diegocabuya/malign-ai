@@ -29,6 +29,10 @@ const integerParameter = (context: M2BEffectContext, key: string): number | unde
   const value = context.parameters[key];
   return typeof value === 'number' && Number.isInteger(value) && Number.isFinite(value) ? value : undefined;
 };
+const stringArrayParameter = (context: M2BEffectContext, key: string): readonly string[] | undefined => {
+  const value = context.parameters[key];
+  return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : undefined;
+};
 const actor = (state: M2BState, context: M2BEffectContext) => state.participants[context.actorParticipantId];
 const audit = (state: M2BState, context: M2BEffectContext, type: string, payload: M2BAuditRecord['payload']): void => {
   state.audit.push({ type, actorParticipantId: context.actorParticipantId, payload });
@@ -39,6 +43,7 @@ const pay = (state: M2BState, context: M2BEffectContext, amount: number): M2BEff
   if (participant.resources < amount) return 'INSUFFICIENT_RESOURCES';
   participant.resources -= amount;
   audit(state, context, 'RESOURCE_SPENT', { amount, balanceAfter: participant.resources });
+  recordQualifyingResourceSpend(state, { id: `spend:${state.version}:${state.audit.length}`, participantId: participant.id, amount, reason: 'CARD_COST' });
   return undefined;
 };
 const transfer = (state: M2BState, context: M2BEffectContext, targetId: string, amount: number): M2BEffectError | undefined => {
@@ -86,6 +91,43 @@ export const applyDirectInfluence = (
   if (existing === undefined) state.influence.push({ pdId, type, attributionCountryId, count: resolution.placed });
   else existing.count += resolution.placed;
   return { placed: resolution.placed, removed: resolution.oppositeRemoved };
+};
+
+export const recordQualifyingResourceSpend = (
+  state: M2BState,
+  spend: NonNullable<M2BState['resourceSpends']>[number],
+): M2BEffectError | undefined => {
+  state.resourceSpends ??= [];
+  if (!Number.isInteger(spend.amount) || spend.amount <= 0 || state.participants[spend.participantId] === undefined ||
+      state.resourceSpends.some(({ id }) => id === spend.id)) return 'INVALID_EFFECT_INPUT';
+  state.resourceSpends.push(structuredClone(spend));
+  return undefined;
+};
+
+export const resolveFlumaRegimeSpends = (
+  state: M2BState,
+  actorParticipantId: string,
+  targetPdIds: readonly string[],
+): M2BEffectError | undefined => {
+  const participant = state.participants[actorParticipantId];
+  if (participant?.countryId !== 'FLUMA') return 'INVALID_EFFECT_INPUT';
+  state.flumaRegime ??= { active: false, processedSpendIds: [] };
+  const eligible = (state.resourceSpends ?? []).filter(({ participantId, id }) =>
+    participantId !== actorParticipantId && !state.flumaRegime!.processedSpendIds.includes(id));
+  const unitCount = eligible.reduce((total, { amount }) => total + amount, 0);
+  if (targetPdIds.length !== unitCount || targetPdIds.some((pdId) => !pdId.startsWith('ARDEN_PD_'))) return 'INVALID_EFFECT_INPUT';
+  let targetIndex = 0;
+  for (const spend of eligible) {
+    for (let unit = 0; unit < spend.amount; unit += 1) {
+      const pdId = targetPdIds[targetIndex++]!;
+      const result = applyDirectInfluence(state, pdId, 'MALIGN', 'FLUMA', 2);
+      state.audit.push({ type: 'FLUMA_SPEND_TRIGGER_RESOLVED', actorParticipantId,
+        payload: { spendId: spend.id, unit: unit + 1, pdId, generated: 2, placed: result.placed, removed: result.removed } });
+    }
+    state.flumaRegime.processedSpendIds.push(spend.id);
+  }
+  state.flumaRegime.active = true;
+  return undefined;
 };
 
 const handlers: Record<string, M2BEffectHandler> = {
@@ -212,10 +254,74 @@ const handlers: Record<string, M2BEffectHandler> = {
   },
   REGIME_DIE_REMOVE: (state, context) => {
     const participant = actor(state, context); const roll = integerParameter(context, 'roll'); const pdId = stringParameter(context, 'pdId');
-    if (participant === undefined || roll === undefined || pdId === undefined || roll < 1 || roll > 10) return 'INVALID_DIE_VALUE';
+    const attributionCountryId = stringParameter(context, 'attributionCountryId') as CountryId | undefined;
+    if (participant?.countryId !== 'ARDEN' || roll === undefined || roll < 1 || roll > 10) return 'INVALID_DIE_VALUE';
     if (participant.regimeAbilityUsed) return 'REGIME_ABILITY_ALREADY_USED'; participant.regimeAbilityUsed = true;
     audit(state, context, 'DIE_ROLLED', { rawValue: roll, manual: Boolean(context.parameters.manual) });
-    if (roll <= 4) { const stack = state.influence.find((candidate) => candidate.pdId === pdId && candidate.type === 'MALIGN' && candidate.count > 0); if (stack !== undefined) stack.count -= 1; }
+    if (roll <= 4) {
+      if (pdId === undefined || !pdId.startsWith('ARDEN_PD_') || attributionCountryId === undefined) return 'INVALID_EFFECT_INPUT';
+      const stack = state.influence.find((candidate) => candidate.pdId === pdId && candidate.type === 'MALIGN' &&
+        candidate.attributionCountryId === attributionCountryId && candidate.count > 0);
+      if (stack === undefined) return 'INVALID_EFFECT_INPUT';
+      stack.count -= 1; audit(state, context, 'REGIME_INFLUENCE_REMOVED', { pdId, attributionCountryId, amount: 1 });
+    }
+    return undefined;
+  },
+  REGIME_URSARIA: (state, context) => {
+    const participant = actor(state, context); const cardIds = stringArrayParameter(context, 'cardIds');
+    const pdId = stringParameter(context, 'pdId'); const attributions = stringArrayParameter(context, 'attributionCountryIds');
+    if (participant?.countryId !== 'URSARIA' || cardIds === undefined || cardIds.length !== 2 || new Set(cardIds).size !== 2 ||
+        pdId === undefined || !pdId.startsWith('URSARIA_PD_') || attributions === undefined || attributions.length > 3) return 'INVALID_EFFECT_INPUT';
+    if (participant.regimeAbilityUsed) return 'REGIME_ABILITY_ALREADY_USED'; participant.regimeAbilityUsed = true;
+    const cards = cardIds.map((id) => state.cards[id]);
+    if (cards.some((card) => card === undefined || card.controllerParticipantId !== participant.id || card.zone !== 'HAND' ||
+        (card.alignment !== 'MALIGN' && card.alignment !== 'DUAL'))) return undefined;
+    for (const attribution of attributions) {
+      const stack = state.influence.find((candidate) => candidate.pdId === pdId && candidate.type === 'MALIGN' &&
+        candidate.attributionCountryId === attribution && candidate.count > 0);
+      if (stack === undefined) return 'INVALID_EFFECT_INPUT';
+    }
+    for (const cardId of cardIds) discardWithLifecycle(state, cardId);
+    for (const attribution of attributions) state.influence.find((candidate) => candidate.pdId === pdId && candidate.type === 'MALIGN' &&
+      candidate.attributionCountryId === attribution)!.count -= 1;
+    audit(state, context, 'REGIME_CARDS_DISCARDED', { firstCardId: cardIds[0]!, secondCardId: cardIds[1]! });
+    audit(state, context, 'REGIME_INFLUENCE_REMOVED', { pdId, amount: attributions.length });
+    return undefined;
+  },
+  REGIME_FLUMA: (state, context) => {
+    const participant = actor(state, context); const targetPdIds = stringArrayParameter(context, 'targetPdIds');
+    if (participant?.countryId !== 'FLUMA' || targetPdIds === undefined) return 'INVALID_EFFECT_INPUT';
+    if (participant.regimeAbilityUsed && state.flumaRegime?.active !== true) return 'REGIME_ABILITY_ALREADY_USED';
+    const resolved = resolveFlumaRegimeSpends(state, participant.id, targetPdIds); if (resolved !== undefined) return resolved;
+    participant.regimeAbilityUsed = true;
+    audit(state, context, 'FLUMA_REGIME_ACTIVATED', { processedSpendCount: state.flumaRegime?.processedSpendIds.length ?? 0 });
+    return undefined;
+  },
+  REGIME_PRESQUE: (state, context) => {
+    const participant = actor(state, context); const roll = integerParameter(context, 'roll'); const pdId = stringParameter(context, 'pdId');
+    const removeOwnPdId = stringParameter(context, 'removeOwnPdId');
+    if (participant?.countryId !== 'PRESQUE' || roll === undefined || roll < 1 || roll > 10) return 'INVALID_DIE_VALUE';
+    if (participant.regimeAbilityUsed) return 'REGIME_ABILITY_ALREADY_USED'; participant.regimeAbilityUsed = true;
+    audit(state, context, 'DIE_ROLLED', { rawValue: roll, manual: Boolean(context.parameters.manual) });
+    if (roll > 4) return undefined;
+    if (pdId === undefined || state.legitimacyByPd[pdId] === undefined && !Object.hasOwn(state.legitimacyByPd, pdId)) return 'INVALID_EFFECT_INPUT';
+    const ownMarkers = Object.entries(state.legitimacyByPd).filter(([, owner]) => owner === participant.id).map(([id]) => id);
+    if (ownMarkers.length >= 3) {
+      if (removeOwnPdId === undefined || !ownMarkers.includes(removeOwnPdId) || removeOwnPdId === pdId) return 'INVALID_EFFECT_INPUT';
+      state.legitimacyByPd[removeOwnPdId] = null;
+    }
+    const previousParticipantId = state.legitimacyByPd[pdId] ?? '';
+    state.legitimacyByPd[pdId] = participant.id;
+    audit(state, context, 'REGIME_LEGITIMACY_REPLACED', { pdId, previousParticipantId });
+    return undefined;
+  },
+  REGIME_DINESIA: (state, context) => {
+    const participant = actor(state, context); const pdId = stringParameter(context, 'pdId');
+    if (participant?.countryId !== 'DINESIA' || pdId === undefined || !pdId.startsWith('DINESIA_PD_')) return 'INVALID_EFFECT_INPUT';
+    if (participant.regimeAbilityUsed) return 'REGIME_ABILITY_ALREADY_USED'; participant.regimeAbilityUsed = true;
+    const payment = pay(state, context, 2); if (payment !== undefined) return payment;
+    const result = applyDirectInfluence(state, pdId, 'RESILIENCY', 'DINESIA', 1);
+    audit(state, context, 'REGIME_DIRECT_INFLUENCE', { pdId, generated: 1, placed: result.placed, removed: result.removed });
     return undefined;
   },
 };
@@ -264,9 +370,19 @@ const definitions: readonly M2BEffectDefinition[] = [
   ...M2_TARGET_DT_EFFECT_IDS.map((effectId) => ({ effectId, version: '0.1' as const, enabledBlock: 'M2-4' as const, handler: handlers.TARGET_DT_SET! })),
   { effectId: 'CARD_EFFECT_BASE_2025_E051', version: '0.1', enabledBlock: 'M2-4', handler: handlers.CORRUPTION! },
   { effectId: 'REGIME_EFFECT_ARDEN', version: '0.1', enabledBlock: 'M2-4', handler: handlers.REGIME_DIE_REMOVE! },
+  { effectId: 'REGIME_EFFECT_FLUMA', version: '0.1', enabledBlock: 'M2-4', handler: handlers.REGIME_FLUMA! },
+  { effectId: 'REGIME_EFFECT_URSARIA', version: '0.1', enabledBlock: 'M2-4', handler: handlers.REGIME_URSARIA! },
+  { effectId: 'REGIME_EFFECT_PRESQUE', version: '0.1', enabledBlock: 'M2-4', handler: handlers.REGIME_PRESQUE! },
+  { effectId: 'REGIME_EFFECT_DINESIA', version: '0.1', enabledBlock: 'M2-4', handler: handlers.REGIME_DINESIA! },
 ] as const;
 
-export const M2_IMPLEMENTED_EFFECT_IDS: readonly string[] = definitions.map(({ effectId }) => effectId);
+export const M2_IMPLEMENTED_REGIME_EFFECT_IDS = [
+  'REGIME_EFFECT_ARDEN', 'REGIME_EFFECT_FLUMA', 'REGIME_EFFECT_URSARIA', 'REGIME_EFFECT_PRESQUE', 'REGIME_EFFECT_DINESIA',
+] as const;
+/** Historical card-effect inventory plus Arden retained for compatibility; regime coverage is exported separately. */
+export const M2_IMPLEMENTED_EFFECT_IDS: readonly string[] = definitions
+  .map(({ effectId }) => effectId)
+  .filter((effectId) => !M2_IMPLEMENTED_REGIME_EFFECT_IDS.slice(1).includes(effectId as typeof M2_IMPLEMENTED_REGIME_EFFECT_IDS[number]));
 
 export const M2_EVENT_DRIVEN_EFFECT_IDS = [
   'CARD_EFFECT_BASE_2025_E033',

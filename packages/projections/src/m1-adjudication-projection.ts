@@ -252,7 +252,8 @@ export const buildM1AdjudicationProjection = (state: SetupGameState, viewer: Act
       ? { pendingCoalitionRequest: { ...structuredClone(pending.request),
           mayRespond: participant.role === 'PLAYER' && pending.request.eligibleParticipantIds.includes(participantId) && pending.decisions[participantId] === undefined } }
       : {}),
-    ...(pending?.kind === 'MANUAL_DIE' && (participant.role === 'FACILITATOR' || pending.request.requestedForParticipantId === participantId)
+    ...((pending?.kind === 'MANUAL_DIE' || pending?.kind === 'REGIME_MANUAL_DIE') &&
+        (participant.role === 'FACILITATOR' || pending.request.requestedForParticipantId === participantId)
       ? { pendingManualDieRequest: { ...structuredClone(pending.request),
           maySubmit: participant.role === 'FACILITATOR' || pending.request.requestedForParticipantId === participantId } }
       : {}),

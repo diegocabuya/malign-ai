@@ -10,7 +10,7 @@ export interface M2BCard {
   readonly ownerParticipantId: string;
   controllerParticipantId: string;
   readonly cardClass: 'ACTION' | 'STARTER' | 'CAMPAIGN';
-  readonly alignment: InfluenceType | 'DUAL';
+  readonly alignment: InfluenceType | 'DUAL' | 'NONE';
   zone: M2BCardZone;
   returnToOwnerOnDiscard: boolean;
 }
@@ -61,6 +61,16 @@ export interface M2BState {
     status: 'READY' | 'SUSPENDED' | 'COMPLETE';
   };
   readonly audit: M2BAuditRecord[];
+  resourceSpends?: Array<{
+    readonly id: string;
+    readonly participantId: string;
+    readonly amount: number;
+    readonly reason: 'ACTION_COST' | 'CARD_COST' | 'CAMPAIGN_COST' | 'COALITION_CONTRIBUTION' | 'CORE_MODIFIER';
+  }>;
+  flumaRegime?: {
+    active: boolean;
+    readonly processedSpendIds: string[];
+  };
 }
 
 export interface M2BEffectContext {
@@ -97,7 +107,8 @@ export interface M2EffectGroupedChoiceContinuation {
   readonly schemaVersion: 1;
   readonly id: string;
   readonly gameVersion: number;
-  readonly effectId: 'CARD_EFFECT_BASE_2025_E006' | 'CARD_EFFECT_BASE_2025_E013' | 'CARD_EFFECT_BASE_2025_E035' | 'CARD_EFFECT_BASE_2025_E045' | 'CARD_EFFECT_BASE_2025_E053';
+  readonly effectId: 'CARD_EFFECT_BASE_2025_E006' | 'CARD_EFFECT_BASE_2025_E013' | 'CARD_EFFECT_BASE_2025_E035' | 'CARD_EFFECT_BASE_2025_E045' | 'CARD_EFFECT_BASE_2025_E053' |
+    'REGIME_EFFECT_ARDEN' | 'REGIME_EFFECT_FLUMA' | 'REGIME_EFFECT_URSARIA' | 'REGIME_EFFECT_PRESQUE' | 'REGIME_EFFECT_DINESIA';
   readonly actorParticipantId: string;
   readonly chooserParticipantId: string;
   readonly targetParticipantId: string;
@@ -105,6 +116,8 @@ export interface M2EffectGroupedChoiceContinuation {
   readonly groups: readonly M2EffectChoiceGroup[];
   readonly resourceCost: number;
   readonly sourceLifecycleCommitted?: boolean;
+  readonly regimeRoll?: number;
+  readonly regimeSequenceIndex?: number;
   readonly status: 'OPEN';
 }
 

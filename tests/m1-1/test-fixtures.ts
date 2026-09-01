@@ -175,9 +175,7 @@ export const seedInvalidFourSlotDraft = (
   planning.draftSlots = [1, 2, 3, 4].map((sequenceIndex): M1ActionPlanSlot => ({
     sequenceIndex,
     actionType: base.actionType,
-    actionPayload: structuredClone(
-      base.actionPayload,
-    ) as M1ActionPlanSlot["actionPayload"],
+    actionPayload: structuredClone(base.actionPayload),
     apCost: 1,
     revealed: false,
   }));

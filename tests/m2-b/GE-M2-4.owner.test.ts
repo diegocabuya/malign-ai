@@ -4,8 +4,9 @@ import {
   applyDirectInfluence,
   discardCampaign,
   discardWithLifecycle,
-  establishLegitimacy,
   stealBlindCard,
+  recordQualifyingResourceSpend,
+  resolveFlumaRegimeSpends,
 } from '../../packages/game-engine/src/index.js';
 import { m2bState } from './test-fixtures.js';
 
@@ -74,26 +75,51 @@ describe('M2-4 owner gate — Action/Starter Cards and Regime Abilities', () => 
     const state = m2bState(); const number = Number(id.slice(-3));
     if (number <= 3) {
       if (number === 3) state.participants.P1!.regimeAbilityUsed = true;
-      const result = new M2BEffectDispatcher('M2-4').dispatch(state, { actorParticipantId: 'P1', effectId: 'REGIME_EFFECT_ARDEN', effectVersion: '0.1', parameters: { roll: number === 2 ? 5 : 4, pdId: 'ARDEN_PD_1', manual: false } });
+      const result = new M2BEffectDispatcher('M2-4').dispatch(state, { actorParticipantId: 'P1', effectId: 'REGIME_EFFECT_ARDEN', effectVersion: '0.1', parameters: { roll: number === 2 ? 5 : 4, pdId: 'ARDEN_PD_1', attributionCountryId: 'P2', manual: false } });
       expect(result.ok).toBe(number !== 3);
+      if (result.ok) expect(result.state.influence.find(({ pdId }) => pdId === 'ARDEN_PD_1')!.count).toBe(number === 1 ? 0 : 1);
     } else if (number <= 7) {
       const qualifyingSpend = number === 6 ? 0 : number === 4 ? 3 : number === 5 ? 2 : 3;
-      const beforeVp = state.participants.P2!.victoryPoints;
-      for (let unit = 0; unit < qualifyingSpend; unit += 1) applyDirectInfluence(state, 'ARDEN_PD_1', 'MALIGN', 'FLUMA', 2);
-      expect(state.participants.P2!.victoryPoints).toBe(beforeVp);
+      if (qualifyingSpend > 0) expect(recordQualifyingResourceSpend(state, { id: `qualifying-${number}`, participantId: 'P1',
+        amount: qualifyingSpend, reason: number === 7 ? 'COALITION_CONTRIBUTION' : 'CAMPAIGN_COST' })).toBeUndefined();
+      const result = new M2BEffectDispatcher('M2-4').dispatch(state, { actorParticipantId: 'P2', effectId: 'REGIME_EFFECT_FLUMA',
+        effectVersion: '0.1', parameters: { targetPdIds: Array.from({ length: qualifyingSpend }, () => 'ARDEN_PD_1') } });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.state.flumaRegime?.processedSpendIds).toHaveLength(qualifyingSpend === 0 ? 0 : 1);
+        expect(result.state.influence.find(({ pdId, attributionCountryId }) => pdId === 'ARDEN_PD_1' && attributionCountryId === 'FLUMA')?.count ?? 0)
+          .toBe(qualifyingSpend * 2);
+        expect(resolveFlumaRegimeSpends(result.state, 'P2', [])).toBeUndefined();
+      }
     } else if (number <= 10) {
-      const qualifyingCards = number === 9 ? 1 : 2; const removable = number === 10 ? 1 : 3;
-      const stack = state.influence.find(({ pdId, type }) => pdId === 'ARDEN_PD_1' && type === 'MALIGN')!; stack.count = removable;
-      if (qualifyingCards === 2) stack.count = Math.max(0, stack.count - 3);
-      expect(stack.count).toBe(number === 9 ? removable : 0);
+      state.influence.push({ pdId: 'URSARIA_PD_1', type: 'MALIGN', attributionCountryId: 'ARDEN', count: number === 10 ? 1 : 3 });
+      if (number === 9) Object.assign(state.cards.P3B!, { alignment: 'RESILIENCY' });
+      const result = new M2BEffectDispatcher('M2-4').dispatch(state, { actorParticipantId: 'P3', effectId: 'REGIME_EFFECT_URSARIA',
+        effectVersion: '0.1', parameters: { cardIds: ['P3A', 'P3B'], pdId: 'URSARIA_PD_1',
+          attributionCountryIds: Array.from({ length: number === 10 ? 1 : 3 }, () => 'ARDEN') } });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.state.cards.P3A!.zone).toBe(number === 9 ? 'HAND' : 'DISCARD');
+        expect(result.state.influence.find(({ pdId }) => pdId === 'URSARIA_PD_1')!.count).toBe(number === 9 ? 3 : 0);
+      }
     } else if (number <= 13) {
       if (number === 13) { state.legitimacyByPd.PRESQUE_PD_2 = 'P4'; state.legitimacyByPd.PRESQUE_PD_3 = 'P4'; state.legitimacyByPd.DINESIA_PD_1 = 'P4'; }
-      const changed = establishLegitimacy(state, 'P4', 'PRESQUE_PD_1', number === 13 ? 'PRESQUE_PD_2' : undefined);
-      expect(changed).toBe(true); expect(state.legitimacyByPd.PRESQUE_PD_1).toBe('P4'); expect(state.participants.P4!.victoryPoints).toBe(1);
+      const beforeVp = state.participants.P4!.victoryPoints;
+      const result = new M2BEffectDispatcher('M2-4').dispatch(state, { actorParticipantId: 'P4', effectId: 'REGIME_EFFECT_PRESQUE',
+        effectVersion: '0.1', parameters: { roll: 4, pdId: 'PRESQUE_PD_1', ...(number === 13 ? { removeOwnPdId: 'PRESQUE_PD_2' } : {}) } });
+      expect(result.ok).toBe(true); if (result.ok) {
+        expect(result.state.legitimacyByPd.PRESQUE_PD_1).toBe('P4'); expect(result.state.participants.P4!.victoryPoints).toBe(beforeVp);
+        if (number === 13) expect(result.state.legitimacyByPd.PRESQUE_PD_2).toBeNull();
+      }
     } else {
       const beforeVp = state.participants.P5!.victoryPoints; const beforeResources = state.participants.P5!.resources;
-      state.participants.P5!.resources -= 2; const result = applyDirectInfluence(state, 'ARDEN_PD_1', 'RESILIENCY', 'DINESIA', 1);
-      expect(state.participants.P5!.resources).toBe(beforeResources - 2); expect(state.participants.P5!.victoryPoints).toBe(beforeVp); expect(result.removed).toBe(0);
+      if (number === 15) state.influence.push({ pdId: 'DINESIA_PD_1', type: 'MALIGN', attributionCountryId: 'ARDEN', count: 1 });
+      const result = new M2BEffectDispatcher('M2-4').dispatch(state, { actorParticipantId: 'P5', effectId: 'REGIME_EFFECT_DINESIA',
+        effectVersion: '0.1', parameters: { pdId: 'DINESIA_PD_1' } });
+      expect(result.ok).toBe(true); if (result.ok) {
+        expect(result.state.participants.P5!.resources).toBe(beforeResources - 2); expect(result.state.participants.P5!.victoryPoints).toBe(beforeVp);
+        expect(result.state.influence.find(({ pdId, type }) => pdId === 'DINESIA_PD_1' && type === 'RESILIENCY')?.count).toBe(1);
+      }
     }
   });
 });

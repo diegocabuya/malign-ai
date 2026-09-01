@@ -20,7 +20,7 @@ import {
   type SetupGameEventType,
   type SetupGameState,
 } from '@malign-ai/domain';
-import { sha256CanonicalJson } from '@malign-ai/shared';
+import { canonicalizeJson, sha256CanonicalJson } from '@malign-ai/shared';
 import { dispatchAtomicCommand, InMemoryAtomicStateStore } from './atomic-dispatch.js';
 import { applyM2StateToCanonical, buildM2StateFromCanonical } from './m2-integrated-state.js';
 import { cleanupCampaignAging, resetTurnFlags } from './m2b-lifecycle.js';
@@ -256,6 +256,7 @@ const isActionPlanSlotPayload = (value: unknown): value is Record<string, unknow
   if (value.actionType === 'CONSTRUCT_CAMPAIGN') return isConstructPlanPayload(value.actionPayload);
   if (value.actionType === 'ACTIVATE_CAMPAIGN') return isActivatePlanPayload(value.actionPayload);
   if (value.actionType === 'PLAY_BOOST') return isPlayBoostPlanPayload(value.actionPayload);
+  if (value.actionType === 'USE_REGIME_ABILITY') return hasExactKeys(value.actionPayload, []);
   return false;
 };
 
@@ -619,6 +620,31 @@ export class SetupCommandDispatcher {
     readonly parameters: Readonly<Record<string, unknown>>;
     readonly correlationId?: string;
   }): EngineCommandResult {
+    if (this.randomTransactionOwner === 'APPLICATION') return this.executeM2EffectAtomic(options);
+    const checkpoint = this.random.checkpoint();
+    try {
+      const result = this.executeM2EffectAtomic(options);
+      if (result.status === 'RESOLVED' || result.status === 'REQUIRES_CHOICE') this.random.commit(checkpoint);
+      else this.random.restore(checkpoint);
+      return result;
+    } catch (error) {
+      this.random.restore(checkpoint);
+      throw error;
+    }
+  }
+
+  private executeM2EffectAtomic(options: {
+    readonly gameId: string;
+    readonly expectedGameVersion: number;
+    readonly commandId: string;
+    readonly idempotencyKey: string;
+    readonly actorParticipantId: string;
+    readonly sourceCardInstanceId: string;
+    readonly effectId: string;
+    readonly effectVersion: string;
+    readonly parameters: Readonly<Record<string, unknown>>;
+    readonly correlationId?: string;
+  }): EngineCommandResult {
     const envelope: CommandEnvelope<'INTERNAL_EXECUTE_M2_EFFECT', Record<string, unknown>> = {
       engineContractVersion: M1_0_BASELINE_VERSIONS.engineContractVersion,
       commandId: options.commandId, idempotencyKey: options.idempotencyKey, gameId: options.gameId,
@@ -637,6 +663,25 @@ export class SetupCommandDispatcher {
         const actionStageEffect = options.effectId === 'CARD_EFFECT_BASE_2025_E031' || options.effectId === 'CARD_EFFECT_BASE_2025_E053';
         if (before.phase !== (actionStageEffect ? 'ACTION_STAGE_PLAN' : 'RESOLUTION_STAGE')) return { error: 'WRONG_PHASE' as const, version: before.version };
         if (before.participants[options.actorParticipantId]?.role !== 'PLAYER') return { error: 'PARTICIPANT_NOT_FOUND' as const, version: before.version };
+        const regimeCountryByEffect = {
+          REGIME_EFFECT_ARDEN: 'ARDEN', REGIME_EFFECT_FLUMA: 'FLUMA', REGIME_EFFECT_URSARIA: 'URSARIA',
+          REGIME_EFFECT_PRESQUE: 'PRESQUE', REGIME_EFFECT_DINESIA: 'DINESIA',
+        } as const;
+        const regimeCountry = regimeCountryByEffect[options.effectId as keyof typeof regimeCountryByEffect];
+        if (regimeCountry !== undefined && before.seats[options.actorParticipantId]?.countryId !== regimeCountry) {
+          return { error: 'NOT_AUTHORIZED' as const, version: before.version };
+        }
+        const continuingFluma = options.effectId === 'REGIME_EFFECT_FLUMA' &&
+          before.flumaRegimeByParticipant?.[options.actorParticipantId]?.active === true;
+        if (regimeCountry !== undefined && !continuingFluma)
+          return { error: 'NOT_AUTHORIZED' as const, version: before.version };
+        const regimeSlot = before.actionPlanning[options.actorParticipantId]?.lockedSlots.find(({ sequenceIndex, actionType, terminalOutcome }) =>
+          sequenceIndex === before.currentRevealedAction?.sequenceIndex && actionType === 'USE_REGIME_ABILITY' && terminalOutcome === undefined);
+        if (regimeCountry !== undefined && !continuingFluma && (before.currentRevealedAction?.participantId !== options.actorParticipantId ||
+            before.currentRevealedAction.actionType !== 'USE_REGIME_ABILITY' || regimeSlot === undefined ||
+            before.adjudication.scheduler.status !== 'SUSPENDED')) {
+          return { error: 'NOT_AUTHORIZED' as const, version: before.version };
+        }
         const source = before.cards[options.sourceCardInstanceId];
         const registryDefinitionId = m2EffectSourceDefinition(options.effectId);
         const serial = registryDefinitionId?.match(/D(\d{3})$/u)?.[1];
@@ -644,7 +689,7 @@ export class SetupCommandDispatcher {
         const pairBonusEffect = (M2_PAIR_BONUS_EFFECT_IDS as readonly string[]).includes(options.effectId);
         const targetDtEffect = (M2_TARGET_DT_EFFECT_IDS as readonly string[]).includes(options.effectId);
         const expectedZone = pairBonusEffect || targetDtEffect ? 'CAMPAIGN' : 'HAND';
-        if (source === undefined || source.controllerParticipantId !== options.actorParticipantId || source.definitionId !== expectedDefinitionId || source.zone !== expectedZone) {
+        if (regimeCountry === undefined && (source === undefined || source.controllerParticipantId !== options.actorParticipantId || source.definitionId !== expectedDefinitionId || source.zone !== expectedZone)) {
           return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
         }
         const working = structuredClone(before);
@@ -795,6 +840,9 @@ export class SetupCommandDispatcher {
           if (!validTarget) return { error: 'INVALID_DT' as const, version: before.version };
         }
         let authoritativeParameters: Readonly<Record<string, unknown>> = options.parameters;
+        if (options.effectId === 'REGIME_EFFECT_ARDEN' || options.effectId === 'REGIME_EFFECT_PRESQUE') {
+          authoritativeParameters = { ...options.parameters, roll: this.random.integer(1, 10), manual: false };
+        }
         if (options.effectId === 'CARD_EFFECT_BASE_2025_E046') {
           authoritativeParameters = { ...options.parameters, rollsByParticipant: Object.fromEntries(Object.keys(m2.participants)
             .filter((participantId) => participantId !== options.actorParticipantId).sort()
@@ -814,16 +862,45 @@ export class SetupCommandDispatcher {
           parameters: { ...authoritativeParameters, sourceCardInstanceId: options.sourceCardInstanceId },
         });
         if (!result.ok) return { error: result.error, version: before.version };
+        const resourceChanges = Object.values(result.state.participants).flatMap((participant) => {
+          const balanceBefore = working.countries[participant.countryId].resources;
+          const delta = participant.resources - balanceBefore;
+          return delta === 0 ? [] : [{ participantId: participant.id, countryId: participant.countryId, delta,
+            balanceAfter: participant.resources }];
+        });
         if (options.effectId === 'CARD_EFFECT_BASE_2025_E042' || options.effectId === 'CARD_EFFECT_BASE_2025_E034') result.state.cards[options.sourceCardInstanceId]!.zone = 'REMOVED_FROM_GAME';
-        else if (!pairBonusEffect && !targetDtEffect) discardWithLifecycle(result.state, options.sourceCardInstanceId);
+        else if (regimeCountry === undefined && !pairBonusEffect && !targetDtEffect) discardWithLifecycle(result.state, options.sourceCardInstanceId);
         applyM2StateToCanonical(working, result.state);
+        if (regimeCountry !== undefined && !continuingFluma) {
+          const resolvedSlot = working.actionPlanning[options.actorParticipantId]?.lockedSlots.find(({ sequenceIndex }) =>
+            sequenceIndex === working.currentRevealedAction?.sequenceIndex);
+          if (resolvedSlot === undefined || resolvedSlot.actionType !== 'USE_REGIME_ABILITY') return { error: 'STALE_CONTINUATION' as const, version: before.version };
+          resolvedSlot.terminalOutcome = 'RESOLVED';
+          working.adjudication.scheduler.status = 'READY';
+          const cursor = working.adjudication.scheduler;
+          cursor.slotIndex += 1;
+          const slots = working.actionPlanning[options.actorParticipantId]?.lockedSlots ?? [];
+          if (cursor.slotIndex >= slots.length) { cursor.participantIndex += 1; cursor.slotIndex = 0; }
+          delete working.currentRevealedAction;
+        }
+        for (const change of resourceChanges) working.resourceLedger.push({
+          id: `${working.id}:resource-ledger:${working.resourceLedger.length + 1}`,
+          participantId: change.participantId, countryId: change.countryId,
+          reason: regimeCountry === undefined ? (change.delta < 0 ? 'CARD_COST' : 'CARD_EFFECT') : 'REGIME_ABILITY_COST',
+          delta: change.delta, balanceAfter: change.balanceAfter, gameVersion: working.version + 1,
+        });
         const event = this.appendEvent(working, candidate, 'M2_EFFECT_EXECUTED', {
           effectId: options.effectId, actorParticipantId: options.actorParticipantId,
           sourceCardInstanceId: options.sourceCardInstanceId, auditCount: result.emitted.length,
         });
+        const regimeResolvedEvent = regimeCountry !== undefined && !continuingFluma
+          ? this.appendEvent(working, candidate, 'ACTION_RESOLVED', { participantId: options.actorParticipantId,
+              sequenceIndex: regimeSlot!.sequenceIndex, outcome: 'RESOLVED' }, 'PUBLIC')
+          : undefined;
         return {
           nextState: working, resultCode: 'M2_EFFECT_EXECUTED',
-          resultPayload: { effectId: options.effectId, audit: result.emitted }, emittedEventRefs: [event.id],
+          resultPayload: { effectId: options.effectId, audit: result.emitted },
+          emittedEventRefs: [event.id, ...(regimeResolvedEvent === undefined ? [] : [regimeResolvedEvent.id])],
         };
       },
     });
@@ -1400,6 +1477,68 @@ export class SetupCommandDispatcher {
     if (participantId === undefined) return { error: 'INVALID_ACTOR_CONTEXT' as const };
     if (continuation === undefined || continuation.id !== payload.continuationId) return { error: 'STALE_CONTINUATION' as const };
     if (continuation.chooserParticipantId !== participantId) return { error: 'NOT_AUTHORIZED' as const };
+    if (continuation.kind === 'M2_EFFECT_GROUPED_CHOICE' && continuation.effectId.startsWith('REGIME_EFFECT_')) {
+      if (!('selections' in payload)) return { error: 'INVALID_EFFECT_INPUT' as const };
+      const expectedGroupIds = continuation.groups.map(({ groupId }) => groupId).sort();
+      if (Object.keys(payload.selections).sort().join('|') !== expectedGroupIds.join('|')) return { error: 'INVALID_EFFECT_INPUT' as const };
+      for (const group of continuation.groups) {
+        const selected = payload.selections[group.groupId] ?? [];
+        if (selected.length < group.minSelections || selected.length > group.maxSelections || new Set(selected).size !== selected.length ||
+            selected.some((option) => !group.eligibleCardIds.includes(option))) return { error: 'INVALID_EFFECT_INPUT' as const };
+      }
+      const selected = (groupId: string) => payload.selections[groupId] ?? [];
+      let parameters: Readonly<Record<string, unknown>>;
+      if (continuation.effectId === 'REGIME_EFFECT_ARDEN') {
+        const [pdId, attributionCountryId] = selected('REMOVE_MALIGN')[0]?.split('|') ?? [];
+        parameters = { pdId, attributionCountryId, roll: continuation.regimeRoll, manual: false };
+      } else if (continuation.effectId === 'REGIME_EFFECT_PRESQUE') {
+        parameters = { pdId: selected('TARGET_PD')[0], ...(selected('REMOVE_OWN_MARKER')[0] === undefined ? {} : { removeOwnPdId: selected('REMOVE_OWN_MARKER')[0] }),
+          roll: continuation.regimeRoll, manual: false };
+      } else if (continuation.effectId === 'REGIME_EFFECT_DINESIA') {
+        parameters = { pdId: selected('TARGET_PD')[0] };
+      } else if (continuation.effectId === 'REGIME_EFFECT_URSARIA') {
+        const pdId = selected('TARGET_PD')[0]; const cubeTokens = selected('REMOVE_MALIGN');
+        if (cubeTokens.some((token) => token.split('|')[0] !== pdId)) return { error: 'INVALID_EFFECT_INPUT' as const };
+        parameters = { cardIds: selected('DISCARD_MALIGN_CARDS'), pdId,
+          attributionCountryIds: cubeTokens.map((token) => token.split('|')[1]) };
+      } else {
+        parameters = { targetPdIds: continuation.groups.map(({ groupId }) => selected(groupId)[0]) };
+      }
+      const m2 = buildM2StateFromCanonical(state);
+      const resourcesBefore = Object.fromEntries(Object.values(m2.participants).map(({ id, resources }) => [id, resources]));
+      const result = new M2BEffectDispatcher('M2-4').dispatch(m2, { actorParticipantId: participantId,
+        effectId: continuation.effectId, effectVersion: '0.1', parameters });
+      if (!result.ok) return { error: result.error };
+      applyM2StateToCanonical(state, result.state);
+      for (const changed of Object.values(result.state.participants)) {
+        const delta = changed.resources - (resourcesBefore[changed.id] ?? changed.resources);
+        if (delta !== 0) state.resourceLedger.push({ id: `${state.id}:resource-ledger:${state.resourceLedger.length + 1}`,
+          participantId: changed.id, countryId: changed.countryId, reason: 'REGIME_ABILITY_COST', delta,
+          balanceAfter: changed.resources, gameVersion: state.version + 1 });
+      }
+      const sequenceIndex = continuation.regimeSequenceIndex;
+      const slot = state.actionPlanning[participantId]?.lockedSlots.find((candidate) => candidate.sequenceIndex === sequenceIndex);
+      if (sequenceIndex === undefined || slot?.actionType !== 'USE_REGIME_ABILITY' || slot.terminalOutcome !== undefined)
+        return { error: 'STALE_CONTINUATION' as const };
+      slot.terminalOutcome = 'RESOLVED'; delete state.m2EffectChoice; delete state.currentRevealedAction;
+      state.adjudication.scheduler.status = 'READY'; state.adjudication.scheduler.slotIndex += 1;
+      const slots = state.actionPlanning[participantId]?.lockedSlots ?? [];
+      if (state.adjudication.scheduler.slotIndex >= slots.length) { state.adjudication.scheduler.participantIndex += 1; state.adjudication.scheduler.slotIndex = 0; }
+      if (state.adjudication.scheduler.participantIndex >= state.initiative.orderParticipantIds.length) {
+        state.adjudication.scheduler.status = 'COMPLETE';
+      }
+      const events = [
+        this.appendEvent(state, envelope, 'CHOICE_RESOLVED', { continuationId: continuation.id, effectId: continuation.effectId }, 'OWNER_AND_FACILITATOR'),
+        this.appendEvent(state, envelope, 'M2_EFFECT_EXECUTED', { effectId: continuation.effectId, actorParticipantId: participantId,
+          sourceCardInstanceId: '', auditCount: result.emitted.length,
+          m2CanonicalAfterImageJson: canonicalizeJson({ m2State: buildM2StateFromCanonical(state),
+            resourceLedger: state.resourceLedger, m2Audit: state.m2Audit ?? [] }),
+          m2CanonicalAfterImageDigest: sha256CanonicalJson({ m2State: buildM2StateFromCanonical(state),
+            resourceLedger: state.resourceLedger, m2Audit: state.m2Audit ?? [] }) }),
+        this.appendEvent(state, envelope, 'ACTION_RESOLVED', { participantId, sequenceIndex, outcome: 'RESOLVED' }),
+      ];
+      return { resultCode: 'M2_EFFECT_CHOICE_RESOLVED', resultPayload: { effectId: continuation.effectId }, events };
+    }
     if (continuation.kind === 'M2_EFFECT_GROUPED_CHOICE' && continuation.effectId === 'CARD_EFFECT_BASE_2025_E053' &&
         continuation.groups.some(({ groupId }) => groupId === 'SELECT_FROM_DECK')) {
       if (!('selections' in payload) || Object.keys(payload.selections).join('|') !== 'SELECT_FROM_DECK') return { error: 'INVALID_EFFECT_INPUT' as const };
@@ -2058,9 +2197,7 @@ export class SetupCommandDispatcher {
     planning.draftSlots = rawSlots.map((slot): M1ActionPlanSlot => ({
       sequenceIndex: slot.sequenceIndex,
       actionType: slot.actionType,
-      actionPayload: structuredClone(
-        slot.actionPayload,
-      ) as unknown as M1ActionPlanSlot["actionPayload"],
+      actionPayload: structuredClone(slot.actionPayload),
       apCost: 1,
       revealed: false,
     }));
@@ -2118,6 +2255,7 @@ export class SetupCommandDispatcher {
         (id) => state.actionPlanning[id]?.locked === true,
       )
     ) {
+      state.m2TurnResourceLedgerStartIndex = state.resourceLedger.length;
       state.phase = "ACTION_STAGE_LOCKED";
       events.push(
         this.appendEvent(state, envelope, "PHASE_CHANGED", {
@@ -2140,6 +2278,7 @@ export class SetupCommandDispatcher {
     slots: readonly SetActionPlanSlotPayload[],
   ): AnyEngineErrorCode | undefined {
     const allCommittedCardIds: string[] = [];
+    if (slots.filter(({ actionType }) => actionType === 'USE_REGIME_ABILITY').length > 1) return 'INVALID_ACTION_PLAN';
     for (const slot of slots) {
       if (slot.actionType === "CONSTRUCT_CAMPAIGN") {
         const payload = slot.actionPayload as unknown as {
@@ -2187,7 +2326,7 @@ export class SetupCommandDispatcher {
         ) {
           return "INVALID_TARGET_PD";
         }
-      } else {
+      } else if (slot.actionType === 'PLAY_BOOST') {
         const payload = slot.actionPayload as unknown as { readonly cardInstanceId: string; readonly campaignId: string; readonly activationSequenceIndex: number };
         const card = state.cards[payload.cardInstanceId];
         if (card === undefined || card.controllerParticipantId !== participantId) return 'CARD_NOT_CONTROLLED';

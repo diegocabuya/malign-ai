@@ -319,15 +319,19 @@ const synchronizeM1AdjudicationArtifacts = async (
   now:Date,
 ):Promise<string|null>=>{
   const pending=transition.afterState.adjudication.pendingResolution;
+  // Regime manual-die requests are adjudication artifacts, but they are not
+  // campaign activations and therefore must never be interpreted through the
+  // campaign continuation shape below.
+  const campaignPending=pending?.kind==='REGIME_MANUAL_DIE'?undefined:pending;
   const engineTrace=transition.traces.at(-1);
-  const participantLogical=engineTrace?.participantId??pending?.participantId;
-  const sequenceIndex=engineTrace?.sequenceIndex??pending?.sequenceIndex;
-  const campaignLogical=engineTrace?.campaignId??pending?.campaignId;
+  const participantLogical=engineTrace?.participantId??campaignPending?.participantId;
+  const sequenceIndex=engineTrace?.sequenceIndex??campaignPending?.sequenceIndex;
+  const campaignLogical=engineTrace?.campaignId??campaignPending?.campaignId;
   if(participantLogical===undefined||sequenceIndex===undefined||campaignLogical===undefined||context.turnId===null)return null;
   const participantId=context.participantIds.get(participantLogical);
   const campaignId=context.campaignIds.get(campaignLogical);
   const sourceResolutionId=actionResolutions.get(`${participantLogical}:${sequenceIndex}`);
-  const targetPdLogical=engineTrace?.targetPdId??pending?.continuation.targetPdId;
+  const targetPdLogical=engineTrace?.targetPdId??campaignPending?.continuation.targetPdId;
   const targetPdStateId=targetPdLogical===undefined?undefined:context.pdStateIds.get(targetPdLogical);
   const campaign=transition.afterState.adjudication.campaigns[campaignLogical];
   const targetDtLogical=engineTrace?.targetDtId??campaign?.targetDtId;
@@ -340,7 +344,7 @@ const synchronizeM1AdjudicationArtifacts = async (
       AND ruleset_version_id=(SELECT ruleset_version_id FROM malign.games WHERE id=$2)`,
     [targetDtLogical,transition.gameId])).rows[0]?.id;
   if(targetDtId===undefined)throw new PersistenceError('CROSS_GAME_REFERENCE','Activation target DT is not pinned');
-  const continuation=pending?.continuation;
+  const continuation=campaignPending?.continuation;
   const baseCv=engineTrace?.baseCv??continuation?.baseCv;
   const effectiveCv=engineTrace?.effectiveCv??continuation?.effectiveCv;
   const baseTier=engineTrace?.baseTier??continuation?.baseTier;
@@ -353,7 +357,7 @@ const synchronizeM1AdjudicationArtifacts = async (
     `SELECT id FROM malign.campaign_activations WHERE campaign_id=$1 AND turn_id=$2
       ORDER BY activation_ordinal DESC LIMIT 1`,[campaignId,context.turnId]);
   const activationIdentity=engineTrace?.activationId??
-    (pending?.kind==='CHOICE'?pending.continuation.activationId:pending?.resolutionId);
+    (campaignPending?.kind==='CHOICE'?campaignPending.continuation.activationId:campaignPending?.resolutionId);
   const dieEvent=activationIdentity===undefined?undefined:transition.afterState.events.find((event)=>
     event.eventType==='DIE_ROLLED'&&event.payload['activationId']===activationIdentity);
   const logicalDieRollId=typeof dieEvent?.payload['dieRollId']==='string'?dieEvent.payload['dieRollId']:undefined;
@@ -394,6 +398,54 @@ const synchronizeM1AdjudicationArtifacts = async (
       [transition.gameId,activationId,participantId,pending.narrativeRequest.visibilityScope,now]);
   }
   return activationId;
+};
+
+const synchronizeRegimeAbilityActivation = async (
+  client:PoolClient,
+  transition:AcceptedEngineTransition,
+  context:Awaited<ReturnType<typeof synchronizeNormalizedAfterImage>>,
+  dieRollIds:ReadonlyMap<string,string>,
+  traceId:string,
+):Promise<void>=>{
+  if(context.turnId===null)return;
+  const activated=Object.values(transition.afterState.participants).find(({id,role})=>role==='PLAYER'&&
+    transition.afterState.regimeAbilityUsedByParticipant?.[id]===true&&
+    transition.beforeState?.regimeAbilityUsedByParticipant?.[id]!==true);
+  if(activated===undefined)return;
+  const participantId=context.participantIds.get(activated.id);
+  const countryId=transition.afterState.seats[activated.id]?.countryId;
+  if(participantId===undefined||countryId===undefined)
+    throw new PersistenceError('CROSS_GAME_REFERENCE','Regime activation participant scope is invalid');
+  const resolvedEvent=transition.events.find(({eventType,payload})=>eventType==='ACTION_RESOLVED'&&
+    payload['participantId']===activated.id);
+  const sequenceIndex=resolvedEvent?.payload['sequenceIndex'];
+  if(typeof sequenceIndex!=='number'||!Number.isInteger(sequenceIndex))
+    throw new PersistenceError('ENGINE_TRANSITION_INCOMPLETE','Regime activation has no resolved planned action');
+  const plannedActionId=(await client.query<{id:string}>(
+    `SELECT id FROM malign.planned_actions WHERE game_id=$1 AND turn_id=$2 AND participant_id=$3
+       AND sequence_within_player=$4 AND action_type='USE_REGIME_ABILITY'`,
+    [transition.gameId,context.turnId,participantId,sequenceIndex])).rows[0]?.id;
+  const abilityDefinitionId=(await client.query<{id:string}>(
+    `SELECT r.id FROM malign.regime_ability_definitions r JOIN malign.games g ON g.ruleset_version_id=r.ruleset_version_id
+       WHERE g.id=$1 AND r.logical_id=$2 AND r.status='ACTIVE'`,
+    [transition.gameId,`REGIME_EFFECT_${countryId}`])).rows[0]?.id;
+  if(plannedActionId===undefined||abilityDefinitionId===undefined)
+    throw new PersistenceError('ENGINE_TRANSITION_INCOMPLETE','Regime activation definition or planned action is missing');
+  const transitionDie=[...dieRollIds.values()].at(-1);
+  const dieRollId=transitionDie??(await client.query<{id:string}>(
+    `SELECT id FROM malign.die_rolls WHERE game_id=$1 AND turn_id=$2 AND participant_id=$3
+       AND source_type='REGIME_ABILITY' ORDER BY created_at DESC,id DESC LIMIT 1`,
+    [transition.gameId,context.turnId,participantId])).rows[0]?.id??null;
+  const influenceTarget=transition.ledgers.influence.at(-1)?.pdId;
+  const legitimacyTarget=transition.ledgers.legitimacy.at(-1)?.pdId;
+  const targetLogical=influenceTarget??legitimacyTarget;
+  const targetPdStateId=targetLogical===undefined?null:context.pdStateIds.get(targetLogical)??null;
+  await client.query(
+    `INSERT INTO malign.regime_ability_activations(game_id,turn_id,participant_id,ability_definition_id,
+       planned_action_id,die_roll_id,target_pd_state_id,adjudication_trace_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+     ON CONFLICT (turn_id,participant_id,ability_definition_id) DO NOTHING`,
+    [transition.gameId,context.turnId,participantId,abilityDefinitionId,plannedActionId,dieRollId,targetPdStateId,traceId]);
 };
 
 export class PostgresDurableUnitOfWork {
@@ -880,6 +932,7 @@ export class PostgresDurableUnitOfWork {
       const campaignActivationId=await synchronizeM1AdjudicationArtifacts(
         client,transition,normalized,actionResolutions,dieRollIds,traceId,now,
       );
+      await synchronizeRegimeAbilityActivation(client,transition,normalized,dieRollIds,traceId);
       if(transition.continuation.operation==='CLOSE') {
         const resolvedChoiceEvent=transition.events.find(({eventType})=>eventType==='CHOICE_RESOLVED');
         const selectedOptionIdsJson=resolvedChoiceEvent?.payload['selectedOptionIdsJson'];

@@ -182,11 +182,19 @@ export interface ManualDiePendingResolution extends PendingResolutionBase {
   readonly eventRefs: readonly string[];
 }
 
-export type PendingResolution = ChoicePendingResolution | NarrativePendingResolution | CoalitionPendingResolution | ManualDiePendingResolution;
+export interface RegimeManualDiePendingResolution extends PendingResolutionBase {
+  readonly kind: 'REGIME_MANUAL_DIE';
+  readonly request: ManualDieRequest;
+  readonly countryId: 'ARDEN' | 'PRESQUE';
+  readonly eventRefs: readonly string[];
+}
+
+export type PendingResolution = ChoicePendingResolution | NarrativePendingResolution | CoalitionPendingResolution | ManualDiePendingResolution |
+  RegimeManualDiePendingResolution;
 
 export interface DieRollRecord {
   readonly id: string;
-  readonly source: 'CAMPAIGN_ERT';
+  readonly source: 'CAMPAIGN_ERT' | 'REGIME_ABILITY';
   readonly participantId: string;
   readonly rawValue: number;
   readonly manual: boolean;

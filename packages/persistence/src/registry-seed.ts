@@ -188,6 +188,27 @@ const insertCatalog = async (client: PoolClient, snapshot: RegistrySnapshot): Pr
          turn_income_default=EXCLUDED.turn_income_default`,
       hasCountrySourceReference ? parameters : parameters.slice(0,7));
   }
+  // Regime abilities are ruleset reference data (not card-registry effects).
+  // Materialize their stable logical identities after countries exist, then
+  // close the intentional circular reference from country to its ability.
+  for (const country of BASE_2025_COUNTRIES) {
+    const ability = await client.query<{ id: string }>(
+      `INSERT INTO malign.regime_ability_definitions(
+         logical_id,ruleset_version_id,name,ap_cost,once_per_turn,status,source_reference,country_definition_id
+       ) SELECT $1,$2,$3,1,true,'ACTIVE',$4,id FROM malign.country_definitions
+         WHERE logical_id=$5 AND version='0.1'
+       ON CONFLICT (logical_id,ruleset_version_id) DO UPDATE SET
+         name=EXCLUDED.name,ap_cost=EXCLUDED.ap_cost,once_per_turn=true,status='ACTIVE',
+         source_reference=EXCLUDED.source_reference,country_definition_id=EXCLUDED.country_definition_id
+       RETURNING id`,
+      [`REGIME_EFFECT_${country.id}`,rulesetId,`${country.canonicalName} regime ability`,
+        BASE_2025_COUNTRY_SOURCE_REFERENCE,country.id],
+    );
+    const abilityId=ability.rows[0]?.id;
+    if(abilityId===undefined)throw new Error(`Regime ability identity missing for ${country.id}`);
+    await client.query(`UPDATE malign.country_definitions SET regime_ability_definition_id=$1
+      WHERE logical_id=$2 AND version='0.1'`,[abilityId,country.id]);
+  }
 
   const ert = await client.query<{ id: string }>(
     `INSERT INTO malign.ert_definitions(logical_id,name,ruleset_version_id,status)

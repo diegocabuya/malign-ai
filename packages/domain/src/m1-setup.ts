@@ -10,7 +10,7 @@ export type SetupGamePhase =
   | 'RESOLUTION_STAGE';
 export type SetupGameOverlay = 'ACTIVE' | 'PAUSED';
 export type DiceMode = 'DIGITAL' | 'MANUAL_DIE_INPUT';
-import type { M1AdjudicationState } from './m1-adjudication.js';
+import type { InfluenceType, M1AdjudicationState } from './m1-adjudication.js';
 import type { EndGameState } from './m2b-endgame.js';
 import type { M2VetoContinuation, ReactionContinuation } from './m2b-reaction.js';
 import type { M2BAuditRecord, M2CoreSchedulerContinuation, M2EffectChoiceContinuation } from './m2b.js';
@@ -69,6 +69,7 @@ export interface SetupCardDefinition {
   readonly serialWithinCountrySet: number;
   readonly canonicalName: string;
   readonly starter: boolean;
+  readonly alignment: InfluenceType | 'DUAL' | 'NONE';
 }
 
 export interface SetupCardInstance {
@@ -117,7 +118,7 @@ export interface InitiativeState {
   readonly maintenance: Record<string, InitiativeMaintenanceState>;
 }
 
-export type M1ActionType = 'CONSTRUCT_CAMPAIGN' | 'ACTIVATE_CAMPAIGN' | 'PLAY_BOOST';
+export type M1ActionType = 'CONSTRUCT_CAMPAIGN' | 'ACTIVATE_CAMPAIGN' | 'PLAY_BOOST' | 'USE_REGIME_ABILITY';
 
 export interface ConstructCampaignPlanPayload {
   readonly row: 'I';
@@ -138,7 +139,9 @@ export interface PlayBoostPlanPayload {
   readonly activationSequenceIndex: number;
 }
 
-export type M1ActionPayload = ConstructCampaignPlanPayload | ActivateCampaignPlanPayload | PlayBoostPlanPayload;
+export type UseRegimeAbilityPlanPayload = Readonly<Record<never, never>>;
+
+export type M1ActionPayload = ConstructCampaignPlanPayload | ActivateCampaignPlanPayload | PlayBoostPlanPayload | UseRegimeAbilityPlanPayload;
 
 export interface M1ActionPlanSlot {
   readonly sequenceIndex: number;
@@ -168,7 +171,8 @@ export interface ResourceLedgerEntry {
   readonly id: string;
   readonly participantId: string | null;
   readonly countryId: CountryId;
-  readonly reason: 'SCENARIO_SETUP' | 'TURN_INCOME' | 'CAMPAIGN_ACTIVATION_COST' | 'COALITION_CONTRIBUTION';
+  readonly reason: 'SCENARIO_SETUP' | 'TURN_INCOME' | 'CAMPAIGN_ACTIVATION_COST' | 'COALITION_CONTRIBUTION' |
+    'CARD_COST' | 'REGIME_ABILITY_COST' | 'CARD_EFFECT' | 'TRANSFER' | 'ERT_ROLL_BOOST';
   readonly delta: number;
   readonly balanceAfter: number;
   readonly gameVersion: number;
@@ -310,6 +314,9 @@ export interface SetupGameState {
   vetoBlockedParticipantIdsThisTurn?: string[];
   vetoAbuseReviewByWindowParticipant?: Record<string, 'ALLOW' | 'REJECT'>;
   m2Audit?: M2BAuditRecord[];
+  regimeAbilityUsedByParticipant?: Record<string, boolean>;
+  flumaRegimeByParticipant?: Record<string, { active: boolean; processedSpendIds: string[] }>;
+  m2TurnResourceLedgerStartIndex?: number;
   m2CoreScheduler?: M2CoreSchedulerContinuation;
   m2EffectChoice?: M2EffectChoiceContinuation;
   currentRevealedAction?: RevealedActionState;

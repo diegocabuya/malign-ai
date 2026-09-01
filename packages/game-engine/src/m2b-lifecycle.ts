@@ -16,6 +16,8 @@ export const cleanupCampaignAging = (input: M2BState): CleanupResult => {
 export const resetTurnFlags = (state: M2BState): void => {
   for (const campaign of Object.values(state.campaigns)) campaign.activationCountThisTurn = 0;
   for (const participant of Object.values(state.participants)) { participant.regimeAbilityUsed = false; participant.coreModifierUsed = false; }
+  if (state.flumaRegime !== undefined) { state.flumaRegime.active = false; state.flumaRegime.processedSpendIds.splice(0); }
+  state.resourceSpends?.splice(0);
   state.scheduler.participantIndex = 0; state.scheduler.slotIndex = 0; state.scheduler.status = 'READY';
 };
 

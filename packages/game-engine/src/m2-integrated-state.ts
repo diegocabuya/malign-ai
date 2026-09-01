@@ -15,12 +15,13 @@ export const buildM2StateFromCanonical = (state: SetupGameState): M2BState => ({
       id: participant.id, countryId: seat.countryId, resources: state.countries[seat.countryId].resources,
       victoryPoints: state.adjudication.vpByParticipant[participant.id] ?? 0,
       cardIds: Object.values(state.cards).filter(({ controllerParticipantId }) => controllerParticipantId === participant.id).map(({ id }) => id).sort(),
-      regimeAbilityUsed: false, coreModifierUsed: false,
+      regimeAbilityUsed: state.regimeAbilityUsedByParticipant?.[participant.id] ?? false, coreModifierUsed: false,
     }];
   })),
   cards: Object.fromEntries(Object.values(state.cards).filter(({ controllerParticipantId }) => controllerParticipantId !== undefined).map((card) => [card.id, {
     id: card.id, definitionId: card.definitionId, ownerParticipantId: state.countries[card.countryOwnerId].controllerParticipantId ?? card.controllerParticipantId!,
-    controllerParticipantId: card.controllerParticipantId!, cardClass: cardClass(state, card.id), alignment: 'DUAL',
+    controllerParticipantId: card.controllerParticipantId!, cardClass: cardClass(state, card.id),
+    alignment: state.cardDefinitions[card.definitionId]?.alignment ?? 'NONE',
     zone: card.zone === 'OPERATIONS_DECK' || card.zone === 'OPERATIONS_POOL' || card.zone === 'STARTER_POOL' ? 'DECK' : card.zone,
     returnToOwnerOnDiscard: card.returnToOwnerOnDiscard ?? false,
   }])),
@@ -33,12 +34,24 @@ export const buildM2StateFromCanonical = (state: SetupGameState): M2BState => ({
   legitimacyByPd: structuredClone(state.adjudication.legitimacyByPd),
   scheduler: structuredClone(state.adjudication.scheduler),
   audit: structuredClone(state.m2Audit ?? []),
+  resourceSpends: state.resourceLedger.slice(state.m2TurnResourceLedgerStartIndex ?? state.resourceLedger.length).flatMap((entry) => {
+    if (entry.participantId === null || entry.delta >= 0) return [];
+    const reason = entry.reason === 'CAMPAIGN_ACTIVATION_COST' ? 'CAMPAIGN_COST'
+      : entry.reason === 'COALITION_CONTRIBUTION' ? 'COALITION_CONTRIBUTION'
+        : entry.reason === 'CARD_COST' ? 'CARD_COST' : undefined;
+    return reason === undefined ? [] : [{ id: entry.id, participantId: entry.participantId, amount: -entry.delta, reason }];
+  }),
+  flumaRegime: structuredClone(state.flumaRegimeByParticipant?.[
+    Object.values(state.seats).find(({ countryId }) => countryId === 'FLUMA')?.participantId ?? ''
+  ] ?? { active: false, processedSpendIds: [] }),
 });
 
 export const applyM2StateToCanonical = (target: SetupGameState, source: M2BState): void => {
+  target.regimeAbilityUsedByParticipant ??= {};
   for (const participant of Object.values(source.participants)) {
     target.countries[participant.countryId].resources = participant.resources;
     target.adjudication.vpByParticipant[participant.id] = participant.victoryPoints;
+    target.regimeAbilityUsedByParticipant[participant.id] = participant.regimeAbilityUsed;
   }
   for (const card of Object.values(source.cards)) {
     const canonical = target.cards[card.id]; if (canonical === undefined) continue;
@@ -71,4 +84,8 @@ export const applyM2StateToCanonical = (target: SetupGameState, source: M2BState
   Object.assign(target.adjudication.legitimacyByPd, structuredClone(source.legitimacyByPd));
   Object.assign(target.adjudication.scheduler, structuredClone(source.scheduler));
   target.m2Audit = structuredClone(source.audit);
+  target.flumaRegimeByParticipant ??= {};
+  const flumaParticipantId = Object.values(source.participants).find(({ countryId }) => countryId === 'FLUMA')?.id;
+  if (flumaParticipantId !== undefined) target.flumaRegimeByParticipant[flumaParticipantId] =
+    structuredClone(source.flumaRegime ?? { active: false, processedSpendIds: [] });
 };

@@ -255,6 +255,119 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(testHarness.dispatcher.executeM2Effect(options)).toEqual(first);
   });
 
+  it('reveals a committed regime slot before the internal effect port may resolve it', () => {
+    const testHarness = adjudicationHarness({ die: 4 }); const state = testHarness.store.snapshot(GAME_ID)!;
+    const resourcesBefore = state.countries.DINESIA.resources;
+    state.initiative.orderParticipantIds.splice(0, state.initiative.orderParticipantIds.length, 'P5');
+    state.actionPlanning.P5!.lockedSlots.splice(0, state.actionPlanning.P5!.lockedSlots.length, {
+      sequenceIndex: 1, actionType: 'USE_REGIME_ABILITY', actionPayload: {}, apCost: 1, revealed: false,
+    });
+    state.actionPlanning.P5!.apAvailable = 2;
+    state.adjudication.scheduler.participantIndex = 0; state.adjudication.scheduler.slotIndex = 0; state.adjudication.scheduler.status = 'READY';
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const ready = testHarness.engine.runNext({ gameId: state.id, expectedGameVersion: state.version,
+      commandId: 'M2-REGIME-SCHEDULER-1', idempotencyKey: 'M2-REGIME-SCHEDULER-K1' });
+    expect(ready).toMatchObject({ status: 'REQUIRES_CHOICE', resultCode: 'M2_EFFECT_CHOICE_REQUESTED' });
+    const revealed = testHarness.store.snapshot(state.id)!;
+    expect(revealed).toMatchObject({ currentRevealedAction: { participantId: 'P5', sequenceIndex: 1, actionType: 'USE_REGIME_ABILITY' },
+      adjudication: { scheduler: { status: 'SUSPENDED' } } });
+    expect(testHarness.dispatcher.executeM2Effect({ gameId: state.id, expectedGameVersion: revealed.version,
+      commandId: 'M2-REGIME-SCHEDULER-RESOLVE-1', idempotencyKey: 'M2-REGIME-SCHEDULER-RESOLVE-K1', actorParticipantId: 'P5',
+      sourceCardInstanceId: '', effectId: 'REGIME_EFFECT_DINESIA', effectVersion: '0.1', parameters: { pdId: 'DINESIA_PD_1' } }))
+      .toMatchObject({ status: 'REJECTED', error: { code: 'NOT_AUTHORIZED' } });
+    const continuationId = revealed.m2EffectChoice?.id;
+    if (continuationId === undefined) throw new Error('Dinesia regime choice missing');
+    expect(testHarness.app.execute('session-p5', command('SUBMIT_M2_EFFECT_CHOICE', state.id, revealed.version, {
+      continuationId, selections: { TARGET_PD: ['DINESIA_PD_1'] },
+    }, { commandId: 'M2-REGIME-CHOICE-1', idempotencyKey: 'M2-REGIME-CHOICE-K1' })))
+      .toMatchObject({ status: 'RESOLVED', resultCode: 'M2_EFFECT_CHOICE_RESOLVED' });
+    const resolved = testHarness.store.snapshot(state.id)!;
+    expect(resolved.actionPlanning.P5!.lockedSlots[0]).toMatchObject({ terminalOutcome: 'RESOLVED' });
+    expect(resolved.countries.DINESIA.resources).toBe(resourcesBefore - 2);
+    expect(resolved.resourceLedger.at(-1)).toMatchObject({ participantId: 'P5', reason: 'REGIME_ABILITY_COST', delta: -2 });
+    expect(resolved.regimeAbilityUsedByParticipant?.P5).toBe(true);
+    expect(resolved.currentRevealedAction).toBeUndefined();
+    expect(resolved.adjudication.scheduler).toMatchObject({ status: 'COMPLETE', participantIndex: 1, slotIndex: 0 });
+  });
+
+  it('rolls Arden authoritatively and accepts the resulting private choice only from Arden', () => {
+    const testHarness = adjudicationHarness({ die: 4 }); const state = testHarness.store.snapshot(GAME_ID)!;
+    state.initiative.orderParticipantIds.splice(0, state.initiative.orderParticipantIds.length, 'P1');
+    state.actionPlanning.P1!.lockedSlots.splice(0, state.actionPlanning.P1!.lockedSlots.length, {
+      sequenceIndex: 1, actionType: 'USE_REGIME_ABILITY', actionPayload: {}, apCost: 1, revealed: false,
+    });
+    const stack = state.adjudication.influenceStacks.find(({ pdId, type }) => pdId === 'ARDEN_PD_1' && type === 'MALIGN');
+    if (stack === undefined) state.adjudication.influenceStacks.push({ pdId: 'ARDEN_PD_1', type: 'MALIGN', attributionCountryId: 'FLUMA', count: 1 });
+    else { stack.count = 1; Object.assign(stack, { attributionCountryId: 'FLUMA' }); }
+    state.adjudication.scheduler.participantIndex = 0; state.adjudication.scheduler.slotIndex = 0; state.adjudication.scheduler.status = 'READY';
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    expect(testHarness.engine.runNext({ gameId: state.id, expectedGameVersion: state.version,
+      commandId: 'M2-REGIME-ARDEN-SCHEDULER-1', idempotencyKey: 'M2-REGIME-ARDEN-SCHEDULER-K1' }))
+      .toMatchObject({ status: 'REQUIRES_CHOICE', resultCode: 'M2_EFFECT_CHOICE_REQUESTED' });
+    const pending = testHarness.store.snapshot(state.id)!; const continuationId = pending.m2EffectChoice?.id;
+    if (continuationId === undefined) throw new Error('Arden regime choice missing');
+    const payload = { continuationId, selections: { REMOVE_MALIGN: ['ARDEN_PD_1|FLUMA'] } };
+    const beforeForgery = structuredClone(pending);
+    expect(testHarness.app.execute('session-p2', command('SUBMIT_M2_EFFECT_CHOICE', state.id, pending.version, payload,
+      { commandId: 'M2-REGIME-ARDEN-FORGED-1', idempotencyKey: 'M2-REGIME-ARDEN-FORGED-K1' })))
+      .toMatchObject({ status: 'REJECTED', error: { code: 'NOT_AUTHORIZED' } });
+    expect(testHarness.store.snapshot(state.id)).toEqual(beforeForgery);
+    expect(testHarness.app.execute('session-p1', command('SUBMIT_M2_EFFECT_CHOICE', state.id, pending.version, payload,
+      { commandId: 'M2-REGIME-ARDEN-CHOICE-1', idempotencyKey: 'M2-REGIME-ARDEN-CHOICE-K1' })))
+      .toMatchObject({ status: 'RESOLVED', resultCode: 'M2_EFFECT_CHOICE_RESOLVED' });
+    expect(testHarness.store.snapshot(state.id)!.adjudication.influenceStacks.find(({ pdId, type }) =>
+      pdId === 'ARDEN_PD_1' && type === 'MALIGN')?.count).toBe(0);
+    expect(testHarness.random.cursor).toBe(1);
+  });
+
+  it('suspends Arden for an authenticated manual regime die and replays the completed continuation without RNG', () => {
+    const testHarness = adjudicationHarness({ diceMode: 'MANUAL_DIE_INPUT' });
+    const initial = testHarness.store.snapshot(GAME_ID)!; const initialEventCount = initial.events.length;
+    const state = structuredClone(initial);
+    state.initiative.orderParticipantIds.splice(0, state.initiative.orderParticipantIds.length, 'P1');
+    state.actionPlanning.P1!.lockedSlots.splice(0, state.actionPlanning.P1!.lockedSlots.length, {
+      sequenceIndex: 1, actionType: 'USE_REGIME_ABILITY', actionPayload: {}, apCost: 1, revealed: false,
+    });
+    const stack = state.adjudication.influenceStacks.find(({ pdId, type }) => pdId === 'ARDEN_PD_1' && type === 'MALIGN');
+    if (stack === undefined) state.adjudication.influenceStacks.push({ pdId: 'ARDEN_PD_1', type: 'MALIGN', attributionCountryId: 'FLUMA', count: 1 });
+    else { stack.count = 1; Object.assign(stack, { attributionCountryId: 'FLUMA' }); }
+    state.adjudication.scheduler.participantIndex = 0; state.adjudication.scheduler.slotIndex = 0; state.adjudication.scheduler.status = 'READY';
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const cursorBefore = testHarness.random.cursor;
+    expect(testHarness.engine.runNext({ gameId: state.id, expectedGameVersion: state.version,
+      commandId: 'M2-REGIME-MANUAL-1', idempotencyKey: 'M2-REGIME-MANUAL-K1' }))
+      .toMatchObject({ status: 'REQUIRES_CHOICE', resultCode: 'MANUAL_DIE_REQUIRED' });
+    const waiting = testHarness.store.snapshot(state.id)!; const pending = waiting.adjudication.pendingResolution;
+    if (pending?.kind !== 'REGIME_MANUAL_DIE') throw new Error('Regime manual die request missing');
+    const manualInput = (sessionSuffix: string, value: number) => ({
+      engineContractVersion: waiting.versions.engineContractVersion, commandId: `M2-REGIME-MANUAL-${sessionSuffix}`,
+      idempotencyKey: `M2-REGIME-MANUAL-${sessionSuffix}`, gameId: waiting.id, expectedGameVersion: waiting.version,
+      commandType: 'SUBMIT_MANUAL_DIE' as const, payloadSchemaVersion: waiting.versions.fixtureSchemaVersion,
+      payload: { requestId: pending.request.requestId, value }, correlationId: 'M2-REGIME-MANUAL',
+    });
+    expect(testHarness.app.executeM1Interaction('session-p2', manualInput('FORGED', 4)))
+      .toMatchObject({ status: 'REJECTED', error: { code: 'CHOICE_NOT_AUTHORIZED' } });
+    expect(testHarness.store.snapshot(state.id)).toEqual(waiting);
+    expect(testHarness.app.executeM1Interaction('session-p1', manualInput('VALID', 4)))
+      .toMatchObject({ status: 'REQUIRES_CHOICE', resultCode: 'M2_EFFECT_CHOICE_REQUESTED' });
+    const choosing = testHarness.store.snapshot(state.id)!; const continuationId = choosing.m2EffectChoice?.id;
+    if (continuationId === undefined) throw new Error('Regime choice missing after manual die');
+    expect(testHarness.app.execute('session-p1', command('SUBMIT_M2_EFFECT_CHOICE', state.id, choosing.version, {
+      continuationId, selections: { REMOVE_MALIGN: ['ARDEN_PD_1|FLUMA'] },
+    }, { commandId: 'M2-REGIME-MANUAL-CHOICE', idempotencyKey: 'M2-REGIME-MANUAL-CHOICE-K' })))
+      .toMatchObject({ status: 'RESOLVED', resultCode: 'M2_EFFECT_CHOICE_RESOLVED' });
+    const resolved = testHarness.store.snapshot(state.id)!;
+    expect(resolved.adjudication.dieRolls.at(-1)).toMatchObject({ source: 'REGIME_ABILITY', rawValue: 4, manual: true,
+      submittedByParticipantId: 'P1' });
+    expect(resolved.actionPlanning.P1!.lockedSlots[0]).toMatchObject({ terminalOutcome: 'RESOLVED' });
+    expect(testHarness.random.cursor).toBe(cursorBefore);
+    const replayBase = structuredClone(state); replayBase.events.splice(initialEventCount); replayBase.version = state.version;
+    const replayed = replayM1Events(createM1StateSnapshot(replayBase), createM1ReplayBundle(
+      resolved.events.slice(initialEventCount), resolved.adjudication.traces,
+    ));
+    expect(canonicalizeJson(replayed)).toBe(canonicalizeJson(resolved));
+  });
+
   it('inventories exactly 59 registry effects and fails closed for known unimplemented handlers', () => {
     expect(M2_EFFECT_MANIFEST).toHaveLength(59);
     expect(new Set(M2_EFFECT_MANIFEST.map(({ effectId }) => effectId)).size).toBe(59);

@@ -16,6 +16,8 @@ import {
   type M1CampaignAssignment,
   type M1CampaignState,
   type ManualDiePendingResolution,
+  type M2BState,
+  type RegimeManualDiePendingResolution,
   type NarrativeContinuationState,
   type NarrativePendingResolution,
   type PendingResolution,
@@ -35,6 +37,7 @@ import {
 } from '@malign-ai/rules';
 import { canonicalizeJson, sha256CanonicalJson } from '@malign-ai/shared';
 import { dispatchAtomicCommand, rejectedResult, type PreparedResolution } from './atomic-dispatch.js';
+import { applyM2StateToCanonical } from './m2-integrated-state.js';
 import type { InMemorySetupGameStore } from './setup-dispatcher.js';
 
 export interface SubmitChoicePayload {
@@ -176,6 +179,12 @@ export const rehydrateM1StateSnapshot = (snapshot: M1StateSnapshot): SetupGameSt
 interface PersistedReplayArtifacts {
   readonly events: readonly SetupGameEvent[];
   readonly traces: readonly AdjudicationTrace[];
+}
+
+interface M2CanonicalAfterImage {
+  readonly m2State: M2BState;
+  readonly resourceLedger: SetupGameState['resourceLedger'];
+  readonly m2Audit: NonNullable<SetupGameState['m2Audit']>;
 }
 
 export const createM1ReplayBundle = (
@@ -463,12 +472,12 @@ export const replayM1Events = (
       }
       case 'DIE_ROLLED':
         state.adjudication.dieRolls.push({
-          id: String(payload.dieRollId), source: 'CAMPAIGN_ERT', participantId: String(payload.participantId),
+          id: String(payload.dieRollId), source: payload.source === 'REGIME_ABILITY' ? 'REGIME_ABILITY' : 'CAMPAIGN_ERT', participantId: String(payload.participantId),
           rawValue: Number(payload.rawValue), manual: payload.manual === true,
           ...(payload.manual === true ? { submittedByParticipantId: String(payload.submittedByParticipantId) } : { rngRequestId: String(payload.rngRequestId) }),
           gameVersion: event.gameVersion,
         });
-        if (state.adjudication.pendingResolution?.kind === 'MANUAL_DIE') {
+        if (state.adjudication.pendingResolution?.kind === 'MANUAL_DIE' || state.adjudication.pendingResolution?.kind === 'REGIME_MANUAL_DIE') {
           delete state.adjudication.pendingResolution;
           state.adjudication.scheduler.status = 'READY';
         }
@@ -476,7 +485,7 @@ export const replayM1Events = (
       case 'DIE_REQUESTED': {
         const serialized = payload.pendingResolutionJson;
         if (typeof serialized !== 'string') throw new Error('Replay manual die request payload missing');
-        state.adjudication.pendingResolution = JSON.parse(serialized) as ManualDiePendingResolution;
+        state.adjudication.pendingResolution = JSON.parse(serialized) as ManualDiePendingResolution | RegimeManualDiePendingResolution;
         state.adjudication.scheduler.status = 'SUSPENDED';
         break;
       }
@@ -520,16 +529,36 @@ export const replayM1Events = (
         break;
       }
       case 'CHOICE_RESOLVED':
-        state.adjudication.resolvedChoiceIds.push(String(payload.choiceId));
-        delete state.adjudication.pendingResolution;
+        if (typeof payload.continuationId === 'string') delete state.m2EffectChoice;
+        else {
+          state.adjudication.resolvedChoiceIds.push(String(payload.choiceId));
+          delete state.adjudication.pendingResolution;
+        }
         break;
       case 'CHOICE_REQUESTED':
-        state.adjudication.pendingResolution = parseCanonicalRecord<PendingResolution>(
-          payload.pendingResolutionJson,
-          payload.pendingResolutionDigest,
-          'Choice pending resolution',
-        );
+        if (typeof payload.m2EffectChoiceJson === 'string') {
+          state.m2EffectChoice = parseCanonicalRecord<NonNullable<SetupGameState['m2EffectChoice']>>(
+            payload.m2EffectChoiceJson, payload.m2EffectChoiceDigest, 'M2 effect choice',
+          );
+        } else {
+          state.adjudication.pendingResolution = parseCanonicalRecord<PendingResolution>(
+            payload.pendingResolutionJson,
+            payload.pendingResolutionDigest,
+            'Choice pending resolution',
+          );
+        }
         state.adjudication.scheduler.status = 'SUSPENDED';
+        break;
+      case 'M2_EFFECT_EXECUTED':
+        if (typeof payload.m2CanonicalAfterImageJson === 'string') {
+          const afterImage = parseCanonicalRecord<M2CanonicalAfterImage>(payload.m2CanonicalAfterImageJson,
+            payload.m2CanonicalAfterImageDigest, 'M2 canonical after-image');
+          const schedulerBeforeEffect = structuredClone(state.adjudication.scheduler);
+          applyM2StateToCanonical(state, afterImage.m2State);
+          Object.assign(state.adjudication.scheduler, schedulerBeforeEffect);
+          state.resourceLedger.splice(0, state.resourceLedger.length, ...structuredClone(afterImage.resourceLedger));
+          state.m2Audit = structuredClone(afterImage.m2Audit);
+        }
         break;
       case 'ACTION_RESOLVED': {
         const participantId = String(payload.participantId);
@@ -771,6 +800,96 @@ export class M1AdjudicationEngine {
         campaignId: campaign.id, activationSequenceIndex: payload.activationSequenceIndex }, emittedEventRefs: [reveal.id, planned.id, resolved.id] };
     }
 
+    if (slot.actionType === 'USE_REGIME_ABILITY') {
+      if (working.regimeAbilityUsedByParticipant?.[participantId] === true) return { error: 'REGIME_ABILITY_ALREADY_USED' as const, version };
+      const countryId = working.seats[participantId]?.countryId;
+      if (countryId === undefined) return { error: 'PARTICIPANT_NOT_FOUND' as const, version };
+      const effectId = `REGIME_EFFECT_${countryId}` as const;
+      const ownPdIds = Object.keys(working.populationDemographics).filter((pdId) => pdId.startsWith(`${countryId}_PD_`)).sort();
+      const continuationId = `${working.id}:regime:${participantId}:${slot.sequenceIndex}`;
+      let regimeRoll: number | undefined;
+      if (countryId === 'ARDEN' || countryId === 'PRESQUE') {
+        if (working.diceMode === 'MANUAL_DIE_INPUT') {
+          const requestId = `${continuationId}:manual-die`; const eventId = `${working.id}:event:${working.events.length + 1}`;
+          const pending: RegimeManualDiePendingResolution = { kind: 'REGIME_MANUAL_DIE', resolutionId: continuationId,
+            gameId: working.id, participantId, sequenceIndex: slot.sequenceIndex, campaignId: '',
+            correlationId: envelope.correlationId ?? envelope.commandId, causationId: eventId, versions: structuredClone(working.versions),
+            countryId, request: { requestId, gameId: working.id, activationId: continuationId,
+              requestedForParticipantId: participantId, dieType: 'D10', status: 'OPEN' }, eventRefs: [reveal.id, eventId] };
+          const requested = this.appendEvent(working, envelope, 'DIE_REQUESTED', { requestId, activationId: continuationId,
+            participantId, dieType: 'D10', pendingResolutionJson: canonicalizeJson(pending), pendingResolutionDigest: sha256CanonicalJson(pending) }, reveal.id);
+          working.adjudication.pendingResolution = pending; working.adjudication.scheduler.status = 'SUSPENDED';
+          return { nextState: working, status: 'REQUIRES_CHOICE' as const, resultCode: 'MANUAL_DIE_REQUIRED',
+            resultPayload: structuredClone(pending.request), emittedEventRefs: [reveal.id, requested.id] };
+        }
+        try { regimeRoll = this.randomInteger(1, 10); } catch { return { error: 'RANDOM_PROVIDER_FAILURE' as const, version }; }
+        working.adjudication.dieRolls.push({ id: `${continuationId}:die`, source: 'REGIME_ABILITY', participantId,
+          rawValue: regimeRoll, manual: false, rngRequestId: `${continuationId}:rng`, gameVersion: working.version + 1 });
+        const dieEvent = this.appendEvent(working, envelope, 'DIE_ROLLED', { activationId: continuationId, dieRollId: `${continuationId}:die`,
+          source: 'REGIME_ABILITY', participantId, rawValue: regimeRoll, manual: false, rngRequestId: `${continuationId}:rng`,
+          submittedByParticipantId: '', legitimacyModifier: 0, boostModifier: 0, modifiedRollRaw: regimeRoll, ertRoll: regimeRoll }, reveal.id);
+        if (regimeRoll > 4) {
+          working.regimeAbilityUsedByParticipant ??= {}; working.regimeAbilityUsedByParticipant[participantId] = true;
+          slot.terminalOutcome = 'RESOLVED'; this.advanceScheduler(working);
+          const resolved = this.appendEvent(working, envelope, 'ACTION_RESOLVED', { participantId, sequenceIndex: slot.sequenceIndex, outcome: 'RESOLVED' }, dieEvent.id);
+          return { nextState: working, resultCode: 'REGIME_ABILITY_RESOLVED', resultPayload: { participantId, countryId, roll: regimeRoll, success: false },
+            emittedEventRefs: [reveal.id, dieEvent.id, resolved.id] };
+        }
+      }
+      if (countryId === 'DINESIA' && working.countries.DINESIA.resources < 2) {
+        working.regimeAbilityUsedByParticipant ??= {}; working.regimeAbilityUsedByParticipant[participantId] = true;
+        slot.terminalOutcome = 'RESOLVED'; this.advanceScheduler(working);
+        const resolved = this.appendEvent(working, envelope, 'ACTION_RESOLVED', { participantId, sequenceIndex: slot.sequenceIndex,
+          outcome: 'RESOLVED' }, reveal.id);
+        return { nextState: working, resultCode: 'REGIME_ABILITY_RESOLVED',
+          resultPayload: { participantId, countryId, success: false, reason: 'COST_UNAVAILABLE' }, emittedEventRefs: [reveal.id, resolved.id] };
+      }
+      const groups = countryId === 'ARDEN'
+        ? [{ groupId: 'REMOVE_MALIGN', minSelections: 1, maxSelections: 1,
+            eligibleCardIds: working.adjudication.influenceStacks.filter(({ pdId, type, count }) => pdId.startsWith('ARDEN_PD_') && type === 'MALIGN' && count > 0)
+              .map(({ pdId, attributionCountryId }) => `${pdId}|${attributionCountryId}`).sort() }]
+        : countryId === 'PRESQUE'
+          ? [{ groupId: 'TARGET_PD', minSelections: 1, maxSelections: 1, eligibleCardIds: Object.keys(working.populationDemographics).sort() },
+              ...(Object.values(working.adjudication.legitimacyByPd).filter((owner) => owner === participantId).length >= 3
+                ? [{ groupId: 'REMOVE_OWN_MARKER', minSelections: 1, maxSelections: 1,
+                    eligibleCardIds: Object.entries(working.adjudication.legitimacyByPd).filter(([, owner]) => owner === participantId).map(([pdId]) => pdId).sort() }]
+                : [])]
+          : countryId === 'DINESIA'
+            ? [{ groupId: 'TARGET_PD', minSelections: 1, maxSelections: 1, eligibleCardIds: ownPdIds }]
+            : countryId === 'URSARIA'
+              ? [{ groupId: 'DISCARD_MALIGN_CARDS', minSelections: 2, maxSelections: 2,
+                  eligibleCardIds: Object.values(working.cards).filter(({ controllerParticipantId, zone, definitionId }) =>
+                    controllerParticipantId === participantId && zone === 'HAND' &&
+                    ['MALIGN', 'DUAL'].includes(working.cardDefinitions[definitionId]?.alignment ?? '')).map(({ id }) => id).sort() },
+                  { groupId: 'TARGET_PD', minSelections: 1, maxSelections: 1, eligibleCardIds: ownPdIds },
+                  { groupId: 'REMOVE_MALIGN', minSelections: 0, maxSelections: 3,
+                    eligibleCardIds: working.adjudication.influenceStacks.filter(({ pdId, type, count }) => pdId.startsWith('URSARIA_PD_') && type === 'MALIGN' && count > 0)
+                      .flatMap(({ pdId, attributionCountryId, count }) => Array.from({ length: count }, (_, index) => `${pdId}|${attributionCountryId}|${index + 1}`)).sort() }]
+              : (working.resourceLedger.slice(working.m2TurnResourceLedgerStartIndex ?? working.resourceLedger.length)
+                  .filter(({ participantId: spender, delta, reason }) => spender !== participantId && delta < 0 &&
+                    ['CAMPAIGN_ACTIVATION_COST', 'COALITION_CONTRIBUTION', 'CARD_COST'].includes(reason))
+                  .flatMap(({ id, delta }) => Array.from({ length: -delta }, (_, index) => ({ groupId: `SPEND|${id}|${index + 1}`,
+                    minSelections: 1, maxSelections: 1, eligibleCardIds: Object.keys(working.populationDemographics).filter((pdId) => pdId.startsWith('ARDEN_PD_')).sort() }))));
+      if (groups.some(({ minSelections, eligibleCardIds }) => eligibleCardIds.length < minSelections)) {
+        working.regimeAbilityUsedByParticipant ??= {}; working.regimeAbilityUsedByParticipant[participantId] = true;
+        slot.terminalOutcome = 'RESOLVED'; this.advanceScheduler(working);
+        const resolved = this.appendEvent(working, envelope, 'ACTION_RESOLVED', { participantId, sequenceIndex: slot.sequenceIndex, outcome: 'RESOLVED' }, reveal.id);
+        return { nextState: working, resultCode: 'REGIME_ABILITY_RESOLVED', resultPayload: { participantId, countryId, success: false, reason: 'COST_UNAVAILABLE' },
+          emittedEventRefs: [reveal.id, resolved.id] };
+      }
+      working.m2EffectChoice = { kind: 'M2_EFFECT_GROUPED_CHOICE', schemaVersion: 1, id: continuationId, gameVersion: working.version + 1,
+        effectId, actorParticipantId: participantId, chooserParticipantId: participantId, targetParticipantId: participantId,
+        sourceCardInstanceId: '', groups, resourceCost: countryId === 'DINESIA' ? 2 : 0,
+        ...(regimeRoll === undefined ? {} : { regimeRoll }), regimeSequenceIndex: slot.sequenceIndex, status: 'OPEN' };
+      working.adjudication.scheduler.status = 'SUSPENDED';
+      const requested = this.appendEvent(working, envelope, 'CHOICE_REQUESTED', { continuationId, effectId, chooserParticipantId: participantId,
+        optionCount: groups.reduce((total, group) => total + group.eligibleCardIds.length, 0),
+        m2EffectChoiceJson: canonicalizeJson(working.m2EffectChoice), m2EffectChoiceDigest: sha256CanonicalJson(working.m2EffectChoice) },
+      'OWNER_AND_FACILITATOR');
+      return { nextState: working, status: 'REQUIRES_CHOICE' as const, resultCode: 'M2_EFFECT_CHOICE_REQUESTED',
+        resultPayload: { continuationId, chooserParticipantId: participantId }, emittedEventRefs: [reveal.id, requested.id] };
+    }
+
     const activation = this.resolveActivation(working, participantId, slot, envelope, preStateHash, [reveal.id]);
     if ('error' in activation) return { error: activation.error, version };
     if (activation.kind === 'PENDING') {
@@ -790,6 +909,8 @@ export class M1AdjudicationEngine {
         };
       }
       if (activation.pending.kind === 'MANUAL_DIE') return { nextState: working, status: 'REQUIRES_CHOICE' as const,
+        resultCode: 'MANUAL_DIE_REQUIRED', resultPayload: structuredClone(activation.pending.request), emittedEventRefs: activation.eventRefs };
+      if (activation.pending.kind === 'REGIME_MANUAL_DIE') return { nextState: working, status: 'REQUIRES_CHOICE' as const,
         resultCode: 'MANUAL_DIE_REQUIRED', resultPayload: structuredClone(activation.pending.request), emittedEventRefs: activation.eventRefs };
       return {
         nextState: working,
@@ -1359,7 +1480,8 @@ export class M1AdjudicationEngine {
     if (envelope.engineContractVersion !== before.versions.engineContractVersion) return { error: 'UNSUPPORTED_CONTRACT_VERSION' as const, version };
     if (envelope.payloadSchemaVersion !== before.versions.fixtureSchemaVersion) return { error: 'UNSUPPORTED_PAYLOAD_VERSION' as const, version };
     const payload = envelope.payload as SubmitManualDiePayload; const pending = before.adjudication.pendingResolution;
-    if (pending === undefined || pending.kind !== 'MANUAL_DIE' || pending.request.requestId !== payload.requestId) return { error: 'STALE_CONTINUATION' as const, version };
+    if (pending === undefined || (pending.kind !== 'MANUAL_DIE' && pending.kind !== 'REGIME_MANUAL_DIE') ||
+        pending.request.requestId !== payload.requestId) return { error: 'STALE_CONTINUATION' as const, version };
     const actor = envelope.actorContext; const actorParticipantId = actor.participantId;
     const participant = actorParticipantId === undefined ? undefined : before.participants[actorParticipantId];
     const playerSeat = actorParticipantId === undefined ? undefined : before.seats[actorParticipantId];
@@ -1369,7 +1491,57 @@ export class M1AdjudicationEngine {
       actor.permissions.includes('game:facilitate');
     if (!authorizedPlayer && !authorizedFacilitator) return { error: 'CHOICE_NOT_AUTHORIZED' as const, version };
     const working = structuredClone(before); const current = working.adjudication.pendingResolution;
-    if (current === undefined || current.kind !== 'MANUAL_DIE') return { error: 'STALE_CONTINUATION' as const, version };
+    if (current === undefined || (current.kind !== 'MANUAL_DIE' && current.kind !== 'REGIME_MANUAL_DIE')) return { error: 'STALE_CONTINUATION' as const, version };
+    if (current.kind === 'REGIME_MANUAL_DIE') {
+      const slot = working.actionPlanning[current.participantId]?.lockedSlots.find(({ sequenceIndex }) => sequenceIndex === current.sequenceIndex);
+      if (slot?.actionType !== 'USE_REGIME_ABILITY' || slot.terminalOutcome !== undefined) return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
+      delete working.adjudication.pendingResolution;
+      const dieRollId = `${current.resolutionId}:die`;
+      working.adjudication.dieRolls.push({ id: dieRollId, source: 'REGIME_ABILITY', participantId: current.participantId,
+        rawValue: payload.value, manual: true, submittedByParticipantId: actorParticipantId!, gameVersion: working.version + 1 });
+      const rolled = this.appendEvent(working, envelope, 'DIE_ROLLED', { activationId: current.resolutionId, dieRollId,
+        source: 'REGIME_ABILITY', participantId: current.participantId, rawValue: payload.value, manual: true, rngRequestId: '',
+        submittedByParticipantId: actorParticipantId!, legitimacyModifier: 0, boostModifier: 0,
+        modifiedRollRaw: payload.value, ertRoll: payload.value }, current.causationId);
+      if (payload.value > 4) {
+        working.regimeAbilityUsedByParticipant ??= {}; working.regimeAbilityUsedByParticipant[current.participantId] = true;
+        slot.terminalOutcome = 'RESOLVED'; working.adjudication.scheduler.status = 'READY'; this.advanceScheduler(working);
+        const resolved = this.appendEvent(working, envelope, 'ACTION_RESOLVED', { participantId: current.participantId,
+          sequenceIndex: current.sequenceIndex, outcome: 'RESOLVED' }, rolled.id);
+        return { nextState: working, resultCode: 'REGIME_ABILITY_RESOLVED', resultPayload: { participantId: current.participantId,
+          countryId: current.countryId, roll: payload.value, success: false }, emittedEventRefs: [...current.eventRefs, rolled.id, resolved.id] };
+      }
+      const groups = current.countryId === 'ARDEN'
+        ? [{ groupId: 'REMOVE_MALIGN', minSelections: 1, maxSelections: 1,
+            eligibleCardIds: working.adjudication.influenceStacks.filter(({ pdId, type, count }) => pdId.startsWith('ARDEN_PD_') && type === 'MALIGN' && count > 0)
+              .map(({ pdId, attributionCountryId }) => `${pdId}|${attributionCountryId}`).sort() }]
+        : [{ groupId: 'TARGET_PD', minSelections: 1, maxSelections: 1, eligibleCardIds: Object.keys(working.populationDemographics).sort() },
+            ...(Object.values(working.adjudication.legitimacyByPd).filter((owner) => owner === current.participantId).length >= 3
+              ? [{ groupId: 'REMOVE_OWN_MARKER', minSelections: 1, maxSelections: 1,
+                  eligibleCardIds: Object.entries(working.adjudication.legitimacyByPd).filter(([, owner]) => owner === current.participantId).map(([pdId]) => pdId).sort() }]
+              : [])];
+      if (groups.some(({ eligibleCardIds }) => eligibleCardIds.length === 0)) {
+        working.regimeAbilityUsedByParticipant ??= {}; working.regimeAbilityUsedByParticipant[current.participantId] = true;
+        slot.terminalOutcome = 'RESOLVED'; working.adjudication.scheduler.status = 'READY'; this.advanceScheduler(working);
+        const resolved = this.appendEvent(working, envelope, 'ACTION_RESOLVED', { participantId: current.participantId,
+          sequenceIndex: current.sequenceIndex, outcome: 'RESOLVED' }, rolled.id);
+        return { nextState: working, resultCode: 'REGIME_ABILITY_RESOLVED', resultPayload: { participantId: current.participantId,
+          countryId: current.countryId, roll: payload.value, success: true, reason: 'NO_ELIGIBLE_TARGET' },
+          emittedEventRefs: [...current.eventRefs, rolled.id, resolved.id] };
+      }
+      working.m2EffectChoice = { kind: 'M2_EFFECT_GROUPED_CHOICE', schemaVersion: 1, id: `${current.resolutionId}:choice`,
+        gameVersion: working.version + 1, effectId: `REGIME_EFFECT_${current.countryId}`, actorParticipantId: current.participantId,
+        chooserParticipantId: current.participantId, targetParticipantId: current.participantId, sourceCardInstanceId: '', groups,
+        resourceCost: 0, regimeRoll: payload.value, regimeSequenceIndex: current.sequenceIndex, status: 'OPEN' };
+      const requested = this.appendEvent(working, envelope, 'CHOICE_REQUESTED', { continuationId: working.m2EffectChoice.id,
+        effectId: working.m2EffectChoice.effectId, chooserParticipantId: current.participantId,
+        optionCount: groups.reduce((total, group) => total + group.eligibleCardIds.length, 0),
+        m2EffectChoiceJson: canonicalizeJson(working.m2EffectChoice), m2EffectChoiceDigest: sha256CanonicalJson(working.m2EffectChoice) },
+      'OWNER_AND_FACILITATOR');
+      return { nextState: working, status: 'REQUIRES_CHOICE' as const, resultCode: 'M2_EFFECT_CHOICE_REQUESTED',
+        resultPayload: { continuationId: working.m2EffectChoice.id, chooserParticipantId: current.participantId },
+        emittedEventRefs: [...current.eventRefs, rolled.id, requested.id] };
+    }
     const slot = working.actionPlanning[current.participantId]?.lockedSlots.find(({ sequenceIndex }) => sequenceIndex === current.sequenceIndex);
     const campaign = working.adjudication.campaigns[current.campaignId];
     if (slot === undefined || campaign === undefined) return { error: 'OBJECT_NO_LONGER_VALID' as const, version };

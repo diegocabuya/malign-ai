@@ -26,13 +26,16 @@ export const m2bState = (): M2BState => ({
     C1: card('C1', 'P1', 'CAMPAIGN', 'CAMPAIGN'), C2: card('C2', 'P1', 'CAMPAIGN', 'CAMPAIGN'),
     R1: card('R1', 'P1', 'CAMPAIGN'),
     P2A: card('P2A', 'P2'), P2B: card('P2B', 'P2'), P2C: card('P2C', 'P2'), P2D: card('P2D', 'P2'),
+    P3A: card('P3A', 'P3'), P3B: card('P3B', 'P3'),
   },
   campaigns: { CAM1: { id: 'CAM1', ownerParticipantId: 'P1', row: 'I', cardIds: ['C1', 'C2'], activationCountThisTurn: 1 } },
   influence: [
     { pdId: 'ARDEN_PD_1', type: 'MALIGN', attributionCountryId: 'P2', count: 1 },
     { pdId: 'FLUMA_PD_1', type: 'RESILIENCY', attributionCountryId: 'P2', count: 1 },
   ],
-  legitimacyByPd: { ARDEN_PD_1: null, ARDEN_PD_2: 'P1', ARDEN_PD_3: 'P1', FLUMA_PD_1: 'P1', PRESQUE_PD_1: 'P2' },
+  legitimacyByPd: { ARDEN_PD_1: null, ARDEN_PD_2: 'P1', ARDEN_PD_3: 'P1', FLUMA_PD_1: 'P1',
+    PRESQUE_PD_1: 'P2', PRESQUE_PD_2: null, PRESQUE_PD_3: null, DINESIA_PD_1: null, DINESIA_PD_2: null, DINESIA_PD_3: null,
+    URSARIA_PD_1: null, URSARIA_PD_2: null, URSARIA_PD_3: null },
   scheduler: { participantIndex: 0, slotIndex: 0, status: 'READY' },
   audit: [],
 });

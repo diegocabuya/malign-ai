@@ -67,6 +67,7 @@ const cardNames = [
 ] as const;
 
 const starterSerials = new Set([59, 63, 75, 85, 93]);
+const cardAlignments = ["NONE","MALIGN","DUAL","DUAL","MALIGN","RESILIENCY","DUAL","RESILIENCY","DUAL","MALIGN","MALIGN","NONE","MALIGN","DUAL","MALIGN","MALIGN","MALIGN","NONE","RESILIENCY","MALIGN","NONE","MALIGN","NONE","MALIGN","MALIGN","NONE","DUAL","NONE","DUAL","RESILIENCY","NONE","NONE","DUAL","MALIGN","DUAL","RESILIENCY","NONE","RESILIENCY","DUAL","MALIGN","DUAL","DUAL","NONE","RESILIENCY","MALIGN","MALIGN","DUAL","RESILIENCY","DUAL","RESILIENCY","NONE","DUAL","DUAL","DUAL","RESILIENCY","NONE","MALIGN","RESILIENCY","NONE","DUAL","DUAL","DUAL","DUAL","NONE","NONE","RESILIENCY","MALIGN","MALIGN","DUAL","DUAL","RESILIENCY","RESILIENCY","NONE","MALIGN","NONE","DUAL","MALIGN","RESILIENCY","MALIGN","NONE","NONE","NONE","MALIGN","RESILIENCY","NONE","MALIGN","NONE","NONE","DUAL","MALIGN","RESILIENCY","DUAL","NONE","NONE","DUAL","DUAL","MALIGN","MALIGN","MALIGN","MALIGN","MALIGN","MALIGN","MALIGN","RESILIENCY","RESILIENCY","RESILIENCY","DUAL","DUAL"] as const;
 
 export const BASE_2025_CARD_REGISTRY: readonly SetupCardDefinition[] = cardNames.map((canonicalName, index) => {
   const serialWithinCountrySet = index + 1;
@@ -75,6 +76,7 @@ export const BASE_2025_CARD_REGISTRY: readonly SetupCardDefinition[] = cardNames
     serialWithinCountrySet,
     canonicalName,
     starter: starterSerials.has(serialWithinCountrySet),
+    alignment: cardAlignments[index]!,
   };
 });
 
