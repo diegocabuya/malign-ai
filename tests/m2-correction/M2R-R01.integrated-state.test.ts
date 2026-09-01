@@ -53,12 +53,14 @@ describe('M2R-R01 canonical state integration seam', () => {
   it('opens and plays Reaction through internal trigger and authenticated player boundaries', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     state.initiative.orderParticipantIds.splice(0, state.initiative.orderParticipantIds.length, 'P1', 'P2', 'P3', 'P4', 'P5');
+    const triggeringCard = state.cards['ARDEN-CARD-043']!;
+    triggeringCard.controllerParticipantId = 'P1'; triggeringCard.zone = 'HAND';
     const reactionCard = state.cards['ARDEN-CARD-018']!;
     reactionCard.controllerParticipantId = 'P2'; reactionCard.zone = 'HAND';
     expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
     const opened = testHarness.dispatcher.openM2Reaction({
       gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-REACTION-OPEN-1',
-      idempotencyKey: 'M2-REACTION-OPEN-K1', trigger: 'HACK_BACK', triggeringParticipantId: 'P1',
+      idempotencyKey: 'M2-REACTION-OPEN-K1', trigger: 'HACK_BACK', triggeringParticipantId: 'P1', triggeringCardId: triggeringCard.id,
     });
     expect(opened).toMatchObject({ status: 'RESOLVED', resultCode: 'REACTION_WINDOW_OPENED' });
     const afterOpen = testHarness.store.snapshot(state.id)!;
@@ -84,10 +86,12 @@ describe('M2R-R01 canonical state integration seam', () => {
   it('passes Reaction priority atomically and rejects a stale continuation command', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     state.initiative.orderParticipantIds.splice(0, state.initiative.orderParticipantIds.length, 'P1', 'P2', 'P3', 'P4', 'P5');
+    const triggeringCard = state.cards['ARDEN-CARD-088']!;
+    triggeringCard.controllerParticipantId = 'P1'; triggeringCard.zone = 'HAND';
     expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
     expect(testHarness.dispatcher.openM2Reaction({
       gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-REACTION-OPEN-2',
-      idempotencyKey: 'M2-REACTION-OPEN-K2', trigger: 'CORRUPTION', triggeringParticipantId: 'P1',
+      idempotencyKey: 'M2-REACTION-OPEN-K2', trigger: 'CORRUPTION', triggeringParticipantId: 'P1', triggeringCardId: triggeringCard.id,
     })).toMatchObject({ status: 'RESOLVED' });
     const opened = testHarness.store.snapshot(state.id)!;
     const p2Session = trustedBindings().find(({ participantId }) => participantId === 'P2')!.authenticatedSessionId;
@@ -193,7 +197,9 @@ describe('M2R-R01 canonical state integration seam', () => {
     })));
     expect(M2_IMPLEMENTED_EFFECT_IDS).toHaveLength(40);
     expect(M2_EVENT_DRIVEN_EFFECT_IDS).toEqual([
-      'CARD_EFFECT_BASE_2025_E033', 'CARD_EFFECT_BASE_2025_E040', 'CARD_EFFECT_BASE_2025_E054',
+      'CARD_EFFECT_BASE_2025_E033', 'CARD_EFFECT_BASE_2025_E010', 'CARD_EFFECT_BASE_2025_E012',
+      'CARD_EFFECT_BASE_2025_E022', 'CARD_EFFECT_BASE_2025_E036', 'CARD_EFFECT_BASE_2025_E040',
+      'CARD_EFFECT_BASE_2025_E054',
     ]);
     const manifestHarness = harness(); const manifestState = completeAndStart(manifestHarness);
     M2_PAIR_BONUS_EFFECT_IDS.forEach((effectId, index) => {

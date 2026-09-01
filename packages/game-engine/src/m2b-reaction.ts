@@ -87,7 +87,7 @@ export const playReaction = (
     discardWithLifecycle(state, window.triggeringCardId);
   }
   const child = input.effectId === 'CARD_EFFECT_BASE_2025_E022'
-    ? openReactionWindow(`${window.id}:child`, 'HACK_BACK', input.participantId, [input.participantId, window.triggeringParticipantId], window.id)
+    ? openReactionWindow(`${window.id}:child`, 'HACK_BACK', input.participantId, [input.participantId, window.triggeringParticipantId], window.id, { triggeringCardId: input.cardId })
     : undefined;
   window.plays.push({ participantId: input.participantId, cardId: input.cardId, effectId: input.effectId, outcome: child ? 'PENDING_CHILD' : input.effectId === 'CARD_EFFECT_BASE_2025_E048' ? 'VOTE_PENDING' : success ? 'NEGATED' : 'FAILED' });
   window.status = child ? 'CHILD_WINDOW' : 'CLOSED';

@@ -170,6 +170,14 @@ const reactionDefinitionByEffect: Readonly<Record<string, string>> = {
   CARD_EFFECT_BASE_2025_E054: 'BASE_CARD_094',
 };
 
+const triggeringDefinitionByReaction: Readonly<Partial<Record<ReactionTrigger, string>>> = {
+  DOUBLE_AGENT: 'BASE_CARD_012',
+  CORRUPTION: 'BASE_CARD_088',
+  CYBERATTACK: 'BASE_CARD_041',
+  HACK_BACK: 'BASE_CARD_043',
+  LEAKS_DRAWN: 'BASE_CARD_026',
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -513,6 +521,13 @@ export class SetupCommandDispatcher {
         if (before.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const, version: before.version };
         if (before.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const, version: before.version };
         if (before.participants[options.triggeringParticipantId]?.role !== 'PLAYER') return { error: 'PARTICIPANT_NOT_FOUND' as const, version: before.version };
+        const requiredTriggerDefinition = triggeringDefinitionByReaction[options.trigger];
+        if (requiredTriggerDefinition !== undefined) {
+          const triggeringCard = options.triggeringCardId === undefined ? undefined : before.cards[options.triggeringCardId];
+          if (triggeringCard?.definitionId !== requiredTriggerDefinition || triggeringCard.controllerParticipantId !== options.triggeringParticipantId) {
+            return { error: 'INVALID_REACTION_INPUT' as const, version: before.version };
+          }
+        }
         if (options.trigger === 'PRE_ROLL') {
           const campaign = options.triggeringCampaignId === undefined ? undefined : before.adjudication.campaigns[options.triggeringCampaignId];
           if (campaign?.ownerParticipantId !== options.triggeringParticipantId) return { error: 'INVALID_REACTION_INPUT' as const, version: before.version };
