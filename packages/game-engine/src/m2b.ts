@@ -229,7 +229,11 @@ const definitions: readonly M2BEffectDefinition[] = [
 
 export const M2_IMPLEMENTED_EFFECT_IDS: readonly string[] = definitions.map(({ effectId }) => effectId);
 
-export const M2_EVENT_DRIVEN_EFFECT_IDS = ['CARD_EFFECT_BASE_2025_E033'] as const;
+export const M2_EVENT_DRIVEN_EFFECT_IDS = [
+  'CARD_EFFECT_BASE_2025_E033',
+  'CARD_EFFECT_BASE_2025_E040',
+  'CARD_EFFECT_BASE_2025_E054',
+] as const;
 
 export const BASE_2025_PAIR_BONUSES: readonly (readonly [string, string])[] = [
   ['CARD_DEF_BASE_2025_D002', 'CARD_DEF_BASE_2025_D098'], ['CARD_DEF_BASE_2025_D008', 'CARD_DEF_BASE_2025_D044'],

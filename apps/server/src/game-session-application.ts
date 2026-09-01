@@ -106,6 +106,8 @@ export interface InternalM2EndGamePort {
 export interface InternalM2OpenReactionInput extends DurableOperationInput {
   readonly trigger: ReactionTrigger;
   readonly triggeringParticipantId: string;
+  readonly triggeringCampaignId?: string;
+  readonly triggeringCardId?: string;
 }
 
 /** Server-only trigger port; browser callers cannot manufacture reaction windows. */
@@ -815,6 +817,7 @@ export class PostgresGameSessionApplication implements GameSessionApplicationPor
     const fingerprintSha256=createHash('sha256').update(deterministicJsonSerialize({
       commandType:'INTERNAL_OPEN_M2_REACTION',beforeVersion:input.expectedGameVersion,
       trigger:input.trigger,triggeringParticipantId:input.triggeringParticipantId,
+      triggeringCampaignId:input.triggeringCampaignId??null,triggeringCardId:input.triggeringCardId??null,
     })).digest('hex');
     return this.coordinateDurableOperation({
       input, actorId:'M2_INTERNAL_COORDINATOR', fingerprintSha256,

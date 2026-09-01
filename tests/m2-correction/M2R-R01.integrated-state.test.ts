@@ -87,7 +87,7 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
     expect(testHarness.dispatcher.openM2Reaction({
       gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-REACTION-OPEN-2',
-      idempotencyKey: 'M2-REACTION-OPEN-K2', trigger: 'PRE_ROLL', triggeringParticipantId: 'P1',
+      idempotencyKey: 'M2-REACTION-OPEN-K2', trigger: 'CORRUPTION', triggeringParticipantId: 'P1',
     })).toMatchObject({ status: 'RESOLVED' });
     const opened = testHarness.store.snapshot(state.id)!;
     const p2Session = trustedBindings().find(({ participantId }) => participantId === 'P2')!.authenticatedSessionId;
@@ -99,6 +99,67 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(testHarness.app.execute(p2Session, command('PASS_REACTION', state.id, opened.version, {}, {
       commandId: 'M2-REACTION-PASS-2', idempotencyKey: 'M2-REACTION-PASS-K2',
     }))).toMatchObject({ status: 'REJECTED', error: { code: 'STALE_STATE_VERSION' } });
+  });
+
+  it('binds E040 to the triggering campaign and discards it only after a successful internal roll', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    state.initiative.orderParticipantIds.splice(0, state.initiative.orderParticipantIds.length, 'P1', 'P2', 'P3', 'P4', 'P5');
+    const campaignCard = state.cards['ARDEN-CARD-001']!; campaignCard.controllerParticipantId = 'P1'; campaignCard.zone = 'CAMPAIGN';
+    const reactionCard = state.cards['FLUMA-CARD-073']!; reactionCard.controllerParticipantId = 'P2'; reactionCard.zone = 'HAND';
+    state.adjudication.campaigns.CAMPAIGN_E040 = {
+      id: 'CAMPAIGN_E040', ownerParticipantId: 'P1', row: 'I', alignment: 'MALIGN', targetDtId: 'RELIGION:NONE',
+      assignments: [{ slot: 'INTENT', cardInstanceId: campaignCard.id, definitionId: campaignCard.definitionId, influenceValue: 1 }], activationCountThisTurn: 0,
+    };
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    expect(testHarness.dispatcher.openM2Reaction({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-E040-OPEN-1', idempotencyKey: 'M2-E040-OPEN-K1',
+      trigger: 'PRE_ROLL', triggeringParticipantId: 'P1', triggeringCampaignId: 'CAMPAIGN_E040',
+    })).toMatchObject({ status: 'RESOLVED' });
+    const opened = testHarness.store.snapshot(state.id)!;
+    const p2Session = trustedBindings().find(({ participantId }) => participantId === 'P2')!.authenticatedSessionId;
+    expect(testHarness.app.execute(p2Session, command('PLAY_REACTION', state.id, opened.version, {
+      cardId: reactionCard.id, effectId: 'CARD_EFFECT_BASE_2025_E040',
+    }, { commandId: 'M2-E040-PLAY-1', idempotencyKey: 'M2-E040-PLAY-K1' }))).toMatchObject({
+      status: 'RESOLVED', resultPayload: { negated: true },
+    });
+    const committed = testHarness.store.snapshot(state.id)!;
+    expect(committed.adjudication.campaigns.CAMPAIGN_E040).toBeUndefined();
+    expect(committed.cards[campaignCard.id]?.zone).toBe('DISCARD');
+    expect(committed.cards[reactionCard.id]?.zone).toBe('DISCARD');
+    expect(testHarness.random.requests.at(-1)).toEqual({ minInclusive: 1, maxInclusive: 10 });
+  });
+
+  it('binds E054 to the drawn Filtraciones instance and discards both cards', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    state.initiative.orderParticipantIds.splice(0, state.initiative.orderParticipantIds.length, 'P1', 'P2', 'P3', 'P4', 'P5');
+    const leaks = state.cards['ARDEN-CARD-026']!; leaks.controllerParticipantId = 'P1'; leaks.zone = 'HAND';
+    const reactionCard = state.cards['FLUMA-CARD-094']!; reactionCard.controllerParticipantId = 'P2'; reactionCard.zone = 'HAND';
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    expect(testHarness.dispatcher.openM2Reaction({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-E054-OPEN-1', idempotencyKey: 'M2-E054-OPEN-K1',
+      trigger: 'LEAKS_DRAWN', triggeringParticipantId: 'P1', triggeringCardId: leaks.id,
+    })).toMatchObject({ status: 'RESOLVED' });
+    const opened = testHarness.store.snapshot(state.id)!;
+    const p2Session = trustedBindings().find(({ participantId }) => participantId === 'P2')!.authenticatedSessionId;
+    expect(testHarness.app.execute(p2Session, command('PLAY_REACTION', state.id, opened.version, {
+      cardId: reactionCard.id, effectId: 'CARD_EFFECT_BASE_2025_E054',
+    }, { commandId: 'M2-E054-PLAY-1', idempotencyKey: 'M2-E054-PLAY-K1' }))).toMatchObject({
+      status: 'RESOLVED', resultPayload: { negated: true },
+    });
+    const committed = testHarness.store.snapshot(state.id)!;
+    expect(committed.cards[leaks.id]?.zone).toBe('DISCARD');
+    expect(committed.cards[reactionCard.id]?.zone).toBe('DISCARD');
+  });
+
+  it('rejects PRE_ROLL without a valid campaign subject and preserves canonical state', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const before = testHarness.store.snapshot(state.id);
+    expect(testHarness.dispatcher.openM2Reaction({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-E040-INVALID-1', idempotencyKey: 'M2-E040-INVALID-K1',
+      trigger: 'PRE_ROLL', triggeringParticipantId: 'P1',
+    })).toMatchObject({ status: 'REJECTED', error: { code: 'INVALID_REACTION_INPUT' } });
+    expect(testHarness.store.snapshot(state.id)).toEqual(before);
   });
 
   it('executes a registry-bound M2 effect atomically and persists lifecycle plus audit', () => {
@@ -131,7 +192,9 @@ describe('M2R-R01 canonical state integration seam', () => {
       effectId: effect_id, sourceDefinitionId: source_definition_id,
     })));
     expect(M2_IMPLEMENTED_EFFECT_IDS).toHaveLength(40);
-    expect(M2_EVENT_DRIVEN_EFFECT_IDS).toEqual(['CARD_EFFECT_BASE_2025_E033']);
+    expect(M2_EVENT_DRIVEN_EFFECT_IDS).toEqual([
+      'CARD_EFFECT_BASE_2025_E033', 'CARD_EFFECT_BASE_2025_E040', 'CARD_EFFECT_BASE_2025_E054',
+    ]);
     const manifestHarness = harness(); const manifestState = completeAndStart(manifestHarness);
     M2_PAIR_BONUS_EFFECT_IDS.forEach((effectId, index) => {
       const pair = BASE_2025_PAIR_BONUSES[index]!;

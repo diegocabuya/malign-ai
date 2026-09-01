@@ -489,15 +489,19 @@ export class SetupCommandDispatcher {
     readonly idempotencyKey: string;
     readonly trigger: ReactionTrigger;
     readonly triggeringParticipantId: string;
+    readonly triggeringCampaignId?: string;
+    readonly triggeringCardId?: string;
     readonly correlationId?: string;
   }): EngineCommandResult {
-    const envelope: CommandEnvelope<'INTERNAL_OPEN_M2_REACTION', { readonly trigger: ReactionTrigger; readonly triggeringParticipantId: string }> = {
+    const envelope: CommandEnvelope<'INTERNAL_OPEN_M2_REACTION', { readonly trigger: ReactionTrigger; readonly triggeringParticipantId: string; readonly triggeringCampaignId?: string; readonly triggeringCardId?: string }> = {
       engineContractVersion: M1_0_BASELINE_VERSIONS.engineContractVersion,
       commandId: options.commandId, idempotencyKey: options.idempotencyKey, gameId: options.gameId,
       actorContext: { actorId: 'M2_INTERNAL_COORDINATOR', actorType: 'SYSTEM', authenticatedSessionId: 'internal:m2', permissions: ['game:internal-reaction'] },
       expectedGameVersion: options.expectedGameVersion, commandType: 'INTERNAL_OPEN_M2_REACTION',
       payloadSchemaVersion: M1_0_BASELINE_VERSIONS.fixtureSchemaVersion,
-      payload: { trigger: options.trigger, triggeringParticipantId: options.triggeringParticipantId },
+      payload: { trigger: options.trigger, triggeringParticipantId: options.triggeringParticipantId,
+        ...(options.triggeringCampaignId === undefined ? {} : { triggeringCampaignId: options.triggeringCampaignId }),
+        ...(options.triggeringCardId === undefined ? {} : { triggeringCardId: options.triggeringCardId }) },
       ...(options.correlationId === undefined ? {} : { correlationId: options.correlationId }),
     };
     return dispatchAtomicCommand({
@@ -509,6 +513,16 @@ export class SetupCommandDispatcher {
         if (before.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const, version: before.version };
         if (before.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const, version: before.version };
         if (before.participants[options.triggeringParticipantId]?.role !== 'PLAYER') return { error: 'PARTICIPANT_NOT_FOUND' as const, version: before.version };
+        if (options.trigger === 'PRE_ROLL') {
+          const campaign = options.triggeringCampaignId === undefined ? undefined : before.adjudication.campaigns[options.triggeringCampaignId];
+          if (campaign?.ownerParticipantId !== options.triggeringParticipantId) return { error: 'INVALID_REACTION_INPUT' as const, version: before.version };
+        }
+        if (options.trigger === 'LEAKS_DRAWN') {
+          const card = options.triggeringCardId === undefined ? undefined : before.cards[options.triggeringCardId];
+          if (card?.definitionId !== 'BASE_CARD_026' || card.controllerParticipantId !== options.triggeringParticipantId || card.zone !== 'HAND') {
+            return { error: 'INVALID_REACTION_INPUT' as const, version: before.version };
+          }
+        }
         if (before.reactionContinuation?.window.status !== undefined && before.reactionContinuation.window.status !== 'CLOSED') {
           return { error: 'REACTION_WINDOW_ACTIVE' as const, version: before.version };
         }
@@ -518,6 +532,9 @@ export class SetupCommandDispatcher {
           options.trigger,
           options.triggeringParticipantId,
           working.initiative.orderParticipantIds,
+          undefined,
+          { ...(options.triggeringCampaignId === undefined ? {} : { triggeringCampaignId: options.triggeringCampaignId }),
+            ...(options.triggeringCardId === undefined ? {} : { triggeringCardId: options.triggeringCardId }) },
         );
         working.reactionContinuation = makeReactionContinuation(`${window.id}:continuation`, working.version + 1, window);
         const event = this.appendEvent(working, candidate, 'REACTION_WINDOW_OPENED', {

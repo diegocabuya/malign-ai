@@ -6,6 +6,8 @@ export interface ReactionWindowState {
   readonly version: 1;
   readonly trigger: ReactionTrigger;
   readonly triggeringParticipantId: string;
+  readonly triggeringCampaignId?: string;
+  readonly triggeringCardId?: string;
   readonly priorityParticipantIds: readonly string[];
   priorityIndex: number;
   status: ReactionWindowStatus;

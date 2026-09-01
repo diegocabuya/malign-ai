@@ -31,8 +31,10 @@ export const openReactionWindow = (
   actorId: string,
   initiative: readonly string[],
   parentWindowId?: string,
+  subject: { readonly triggeringCampaignId?: string; readonly triggeringCardId?: string } = {},
 ): ReactionWindowState => ({
   id, version: 1, trigger, triggeringParticipantId: actorId,
+  ...subject,
   priorityParticipantIds: reactionPriority(initiative, actorId), priorityIndex: 0,
   status: 'WAITING_FOR_PRIORITY_PLAYER', ...(parentWindowId === undefined ? {} : { parentWindowId }),
   expiresAt: null, passes: [], plays: [],
@@ -66,8 +68,24 @@ export const playReaction = (
   if (input.effectId === 'CARD_EFFECT_BASE_2025_E048' && input.vetoAbuse) return { error: 'VETO_ABUSE' };
   const rolled = input.roll;
   if ((input.effectId === 'CARD_EFFECT_BASE_2025_E036' || input.effectId === 'CARD_EFFECT_BASE_2025_E040') && (!Number.isInteger(rolled) || rolled! < 1 || rolled! > 10)) return { error: 'INVALID_REACTION_INPUT' };
+  if (input.effectId === 'CARD_EFFECT_BASE_2025_E040' && window.triggeringCampaignId !== undefined && state.campaigns[window.triggeringCampaignId] === undefined) {
+    return { error: 'INVALID_REACTION_INPUT' };
+  }
+  if (input.effectId === 'CARD_EFFECT_BASE_2025_E054' && window.triggeringCardId !== undefined) {
+    const drawn = state.cards[window.triggeringCardId];
+    if (drawn?.definitionId !== 'BASE_CARD_026' || drawn.controllerParticipantId !== window.triggeringParticipantId || drawn.zone !== 'HAND') {
+      return { error: 'INVALID_REACTION_INPUT' };
+    }
+  }
   discardWithLifecycle(state, input.cardId);
   const success = input.effectId === 'CARD_EFFECT_BASE_2025_E036' || input.effectId === 'CARD_EFFECT_BASE_2025_E040' ? rolled! <= 4 : true;
+  if (input.effectId === 'CARD_EFFECT_BASE_2025_E040' && success && window.triggeringCampaignId !== undefined) {
+    const error = discardCampaign(state, window.triggeringCampaignId);
+    if (error !== undefined) return { error: 'INVALID_REACTION_INPUT' };
+  }
+  if (input.effectId === 'CARD_EFFECT_BASE_2025_E054' && window.triggeringCardId !== undefined) {
+    discardWithLifecycle(state, window.triggeringCardId);
+  }
   const child = input.effectId === 'CARD_EFFECT_BASE_2025_E022'
     ? openReactionWindow(`${window.id}:child`, 'HACK_BACK', input.participantId, [input.participantId, window.triggeringParticipantId], window.id)
     : undefined;
