@@ -607,10 +607,15 @@ export class SetupCommandDispatcher {
             .some(({ demographicTokenIds }) => demographicTokenIds.includes(targetDtId));
           if (!validTarget) return { error: 'INVALID_DT' as const, version: before.version };
         }
+        const authoritativeParameters: Readonly<Record<string, unknown>> = options.effectId === 'CARD_EFFECT_BASE_2025_E046'
+          ? { ...options.parameters, rollsByParticipant: Object.fromEntries(Object.keys(m2.participants)
+            .filter((participantId) => participantId !== options.actorParticipantId).sort()
+            .map((participantId) => [participantId, this.random.integer(1, 10)])) }
+          : options.parameters;
         const result = new M2BEffectDispatcher('M2-4').dispatch(m2, {
           actorParticipantId: options.actorParticipantId, effectId: options.effectId,
           effectVersion: options.effectVersion,
-          parameters: { ...options.parameters, sourceCardInstanceId: options.sourceCardInstanceId },
+          parameters: { ...authoritativeParameters, sourceCardInstanceId: options.sourceCardInstanceId },
         });
         if (!result.ok) return { error: result.error, version: before.version };
         if (options.effectId === 'CARD_EFFECT_BASE_2025_E042' || options.effectId === 'CARD_EFFECT_BASE_2025_E034') result.state.cards[options.sourceCardInstanceId]!.zone = 'REMOVED_FROM_GAME';

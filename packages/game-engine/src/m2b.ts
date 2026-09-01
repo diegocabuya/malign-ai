@@ -164,6 +164,31 @@ const handlers: Record<string, M2BEffectHandler> = {
     audit(state, context, 'CAMPAIGN_DISCARDED', { campaignId });
     return undefined;
   },
+  MULTI_ROLL_RESOURCE_TRANSFER: (state, context) => {
+    const recipient = actor(state, context);
+    const rolls = context.parameters.rollsByParticipant;
+    if (recipient === undefined || typeof rolls !== 'object' || rolls === null || Array.isArray(rolls)) return 'INVALID_EFFECT_INPUT';
+    const otherIds = Object.keys(state.participants).filter((participantId) => participantId !== context.actorParticipantId).sort();
+    const rollRecord = rolls as Readonly<Record<string, unknown>>;
+    if (Object.keys(rollRecord).sort().join('|') !== otherIds.join('|')) return 'INVALID_EFFECT_INPUT';
+    const passing: string[] = [];
+    for (const participantId of otherIds) {
+      const roll = rollRecord[participantId];
+      if (typeof roll !== 'number' || !Number.isInteger(roll) || !Number.isFinite(roll) || roll < 1 || roll > 10) return 'INVALID_DIE_VALUE';
+      if (roll <= 4) passing.push(participantId);
+    }
+    if (passing.some((participantId) => state.participants[participantId]!.resources < 1)) return 'INSUFFICIENT_RESOURCES';
+    for (const participantId of otherIds) {
+      const roll = rollRecord[participantId] as number;
+      audit(state, context, 'DIE_ROLLED', { rollerParticipantId: participantId, rawValue: roll, manual: false });
+    }
+    for (const participantId of passing) {
+      const payer = state.participants[participantId]!;
+      payer.resources -= 1; recipient.resources += 1;
+      audit(state, context, 'RESOURCE_TRANSFERRED', { sourceParticipantId: participantId, targetParticipantId: recipient.id, amount: 1 });
+    }
+    return undefined;
+  },
   DOUBLE_ACTION: (state, context) => {
     const campaignId = stringParameter(context, 'campaignId');
     const campaign = campaignId === undefined ? undefined : state.campaigns[campaignId];
@@ -222,6 +247,7 @@ const definitions: readonly M2BEffectDefinition[] = [
   { effectId: 'CARD_EFFECT_BASE_2025_E026', version: '0.1', enabledBlock: 'M2-4', handler: handlers.FIXED_SPEND_1! },
   { effectId: 'CARD_EFFECT_BASE_2025_E039', version: '0.1', enabledBlock: 'M2-4', handler: handlers.FIXED_SPEND_3! },
   { effectId: 'CARD_EFFECT_BASE_2025_E042', version: '0.1', enabledBlock: 'M2-4', handler: handlers.FIXED_GAIN_4! },
+  { effectId: 'CARD_EFFECT_BASE_2025_E046', version: '0.1', enabledBlock: 'M2-4', handler: handlers.MULTI_ROLL_RESOURCE_TRANSFER! },
   ...M2_TARGET_DT_EFFECT_IDS.map((effectId) => ({ effectId, version: '0.1' as const, enabledBlock: 'M2-4' as const, handler: handlers.TARGET_DT_SET! })),
   { effectId: 'CARD_EFFECT_BASE_2025_E051', version: '0.1', enabledBlock: 'M2-4', handler: handlers.CORRUPTION! },
   { effectId: 'REGIME_EFFECT_ARDEN', version: '0.1', enabledBlock: 'M2-4', handler: handlers.REGIME_DIE_REMOVE! },

@@ -195,7 +195,7 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(M2_EFFECT_MANIFEST).toEqual(registry.effect_definitions.map(({ effect_id, source_definition_id }) => ({
       effectId: effect_id, sourceDefinitionId: source_definition_id,
     })));
-    expect(M2_IMPLEMENTED_EFFECT_IDS).toHaveLength(40);
+    expect(M2_IMPLEMENTED_EFFECT_IDS).toHaveLength(41);
     expect(M2_EVENT_DRIVEN_EFFECT_IDS).toEqual([
       'CARD_EFFECT_BASE_2025_E033', 'CARD_EFFECT_BASE_2025_E010', 'CARD_EFFECT_BASE_2025_E012',
       'CARD_EFFECT_BASE_2025_E022', 'CARD_EFFECT_BASE_2025_E036', 'CARD_EFFECT_BASE_2025_E040',
@@ -233,6 +233,44 @@ describe('M2R-R01 canonical state integration seam', () => {
       countries: { ARDEN: { resources: resourcesBefore + 4 } },
       cards: { [source.id]: { zone: 'REMOVED_FROM_GAME' } },
     });
+  });
+
+  it('rolls internally for every other player and resolves E046 transfers atomically', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    const source = state.cards['ARDEN-CARD-081']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const before = Object.fromEntries(Object.entries(state.countries).map(([id, country]) => [id, country.resources]));
+    expect(testHarness.dispatcher.executeM2Effect({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-E046-1', idempotencyKey: 'M2-E046-K1',
+      actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E046', effectVersion: '0.1',
+      parameters: { rollsByParticipant: { P2: 10, P3: 10, P4: 10, P5: 10 } },
+    })).toMatchObject({ status: 'RESOLVED' });
+    const committed = testHarness.store.snapshot(state.id)!;
+    expect(committed.countries.ARDEN.resources).toBe(before.ARDEN! + 4);
+    expect(committed.countries.FLUMA.resources).toBe(before.FLUMA! - 1);
+    expect(committed.countries.URSARIA.resources).toBe(before.URSARIA! - 1);
+    expect(committed.countries.PRESQUE.resources).toBe(before.PRESQUE! - 1);
+    expect(committed.countries.DINESIA.resources).toBe(before.DINESIA! - 1);
+    expect(committed.cards[source.id]?.zone).toBe('DISCARD');
+    expect(testHarness.random.requests.slice(-4)).toEqual(Array.from({ length: 4 }, () => ({ minInclusive: 1, maxInclusive: 10 })));
+    expect(committed.m2Audit?.slice(-8).map(({ type }) => type)).toEqual([
+      'DIE_ROLLED', 'DIE_ROLLED', 'DIE_ROLLED', 'DIE_ROLLED',
+      'RESOURCE_TRANSFERRED', 'RESOURCE_TRANSFERRED', 'RESOURCE_TRANSFERRED', 'RESOURCE_TRANSFERRED',
+    ]);
+  });
+
+  it('rejects E046 without partial transfer when any passing player cannot pay', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    const source = state.cards['ARDEN-CARD-081']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
+    state.countries.FLUMA.resources = 0;
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const before = testHarness.store.snapshot(state.id);
+    expect(testHarness.dispatcher.executeM2Effect({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-E046-FAIL-1', idempotencyKey: 'M2-E046-FAIL-K1',
+      actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E046', effectVersion: '0.1', parameters: {},
+    })).toMatchObject({ status: 'REJECTED', error: { code: 'INSUFFICIENT_RESOURCES' } });
+    expect(testHarness.store.snapshot(state.id)).toEqual(before);
+    expect(testHarness.random.cursor).toBe(0);
   });
 
   it('sets an approved DT through a campaign-bound registry effect', () => {
