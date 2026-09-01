@@ -448,6 +448,44 @@ const synchronizeRegimeAbilityActivation = async (
     [transition.gameId,context.turnId,participantId,abilityDefinitionId,plannedActionId,dieRollId,targetPdStateId,traceId]);
 };
 
+const synchronizeGameOutcome = async (
+  client:PoolClient,
+  transition:AcceptedEngineTransition,
+  context:Awaited<ReturnType<typeof synchronizeNormalizedAfterImage>>,
+  now:Date,
+):Promise<void>=>{
+  const outcome=transition.afterState.endGame?.outcome;
+  if(outcome===undefined||context.turnId===null)return;
+  const turnNumber=(await client.query<{turn_number:number}>(
+    `SELECT turn_number FROM malign.turns WHERE game_id=$1 AND id=$2`,[transition.gameId,context.turnId])).rows[0]?.turn_number;
+  if(turnNumber===undefined)throw new PersistenceError('ENGINE_TRANSITION_INCOMPLETE','Completed game has no durable turn');
+  await client.query(`INSERT INTO malign.game_outcomes(game_id,completed_turn,shared_tie,tiebreak_stage,
+    final_scores_json,scores_schema_id,scores_schema_version,completed_at)
+    VALUES ($1,$2,$3,'LEAST_OWN_COUNTRY_MALIGN',$4::jsonb,'malign.final-scores','0.1',$5)
+    ON CONFLICT (game_id) DO NOTHING`,
+  [transition.gameId,turnNumber,outcome.sharedVictory,JSON.stringify(outcome.scores),now]);
+  for(const [index,logicalParticipantId] of outcome.winnerParticipantIds.entries()) {
+    const participantId=context.participantIds.get(logicalParticipantId);
+    if(participantId===undefined)throw new PersistenceError('CROSS_GAME_REFERENCE','Outcome winner is outside the game');
+    await client.query(`INSERT INTO malign.game_outcome_winners(game_id,participant_id,rank) VALUES ($1,$2,$3)
+      ON CONFLICT (game_id,participant_id) DO NOTHING`,
+      [transition.gameId,participantId,index+1]);
+  }
+  for(const award of transition.afterState.endGame?.objectiveAwards??[]) {
+    const participantId=context.participantIds.get(award.participantId);
+    if(participantId===undefined)throw new PersistenceError('CROSS_GAME_REFERENCE','Objective award participant is outside the game');
+    const definitionId=(await client.query<{id:string}>(`SELECT v.id FROM malign.victory_objective_definitions v
+      JOIN malign.games g ON g.scenario_definition_id=v.scenario_definition_id
+      WHERE g.id=$1 AND v.logical_id=$2`,[transition.gameId,award.objectiveLogicalId])).rows[0]?.id;
+    if(definitionId===undefined)throw new PersistenceError('ENGINE_TRANSITION_INCOMPLETE','Objective definition is not pinned');
+    await client.query(`INSERT INTO malign.victory_objective_awards(game_id,objective_definition_id,participant_id,
+      vp_awarded,evaluation_snapshot_json,snapshot_schema_id,snapshot_schema_version,awarded_at)
+      VALUES ($1,$2,$3,$4,$5::jsonb,'malign.objective-evaluation','0.1',$6)
+      ON CONFLICT (game_id,objective_definition_id,participant_id) DO NOTHING`,
+    [transition.gameId,definitionId,participantId,award.vpAwarded,JSON.stringify(award.evaluation),now]);
+  }
+};
+
 export class PostgresDurableUnitOfWork {
   constructor(private readonly pool: Pool, private readonly options: DurableUnitOfWorkOptions = {}) {}
 
@@ -933,6 +971,7 @@ export class PostgresDurableUnitOfWork {
         client,transition,normalized,actionResolutions,dieRollIds,traceId,now,
       );
       await synchronizeRegimeAbilityActivation(client,transition,normalized,dieRollIds,traceId);
+      await synchronizeGameOutcome(client,transition,normalized,now);
       if(transition.continuation.operation==='CLOSE') {
         const resolvedChoiceEvent=transition.events.find(({eventType})=>eventType==='CHOICE_RESOLVED');
         const selectedOptionIdsJson=resolvedChoiceEvent?.payload['selectedOptionIdsJson'];

@@ -25,7 +25,7 @@ describe('M2-7 owner gate — Objectives, Victory and End Game', () => {
       if (id === 'GE-VO-PRE-001') ['DINESIA_PD_1','DINESIA_PD_2'].forEach((pd)=>set(all,pd,{attributedMalign:{PRESQUE:4}}));
       if (id === 'GE-VO-PRE-002') [1,2,3].forEach((n)=>set(all,`ARDEN_PD_${n}`,{attributedResiliency:{PRESQUE:3}}));
       if (id === 'GE-VO-PRE-003') [1,2,3].forEach((n)=>set(all,`PRESQUE_PD_${n}`,{totalResiliency:3}));
-      if (id === 'GE-VO-FLU-001') ['ARDEN_PD_1','ARDEN_PD_2'].forEach((pd)=>set(all,pd,{totalMalign:4}));
+      if (id === 'GE-VO-FLU-001') ['ARDEN_PD_2','ARDEN_PD_3'].forEach((pd)=>set(all,pd,{totalMalign:4}));
       if (id === 'GE-VO-FLU-002' || id === 'GE-VO-FLU-003') { set(all,'FLUMA_PD_1',{totalResiliency:4}); set(all,'FLUMA_PD_2',{totalResiliency:id.endsWith('002')?3:4}); }
       if (id === 'GE-VO-FLU-004') ['ARDEN_PD_1','PRESQUE_PD_1'].forEach((pd)=>set(all,pd,{attributedResiliency:{FLUMA:3},narrativeTaggedCountries:[all[pd]!.hostCountryId]}));
       if (id === 'GE-VO-FLU-005') ['ARDEN_PD_1','PRESQUE_PD_1','DINESIA_PD_1','DINESIA_PD_2'].forEach((pd)=>set(all,pd,{traits:['MIDDLE'],attributedResiliency:{FLUMA:3},narrativeTaggedCountries:[all[pd]!.hostCountryId]}));
@@ -44,7 +44,9 @@ describe('M2-7 owner gate — Objectives, Victory and End Game', () => {
       expect(winners).toEqual(sameMalign?['P1','P2']:['P1']);
     } else {
       const state = m2bState(); const ending = endState(); const first = finalizeGame(ending,state,all,'K1'); const replay = structuredClone(first);
-      if (id === 'GE-END-001' || id === 'GE-M2-END-001') { const retry=finalizeGame(ending,state,all,'K1'); expect(retry).toEqual(first); expect(ending.awardedObjectiveKeys).toHaveLength(5); }
+      if (id === 'GE-END-001' || id === 'GE-M2-END-001') { const retry=finalizeGame(ending,state,all,'K1'); expect(retry).toEqual(first); expect(ending.awardedObjectiveKeys).toHaveLength(5);
+        expect(ending.objectiveAwards).toHaveLength(15); expect(new Set(ending.objectiveAwards?.map(({objectiveLogicalId,participantId})=>
+          `${participantId}:${objectiveLogicalId}`)).size).toBe(15); }
       else if (id === 'GE-END-003') expect(first.status).toBe('GAME_COMPLETED');
       else if (id === 'GE-M2-END-002') expect(replay).toEqual(first);
       else { expect(first.scores).toHaveLength(5); expect(first.winnerParticipantIds.length).toBeGreaterThan(0); }

@@ -192,3 +192,14 @@
 - **Resolution approved by Product Owner:** M2-2 opera exclusivamente sobre Games y memberships previamente provisionados mediante el seam administrativo aprobado. `CREATE_GAME` y `JOIN_GAME_MEMBERSHIP` no están disponibles en HTTP/HTTPS productivo y se rechazan antes de lookup de membership con `COMMAND_NOT_AVAILABLE_ON_PRODUCTIVE_TRANSPORT`. Los seams internos de M2-A se preservan.
 - **Deferred boundary:** onboarding, invitations y aprovisionamiento productivo requieren un gate separado; esta resolución no los autoriza.
 - **Status:** **RESOLVED mediante la autorización de corrección M22-R09…R14 y formalmente cerrado mediante DEC-083**.
+
+## IQ-M2-017 — Fluma/Dinesia objective PD identity contradiction — OPEN
+
+- **Affected scope:** únicamente `FLUMA_MEDIUM` y `DINESIA_EASY`; la evaluación y cierre durable de los demás trece objetivos puede continuar.
+- **Scenario Data Spec v0.1 §8.4:** `FLUMA_MEDIUM` exige `net_total_resiliency(FLUMA_PD_2) >= 4` y que `FLUMA_PD_2 > FLUMA_PD_1`.
+- **Acceptance Spec v0.1 GE-VO-FLU-002/003:** identifica Liberty con el valor 4 y Workers con 3/4; el baseline ejecutable actualmente mapea Liberty a `FLUMA_PD_1` y Workers a `FLUMA_PD_2`, invirtiendo la desigualdad respecto del Scenario Data Spec.
+- **Scenario Data Spec v0.1 §8.5:** `DINESIA_EASY` usa resiliencia atribuida en `FLUMA_PD_2` OR malignidad atribuida en `FLUMA_PD_1`.
+- **Acceptance Spec v0.1 GE-VO-DIN-003:** expresa Liberty resiliency y Workers malign; con el mapping ejecutable anterior, esto usa `FLUMA_PD_1` para resiliencia y `FLUMA_PD_2` para malignidad, nuevamente invertido respecto del Scenario Data Spec.
+- **No inventado:** `FLUMA_HARD` sí es inequívoco (Arden M/L = `ARDEN_PD_2/3`) y fue corregido sin afectar esta pregunta.
+- **Question:** ¿debe prevalecer la identidad explícita `FLUMA_PD_1/2` del Scenario Data Spec o la semántica nominal Liberty/Workers fijada por los casos del Acceptance Spec?
+- **Status:** **OPEN — requiere resolución normativa; sólo esta porción queda detenida**.

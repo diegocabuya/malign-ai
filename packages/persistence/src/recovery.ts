@@ -522,6 +522,42 @@ const crossAuthorityFailures = async (
       JOIN malign.country_definitions c ON c.id=m.attribution_country_definition_id WHERE m.game_id=$1`,[gameId]);
   if(!equalJson(expectedInfluenceLedger,sortCanonical(physicalInfluenceLedger.rows)))
     failures.push('normalized_influence_ledger');
+
+  const endGame=asRecord(state['endGame']);
+  const outcome=asRecord(endGame?.['outcome']);
+  const physicalOutcome=await client.query<{
+    sharedTie:boolean;tiebreakStage:string;finalScores:unknown;scoresSchemaId:string;scoresSchemaVersion:string;
+  }>(`SELECT shared_tie "sharedTie",tiebreak_stage "tiebreakStage",final_scores_json "finalScores",
+      scores_schema_id "scoresSchemaId",scores_schema_version "scoresSchemaVersion"
+    FROM malign.game_outcomes WHERE game_id=$1`,[gameId]);
+  if(outcome===undefined) {
+    if(physicalOutcome.rowCount!==0)failures.push('normalized_game_outcome');
+  } else {
+    const expectedOutcome={sharedTie:outcome['sharedVictory']===true,tiebreakStage:'LEAST_OWN_COUNTRY_MALIGN',
+      finalScores:outcome['scores'],scoresSchemaId:'malign.final-scores',scoresSchemaVersion:'0.1'};
+    if(!equalJson(expectedOutcome,physicalOutcome.rows[0]))failures.push('normalized_game_outcome');
+  }
+  const expectedWinners=outcome===undefined?[]:((outcome['winnerParticipantIds'] as readonly unknown[]|undefined)??[])
+    .map((participantId,index)=>({participant:String((asRecord(participants[recordKey(participantId)])??{})['userId']),rank:index+1}));
+  const physicalWinners=await client.query<{participant:string;rank:number}>(
+    `SELECT p.external_user_ref participant,w.rank FROM malign.game_outcome_winners w
+      JOIN malign.game_participants p ON p.id=w.participant_id WHERE w.game_id=$1 ORDER BY w.rank,p.external_user_ref`,[gameId]);
+  if(!equalJson(sortCanonical(expectedWinners),sortCanonical(physicalWinners.rows)))
+    failures.push('normalized_game_outcome_winners');
+  const expectedAwards=sortCanonical(((endGame?.['objectiveAwards'] as readonly unknown[]|undefined)??[]).map(value=>{
+    const award=asRecord(value)??{};const participant=asRecord(participants[recordKey(award['participantId'])])??{};
+    return {objective:String(award['objectiveLogicalId']),participant:String(participant['userId']),
+      vpAwarded:Number(award['vpAwarded']),evaluation:award['evaluation'],
+      schemaId:'malign.objective-evaluation',schemaVersion:'0.1'};
+  }));
+  const physicalAwards=await client.query<{
+    objective:string;participant:string;vpAwarded:number;evaluation:unknown;schemaId:string;schemaVersion:string;
+  }>(`SELECT d.logical_id objective,p.external_user_ref participant,a.vp_awarded "vpAwarded",
+      a.evaluation_snapshot_json evaluation,a.snapshot_schema_id "schemaId",a.snapshot_schema_version "schemaVersion"
+    FROM malign.victory_objective_awards a
+    JOIN malign.victory_objective_definitions d ON d.id=a.objective_definition_id
+    JOIN malign.game_participants p ON p.id=a.participant_id WHERE a.game_id=$1`,[gameId]);
+  if(!equalJson(expectedAwards,sortCanonical(physicalAwards.rows)))failures.push('normalized_objective_awards');
   return failures;
 };
 

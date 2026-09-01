@@ -26,7 +26,7 @@ export const evaluateObjectives = (countryId: CountryId, metrics: Readonly<Recor
     const mediumCount = arden.filter(([, value]) => nar(value, 'PRESQUE') > 2).length; mediumVp = mediumCount * 5 + (mediumCount === 3 ? 5 : 0);
     const easyCount = presque.filter(([, value]) => value.totalResiliency > 2).length; easyVp = easyCount * 3 + (easyCount === 3 ? 5 : 0);
   } else if (countryId === 'FLUMA') {
-    hardVp = ntm(metrics.ARDEN_PD_1!) > 3 && ntm(metrics.ARDEN_PD_2!) > 3 ? 20 : 0;
+    hardVp = ntm(metrics.ARDEN_PD_2!) > 3 && ntm(metrics.ARDEN_PD_3!) > 3 ? 20 : 0;
     mediumVp = liberty !== undefined && workers !== undefined && ntr(liberty) >= 4 && ntr(liberty) > ntr(workers) ? 10 : 0;
     const tagged = Object.values(metrics).filter((value) => value.hostCountryId !== 'FLUMA' && nar(value, 'FLUMA') > 2 && value.narrativeTaggedCountries?.includes(value.hostCountryId));
     easyVp = tagged.length * 3 + (new Set(tagged.filter((value) => value.traits.includes('MIDDLE') || value.traits.includes('LOWER')).map(({ hostCountryId }) => hostCountryId)).size >= 3 ? 5 : 0);
@@ -47,9 +47,14 @@ export const determineWinners = (scores: readonly FinalParticipantScore[]): read
 export const finalizeGame = (endGame: EndGameState, state: M2BState, metrics: Readonly<Record<string, PdObjectiveMetrics>>, idempotencyKey: string): GameOutcome => {
   const prior = endGame.idempotencyResults[idempotencyKey]; if (prior !== undefined) return prior;
   const scores = Object.values(state.participants).map((participant): FinalParticipantScore => {
-    const objectiveVp = evaluateObjectives(participant.countryId, metrics).totalVp;
+    const evaluation = evaluateObjectives(participant.countryId, metrics); const objectiveVp = evaluation.totalVp;
     const ownCountryMalign = entriesFor(metrics, participant.countryId).reduce((sum, [, value]) => sum + value.totalMalign, 0);
     endGame.awardedObjectiveKeys.push(`${participant.id}:FINAL_OBJECTIVES`);
+    endGame.objectiveAwards ??= [];
+    for (const [tier, vpAwarded] of [['HARD',evaluation.hardVp],['MEDIUM',evaluation.mediumVp],['EASY',evaluation.easyVp]] as const) {
+      endGame.objectiveAwards.push({participantId:participant.id,countryId:participant.countryId,
+        objectiveLogicalId:`${participant.countryId}_${tier}`,tier,vpAwarded,evaluation:structuredClone(evaluation)});
+    }
     return { participantId: participant.id, countryId: participant.countryId, baseVp: participant.victoryPoints, objectiveVp, finalVp: participant.victoryPoints + objectiveVp, ownCountryMalign };
   });
   const winners = determineWinners(scores); const outcome: GameOutcome = { status: 'GAME_COMPLETED', scores, winnerParticipantIds: winners, sharedVictory: winners.length > 1 };

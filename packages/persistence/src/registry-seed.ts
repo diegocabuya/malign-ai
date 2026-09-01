@@ -227,6 +227,25 @@ const insertCatalog = async (client: PoolClient, snapshot: RegistrySnapshot): Pr
   );
   const scenarioId = scenario.rows[0]?.id;
   if (!scenarioId) throw new Error('Seed scenario identity missing');
+  const objectiveDefinitions=[
+    ['ARDEN','HARD','Destroy the Fluma Independence Movement',15],['ARDEN','MEDIUM',"Bolster the Fluma Worker's Party",7],['ARDEN','EASY','Defend your democracy from Ursaria',5],
+    ['URSARIA','HARD','Make Arden rejoin the empire',20],['URSARIA','MEDIUM','Keep Presque out of it',7],['URSARIA','EASY','Play the malign long game',5],
+    ['PRESQUE','HARD',"Break down Dinesia's claim",15],['PRESQUE','MEDIUM','Reaffirm your alliance with Arden',5],['PRESQUE','EASY','Build your own social cohesion',3],
+    ['FLUMA','HARD','Secure your independence by force',20],['FLUMA','MEDIUM','Protect your Independence Movement',10],['FLUMA','EASY','Make a name for yourself internationally',3],
+    ['DINESIA','HARD','Lay your claim to the contested islands',20],['DINESIA','MEDIUM','Defend your population',5],['DINESIA','EASY','Signal support for independence movements',5],
+  ] as const;
+  for(const [countryId,tier,title,pointsValue] of objectiveDefinitions) {
+    await client.query(`INSERT INTO malign.victory_objective_definitions(scenario_definition_id,logical_id,
+      country_definition_id,tier,title,description,points_mode,points_value,evaluator_type,evaluator_parameters_json,
+      evaluator_schema_id,evaluator_schema_version,requires_facilitator_tag,instant_victory,display_order)
+      SELECT $1,$2,id,$3,$4,$4,'COMPUTED',$5,'M2_OBJECTIVE_EVALUATOR',$6::jsonb,
+        'malign.victory-objective-evaluator','0.1',$7,false,$8 FROM malign.country_definitions
+        WHERE logical_id=$9 AND version='0.1'
+      ON CONFLICT (scenario_definition_id,logical_id) DO UPDATE SET title=EXCLUDED.title,
+        evaluator_parameters_json=EXCLUDED.evaluator_parameters_json`,
+    [scenarioId,`${countryId}_${tier}`,tier,title,pointsValue,JSON.stringify({countryId,tier}),countryId==='FLUMA'&&tier==='EASY',
+      objectiveDefinitions.findIndex(([candidateCountry,candidateTier])=>candidateCountry===countryId&&candidateTier===tier),countryId]);
+  }
   for (const country of BASE_2025_COUNTRIES) {
     await client.query(
       `INSERT INTO malign.scenario_country_configs(scenario_definition_id,country_definition_id,

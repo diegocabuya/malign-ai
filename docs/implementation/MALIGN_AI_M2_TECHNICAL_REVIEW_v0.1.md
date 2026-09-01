@@ -25,7 +25,7 @@ La cifra anterior demuestra que los ejecutables actuales pasan; no demuestra por
 
 `M2BState`, `ReactionContinuation`, `CleanupContinuation` y `EndGameState` no aparecen en persistence, recovery, AuthorizedProjection ni server. Reaction/Veto, viral, awards y `GAME_COMPLETED` no se materializan mediante el UoW PostgreSQL, ledgers, traces, events y outbox aprobados.
 
-**Corrección en progreso:** el after-image canónico contiene Reaction continuation, scheduler core, End Game/outcome y auditoría M2. `buildDurableEngineTransition` incluye End Game en `SESSION_LIFECYCLE`, Reaction y scheduler en `CONTINUATIONS`, y auditoría M2 en `EVENTS_TRACES`, por lo que cambios omitidos rompen los hashes de completitud antes de I/O. Las transiciones aceptadas generan events/outbox mediante el UoW existente. Faltan materialización normalizada específica y gates PostgreSQL/replay multiproceso para todos los subtipos; M2R-R02 continúa **OPEN**.
+**Corrección en progreso:** el after-image canónico contiene Reaction continuation, scheduler core, End Game/outcome y auditoría M2. `buildDurableEngineTransition` incluye End Game en `SESSION_LIFECYCLE`, Reaction y scheduler en `CONTINUATIONS`, y auditoría M2 en `EVENTS_TRACES`, por lo que cambios omitidos rompen los hashes de completitud antes de I/O. Las transiciones aceptadas generan events/outbox mediante el UoW existente. El cierre de partida materializa de forma append-only `game_outcomes`, `game_outcome_winners` y las quince `victory_objective_awards`; recovery reconcilia las tres familias contra el after-image canónico y bloquea divergencias. Las quince definiciones de objetivo BASE_2025 se materializan en el registry seed aprobado sin cambiar el esquema físico. Faltan gates PostgreSQL/replay multiproceso para estas familias y la materialización normalizada específica de los demás subtipos; M2R-R02 continúa **OPEN**.
 
 ### M2R-R03 — Owner tests no representan el oracle
 
@@ -41,7 +41,7 @@ El dispatcher M2-B registra sólo un subconjunto de IDs, mientras el registry ap
 
 Reaction, Cleanup y End Game mutan estructuras in-memory fuera de la frontera transaccional application-wide. `finalizeGame` guarda un resultado local por key, pero no prueba commit atómico de awards, VP ledger, outcome, event, trace, snapshot y outbox ni retry durable entre procesos.
 
-**Corrección en progreso:** Reaction, Cleanup, End Game, efectos ejecutables y operaciones core usan ya `dispatchAtomicCommand` y la coordinación durable application-wide. El robo ciego incluye checkpoint/commit/restore del RNG cuando el Engine posee el provider, y delega ese ownership a la aplicación en PostgreSQL. Faltan gates multiproceso PostgreSQL específicos para awards, continuations y estas operaciones; M2R-R05 continúa **OPEN**.
+**Corrección en progreso:** Reaction, Cleanup, End Game, efectos ejecutables y operaciones core usan ya `dispatchAtomicCommand` y la coordinación durable application-wide. El robo ciego incluye checkpoint/commit/restore del RNG cuando el Engine posee el provider, y delega ese ownership a la aplicación en PostgreSQL. `finalizeGame` produce un único set canónico de quince awards por retry idempotente, y el UoW los inserta dentro de la misma transacción que outcome, winners, event, trace, snapshot y outbox. Faltan gates multiproceso PostgreSQL específicos para probar rollback/retry de awards y las demás continuations; M2R-R05 continúa **OPEN**.
 
 ### M2R-R06 — Privacy/reconnect incompletos
 
@@ -64,4 +64,4 @@ La proyección de Reaction es una función aislada; no reutiliza el pipeline pro
 - M2-3…M2-7: **IMPLEMENTED IN ISOLATION / CHANGES REQUIRED**.
 - M2 global: **NOT APPROVED / NOT CLOSED**.
 - M3: **NOT AUTHORIZED / NOT STARTED**.
-- No hay ambigüedad normativa nueva; son defectos de integración y evidencia, no `IMPLEMENTATION_QUESTION`.
+- `IQ-M2-017` queda **OPEN** y aislada exclusivamente a la identidad PD contradictoria de `FLUMA_MEDIUM` y `DINESIA_EASY`; no impide continuar los otros trece objetivos ni las fronteras durables.

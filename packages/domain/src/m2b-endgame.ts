@@ -34,8 +34,18 @@ export interface GameOutcome {
   readonly sharedVictory: boolean;
 }
 
+export interface ObjectiveAwardRecord {
+  readonly participantId: string;
+  readonly countryId: CountryId;
+  readonly objectiveLogicalId: string;
+  readonly tier: 'HARD' | 'MEDIUM' | 'EASY';
+  readonly vpAwarded: number;
+  readonly evaluation: ObjectiveEvaluation;
+}
+
 export interface EndGameState {
   readonly idempotencyResults: Record<string, GameOutcome>;
   readonly awardedObjectiveKeys: string[];
+  objectiveAwards?: ObjectiveAwardRecord[];
   outcome?: GameOutcome;
 }
