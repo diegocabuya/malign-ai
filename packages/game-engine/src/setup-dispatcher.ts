@@ -602,7 +602,8 @@ export class SetupCommandDispatcher {
         if (before === undefined) return { error: 'GAME_NOT_FOUND' as const, version };
         if (candidate.expectedGameVersion !== before.version) return { error: 'STALE_STATE_VERSION' as const, version: before.version };
         if (before.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const, version: before.version };
-        if (before.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const, version: before.version };
+        const actionStageEffect = options.effectId === 'CARD_EFFECT_BASE_2025_E031' || options.effectId === 'CARD_EFFECT_BASE_2025_E053';
+        if (before.phase !== (actionStageEffect ? 'ACTION_STAGE_PLAN' : 'RESOLUTION_STAGE')) return { error: 'WRONG_PHASE' as const, version: before.version };
         if (before.participants[options.actorParticipantId]?.role !== 'PLAYER') return { error: 'PARTICIPANT_NOT_FOUND' as const, version: before.version };
         const source = before.cards[options.sourceCardInstanceId];
         const registryDefinitionId = m2EffectSourceDefinition(options.effectId);
@@ -615,10 +616,83 @@ export class SetupCommandDispatcher {
           return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
         }
         const working = structuredClone(before);
-        const m2 = buildM2StateFromCanonical(working);
-        if (['CARD_EFFECT_BASE_2025_E006', 'CARD_EFFECT_BASE_2025_E013', 'CARD_EFFECT_BASE_2025_E016', 'CARD_EFFECT_BASE_2025_E047'].includes(options.effectId)) {
+        if (options.effectId === 'CARD_EFFECT_BASE_2025_E031') {
+          const strategy = working.strategy[options.actorParticipantId];
+          if (strategy === undefined) return { error: 'PARTICIPANT_NOT_FOUND' as const, version: before.version };
+          const sourceCardId = options.sourceCardInstanceId;
+          const handToDiscard = strategy.handCardInstanceIds.filter((id) => id !== sourceCardId);
+          const pool = [...strategy.operationsDeckOrder, ...strategy.discardCardInstanceIds, ...handToDiscard];
+          if (new Set(pool).size !== pool.length) return { error: 'INVALID_EFFECT_INPUT' as const, version: before.version };
+          const shuffled = this.shuffle(pool);
+          const drawn = shuffled.slice(0, 10); const remaining = shuffled.slice(10);
+          strategy.handCardInstanceIds = [...drawn]; strategy.discardCardInstanceIds = []; strategy.operationsDeckOrder = [...remaining];
+          for (const cardId of pool) {
+            const card = working.cards[cardId]; if (card === undefined) return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
+            card.zone = drawn.includes(cardId) ? 'HAND' : 'OPERATIONS_DECK';
+            if (card.zone === 'OPERATIONS_DECK') card.zonePosition = remaining.indexOf(cardId); else delete card.zonePosition;
+          }
+          const sourceCard = working.cards[sourceCardId]!; sourceCard.zone = 'REMOVED_FROM_GAME'; delete sourceCard.zonePosition;
+          const event = this.appendEvent(working, candidate, 'M2_EFFECT_EXECUTED', { effectId: options.effectId,
+            actorParticipantId: options.actorParticipantId, sourceCardInstanceId: sourceCardId, auditCount: 0 });
+          return { nextState: working, resultCode: 'M2_EFFECT_EXECUTED', resultPayload: { effectId: options.effectId,
+            discardedCount: handToDiscard.length, shuffledCount: pool.length, drawnCount: drawn.length }, emittedEventRefs: [event.id] };
+        }
+        if (options.effectId === 'CARD_EFFECT_BASE_2025_E045') {
+          const strategy = working.strategy[options.actorParticipantId];
+          if (strategy === undefined) return { error: 'PARTICIPANT_NOT_FOUND' as const, version: before.version };
+          strategy.handCardInstanceIds = strategy.handCardInstanceIds.filter((id) => id !== options.sourceCardInstanceId);
+          strategy.discardCardInstanceIds.push(options.sourceCardInstanceId);
+          working.cards[options.sourceCardInstanceId]!.zone = 'DISCARD';
+          const drawn: string[] = [];
+          while (drawn.length < 3 && strategy.operationsDeckOrder.length > 0) {
+            const cardId = strategy.operationsDeckOrder.shift()!; drawn.push(cardId); strategy.handCardInstanceIds.push(cardId);
+            const card = working.cards[cardId]; if (card === undefined) return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
+            card.zone = 'HAND'; delete card.zonePosition;
+          }
+          strategy.operationsDeckOrder.forEach((id, index) => { const card = working.cards[id]; if (card !== undefined) card.zonePosition = index; });
+          const overflow = Math.max(0, strategy.handCardInstanceIds.length - working.handLimit);
+          if (overflow > 0) {
+            const continuationId = `${working.id}:m2-effect-choice:${working.version + 1}`;
+            working.m2EffectChoice = {
+              kind: 'M2_EFFECT_GROUPED_CHOICE', schemaVersion: 1, id: continuationId, gameVersion: working.version + 1,
+              effectId: 'CARD_EFFECT_BASE_2025_E045', actorParticipantId: options.actorParticipantId,
+              chooserParticipantId: options.actorParticipantId, targetParticipantId: options.actorParticipantId,
+              sourceCardInstanceId: options.sourceCardInstanceId,
+              groups: [{ groupId: 'HAND_LIMIT_DISCARD', minSelections: overflow, maxSelections: overflow,
+                eligibleCardIds: [...strategy.handCardInstanceIds].sort() }], resourceCost: 0, sourceLifecycleCommitted: true, status: 'OPEN',
+            };
+            const event = this.appendEvent(working, candidate, 'CHOICE_REQUESTED', { continuationId, effectId: options.effectId,
+              chooserParticipantId: options.actorParticipantId, optionCount: strategy.handCardInstanceIds.length }, 'OWNER_AND_FACILITATOR');
+            return { nextState: working, resultCode: 'M2_EFFECT_CHOICE_REQUESTED', resultPayload: { continuationId,
+              chooserParticipantId: options.actorParticipantId, drawnCount: drawn.length, overflow }, emittedEventRefs: [event.id] };
+          }
+          const event = this.appendEvent(working, candidate, 'M2_EFFECT_EXECUTED', { effectId: options.effectId,
+            actorParticipantId: options.actorParticipantId, sourceCardInstanceId: options.sourceCardInstanceId, auditCount: 0 });
+          return { nextState: working, resultCode: 'M2_EFFECT_EXECUTED', resultPayload: { effectId: options.effectId,
+            drawnCount: drawn.length, overflow: 0 }, emittedEventRefs: [event.id] };
+        }
+        if (options.effectId === 'CARD_EFFECT_BASE_2025_E053') {
+          const strategy = working.strategy[options.actorParticipantId];
+          if (strategy === undefined || strategy.operationsDeckOrder.length < 2) return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
           if (working.m2EffectChoice !== undefined) return { error: 'SCHEDULER_SUSPENDED' as const, version: before.version };
-          const targetParticipantId = options.effectId === 'CARD_EFFECT_BASE_2025_E013' ? options.actorParticipantId
+          const continuationId = `${working.id}:m2-effect-choice:${working.version + 1}`;
+          working.m2EffectChoice = {
+            kind: 'M2_EFFECT_GROUPED_CHOICE', schemaVersion: 1, id: continuationId, gameVersion: working.version + 1,
+            effectId: 'CARD_EFFECT_BASE_2025_E053', actorParticipantId: options.actorParticipantId,
+            chooserParticipantId: options.actorParticipantId, targetParticipantId: options.actorParticipantId,
+            sourceCardInstanceId: options.sourceCardInstanceId,
+            groups: [{ groupId: 'SELECT_FROM_DECK', minSelections: 2, maxSelections: 2,
+              eligibleCardIds: [...strategy.operationsDeckOrder].sort() }], resourceCost: 0, status: 'OPEN',
+          };
+          const event = this.appendEvent(working, candidate, 'CHOICE_REQUESTED', { continuationId, effectId: options.effectId,
+            chooserParticipantId: options.actorParticipantId, optionCount: strategy.operationsDeckOrder.length }, 'OWNER_AND_FACILITATOR');
+          return { nextState: working, resultCode: 'M2_EFFECT_CHOICE_REQUESTED', resultPayload: { continuationId,
+            chooserParticipantId: options.actorParticipantId }, emittedEventRefs: [event.id] };
+        }
+        const m2 = buildM2StateFromCanonical(working);
+        if (['CARD_EFFECT_BASE_2025_E006', 'CARD_EFFECT_BASE_2025_E013', 'CARD_EFFECT_BASE_2025_E016', 'CARD_EFFECT_BASE_2025_E035', 'CARD_EFFECT_BASE_2025_E047'].includes(options.effectId)) {
+          if (working.m2EffectChoice !== undefined) return { error: 'SCHEDULER_SUSPENDED' as const, version: before.version };
+          const targetParticipantId = options.effectId === 'CARD_EFFECT_BASE_2025_E013' || options.effectId === 'CARD_EFFECT_BASE_2025_E035' ? options.actorParticipantId
             : typeof options.parameters.targetParticipantId === 'string' ? options.parameters.targetParticipantId : undefined;
           if (targetParticipantId === undefined || m2.participants[targetParticipantId] === undefined) return { error: 'INVALID_EFFECT_INPUT' as const, version: before.version };
           if (options.effectId === 'CARD_EFFECT_BASE_2025_E006' && targetParticipantId === options.actorParticipantId) return { error: 'INVALID_EFFECT_INPUT' as const, version: before.version };
@@ -639,23 +713,30 @@ export class SetupCommandDispatcher {
             .map(({ id }) => id).sort();
           if (eligibleCardIds.length === 0) return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
           const continuationId = `${working.id}:m2-effect-choice:${working.version + 1}`;
-          if (options.effectId === 'CARD_EFFECT_BASE_2025_E006' || options.effectId === 'CARD_EFFECT_BASE_2025_E013') {
+          if (options.effectId === 'CARD_EFFECT_BASE_2025_E006' || options.effectId === 'CARD_EFFECT_BASE_2025_E013' || options.effectId === 'CARD_EFFECT_BASE_2025_E035') {
             const discardEligible = options.effectId === 'CARD_EFFECT_BASE_2025_E006' ? eligibleCardIds
               : eligibleCardIds.filter((id) => id !== options.sourceCardInstanceId);
             const retrieveEligible = options.effectId === 'CARD_EFFECT_BASE_2025_E013'
               ? Object.values(m2.cards).filter((card) => card.controllerParticipantId === options.actorParticipantId && card.zone === 'DISCARD').map(({ id }) => id).sort()
               : [];
-            if (discardEligible.length < (options.effectId === 'CARD_EFFECT_BASE_2025_E006' ? 5 : 2) ||
-                (options.effectId === 'CARD_EFFECT_BASE_2025_E013' && retrieveEligible.length === 0)) return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
+            const deckEligible = options.effectId === 'CARD_EFFECT_BASE_2025_E035'
+              ? [...(working.strategy[options.actorParticipantId]?.operationsDeckOrder ?? [])].sort() : [];
+            const requiredHandSelections = options.effectId === 'CARD_EFFECT_BASE_2025_E006' ? 5 : options.effectId === 'CARD_EFFECT_BASE_2025_E013' ? 2 : 1;
+            if (discardEligible.length < requiredHandSelections ||
+                (options.effectId === 'CARD_EFFECT_BASE_2025_E013' && retrieveEligible.length === 0) ||
+                (options.effectId === 'CARD_EFFECT_BASE_2025_E035' && (discardEligible.length === 0 || deckEligible.length === 0))) return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
             working.m2EffectChoice = {
               kind: 'M2_EFFECT_GROUPED_CHOICE', schemaVersion: 1, id: continuationId, gameVersion: working.version + 1,
               effectId: options.effectId, actorParticipantId: options.actorParticipantId, chooserParticipantId: options.actorParticipantId,
               targetParticipantId, sourceCardInstanceId: options.sourceCardInstanceId,
               groups: options.effectId === 'CARD_EFFECT_BASE_2025_E006'
                 ? [{ groupId: 'DISCARD_FROM_TARGET_HAND', minSelections: 5, maxSelections: 5, eligibleCardIds: discardEligible }]
-                : [{ groupId: 'DISCARD_FROM_HAND', minSelections: 2, maxSelections: 2, eligibleCardIds: discardEligible },
-                  { groupId: 'RETRIEVE_FROM_DISCARD', minSelections: 1, maxSelections: 1, eligibleCardIds: retrieveEligible }],
-              resourceCost: options.effectId === 'CARD_EFFECT_BASE_2025_E006' ? 1 : 0, status: 'OPEN',
+                : options.effectId === 'CARD_EFFECT_BASE_2025_E013'
+                  ? [{ groupId: 'DISCARD_FROM_HAND', minSelections: 2, maxSelections: 2, eligibleCardIds: discardEligible },
+                    { groupId: 'RETRIEVE_FROM_DISCARD', minSelections: 1, maxSelections: 1, eligibleCardIds: retrieveEligible }]
+                  : [{ groupId: 'SELECT_FROM_DECK', minSelections: 1, maxSelections: 1, eligibleCardIds: deckEligible },
+                    { groupId: 'SELECT_FROM_HAND', minSelections: 1, maxSelections: 1, eligibleCardIds: discardEligible }],
+              resourceCost: options.effectId === 'CARD_EFFECT_BASE_2025_E006' || options.effectId === 'CARD_EFFECT_BASE_2025_E035' ? 1 : 0, status: 'OPEN',
             };
           } else {
             const simpleEffectId = options.effectId === 'CARD_EFFECT_BASE_2025_E016'
@@ -1195,16 +1276,83 @@ export class SetupCommandDispatcher {
   }
 
   private submitM2EffectChoice(state: SetupGameState, envelope: SetupEnvelope) {
-    if (state.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const };
     const participantId = envelope.actorContext.participantId;
     const payload = envelope.payload as SubmitM2EffectChoicePayload;
     const continuation = state.m2EffectChoice;
+    const expectedPhase = continuation?.effectId === 'CARD_EFFECT_BASE_2025_E053' ? 'ACTION_STAGE_PLAN' : 'RESOLUTION_STAGE';
+    if (state.phase !== expectedPhase) return { error: 'WRONG_PHASE' as const };
     if (participantId === undefined) return { error: 'INVALID_ACTOR_CONTEXT' as const };
     if (continuation === undefined || continuation.id !== payload.continuationId) return { error: 'STALE_CONTINUATION' as const };
     if (continuation.chooserParticipantId !== participantId) return { error: 'NOT_AUTHORIZED' as const };
+    if (continuation.kind === 'M2_EFFECT_GROUPED_CHOICE' && continuation.effectId === 'CARD_EFFECT_BASE_2025_E053' &&
+        continuation.groups.some(({ groupId }) => groupId === 'SELECT_FROM_DECK')) {
+      if (!('selections' in payload) || Object.keys(payload.selections).join('|') !== 'SELECT_FROM_DECK') return { error: 'INVALID_EFFECT_INPUT' as const };
+      const selectedIds = payload.selections.SELECT_FROM_DECK ?? []; const group = continuation.groups[0];
+      const strategy = state.strategy[participantId];
+      if (selectedIds.length !== 2 || new Set(selectedIds).size !== 2 || selectedIds.some((id) => !group?.eligibleCardIds.includes(id)) ||
+          strategy === undefined || selectedIds.some((id) => !strategy.operationsDeckOrder.includes(id)) ||
+          !strategy.handCardInstanceIds.includes(continuation.sourceCardInstanceId)) return { error: 'STALE_CONTINUATION' as const };
+      strategy.operationsDeckOrder = this.shuffle(strategy.operationsDeckOrder.filter((id) => !selectedIds.includes(id)));
+      strategy.handCardInstanceIds = strategy.handCardInstanceIds.filter((id) => id !== continuation.sourceCardInstanceId);
+      strategy.handCardInstanceIds.push(...selectedIds);
+      for (const id of selectedIds) { state.cards[id]!.zone = 'HAND'; delete state.cards[id]!.zonePosition; }
+      state.cards[continuation.sourceCardInstanceId]!.zone = 'REMOVED_FROM_GAME';
+      strategy.operationsDeckOrder.forEach((id, index) => { const card = state.cards[id]; if (card !== undefined) card.zonePosition = index; });
+      const overflow = Math.max(0, strategy.handCardInstanceIds.length - state.handLimit);
+      const resolvedEvent = this.appendEvent(state, envelope, 'CHOICE_RESOLVED', { continuationId: continuation.id, effectId: continuation.effectId }, 'OWNER_AND_FACILITATOR');
+      if (overflow > 0) {
+        const nextId = `${continuation.id}:hand-limit`;
+        state.m2EffectChoice = {
+          kind: 'M2_EFFECT_GROUPED_CHOICE', schemaVersion: 1, id: nextId, gameVersion: state.version + 1,
+          effectId: 'CARD_EFFECT_BASE_2025_E053', actorParticipantId: participantId, chooserParticipantId: participantId,
+          targetParticipantId: participantId, sourceCardInstanceId: continuation.sourceCardInstanceId,
+          groups: [{ groupId: 'HAND_LIMIT_DISCARD', minSelections: overflow, maxSelections: overflow,
+            eligibleCardIds: [...strategy.handCardInstanceIds].sort() }], resourceCost: 0, sourceLifecycleCommitted: true, status: 'OPEN',
+        };
+        const requested = this.appendEvent(state, envelope, 'CHOICE_REQUESTED', { continuationId: nextId, effectId: continuation.effectId,
+          chooserParticipantId: participantId, optionCount: strategy.handCardInstanceIds.length }, 'OWNER_AND_FACILITATOR');
+        return { resultCode: 'M2_EFFECT_CHOICE_REQUESTED', resultPayload: { continuationId: nextId, chooserParticipantId: participantId,
+          selectedCardIds: selectedIds, overflow }, events: [resolvedEvent, requested] };
+      }
+      delete state.m2EffectChoice;
+      const executed = this.appendEvent(state, envelope, 'M2_EFFECT_EXECUTED', { effectId: continuation.effectId,
+        actorParticipantId: participantId, sourceCardInstanceId: continuation.sourceCardInstanceId, auditCount: 0 });
+      return { resultCode: 'M2_EFFECT_CHOICE_RESOLVED', resultPayload: { effectId: continuation.effectId, selectedCardIds: selectedIds },
+        events: [resolvedEvent, executed] };
+    }
+    if (continuation.kind === 'M2_EFFECT_GROUPED_CHOICE' && continuation.effectId === 'CARD_EFFECT_BASE_2025_E035') {
+      if (!('selections' in payload) || Object.keys(payload.selections).sort().join('|') !== 'SELECT_FROM_DECK|SELECT_FROM_HAND') return { error: 'INVALID_EFFECT_INPUT' as const };
+      const deckId = payload.selections.SELECT_FROM_DECK?.[0]; const handId = payload.selections.SELECT_FROM_HAND?.[0];
+      const deckGroup = continuation.groups.find(({ groupId }) => groupId === 'SELECT_FROM_DECK');
+      const handGroup = continuation.groups.find(({ groupId }) => groupId === 'SELECT_FROM_HAND');
+      const strategy = state.strategy[continuation.actorParticipantId]; const seat = state.seats[continuation.actorParticipantId];
+      if (deckId === undefined || handId === undefined || payload.selections.SELECT_FROM_DECK?.length !== 1 || payload.selections.SELECT_FROM_HAND?.length !== 1 ||
+          !deckGroup?.eligibleCardIds.includes(deckId) || !handGroup?.eligibleCardIds.includes(handId) || strategy === undefined || seat === undefined ||
+          !strategy.operationsDeckOrder.includes(deckId) || !strategy.handCardInstanceIds.includes(handId) ||
+          !strategy.handCardInstanceIds.includes(continuation.sourceCardInstanceId)) return { error: 'STALE_CONTINUATION' as const };
+      const country = state.countries[seat.countryId]; if (country.resources < continuation.resourceCost) return { error: 'INSUFFICIENT_RESOURCES' as const };
+      country.resources -= continuation.resourceCost;
+      strategy.handCardInstanceIds = strategy.handCardInstanceIds.filter((id) => id !== handId && id !== continuation.sourceCardInstanceId);
+      strategy.handCardInstanceIds.push(deckId); strategy.discardCardInstanceIds.push(continuation.sourceCardInstanceId);
+      strategy.operationsDeckOrder = this.shuffle([...strategy.operationsDeckOrder.filter((id) => id !== deckId), handId]);
+      state.cards[deckId]!.zone = 'HAND'; delete state.cards[deckId]!.zonePosition;
+      state.cards[handId]!.zone = 'OPERATIONS_DECK';
+      state.cards[continuation.sourceCardInstanceId]!.zone = 'DISCARD';
+      strategy.operationsDeckOrder.forEach((id, index) => { const card = state.cards[id]; if (card !== undefined) card.zonePosition = index; });
+      state.m2Audit ??= []; state.m2Audit.push({ type: 'M2_EFFECT_CHOICE_RESOLVED', actorParticipantId: participantId,
+        payload: { effectId: continuation.effectId, selectionCount: 2, targetParticipantId: participantId } });
+      delete state.m2EffectChoice;
+      const events = [
+        this.appendEvent(state, envelope, 'CHOICE_RESOLVED', { continuationId: continuation.id, effectId: continuation.effectId }, 'OWNER_AND_FACILITATOR'),
+        this.appendEvent(state, envelope, 'M2_EFFECT_EXECUTED', { effectId: continuation.effectId, actorParticipantId: continuation.actorParticipantId,
+          sourceCardInstanceId: continuation.sourceCardInstanceId, auditCount: 1 }),
+      ];
+      return { resultCode: 'M2_EFFECT_CHOICE_RESOLVED', resultPayload: { effectId: continuation.effectId, selectedCardIds: [deckId, handId] }, events };
+    }
     const m2 = buildM2StateFromCanonical(state);
     const source = m2.cards[continuation.sourceCardInstanceId];
-    if (source?.zone !== 'HAND' || source.controllerParticipantId !== continuation.actorParticipantId) return { error: 'STALE_CONTINUATION' as const };
+    const sourceAlreadyCommitted = continuation.kind === 'M2_EFFECT_GROUPED_CHOICE' && continuation.sourceLifecycleCommitted === true;
+    if (!sourceAlreadyCommitted && (source?.zone !== 'HAND' || source.controllerParticipantId !== continuation.actorParticipantId)) return { error: 'STALE_CONTINUATION' as const };
     let selectedCardIds: readonly string[];
     if (continuation.kind === 'M2_EFFECT_CARD_CHOICE') {
       if (!('selectedCardId' in payload) || !continuation.eligibleCardIds.includes(payload.selectedCardId)) return { error: 'INVALID_EFFECT_INPUT' as const };
@@ -1232,16 +1380,19 @@ export class SetupCommandDispatcher {
         if (allIds.some((id) => m2.cards[id]?.zone !== 'HAND' || m2.cards[id]?.controllerParticipantId !== continuation.targetParticipantId)) return { error: 'STALE_CONTINUATION' as const };
         actorState.resources -= continuation.resourceCost;
         for (const id of allIds) discardWithLifecycle(m2, id);
-      } else {
+      } else if (continuation.effectId === 'CARD_EFFECT_BASE_2025_E013') {
         const handIds = payload.selections.DISCARD_FROM_HAND ?? []; const retrieveIds = payload.selections.RETRIEVE_FROM_DISCARD ?? [];
         if (handIds.some((id) => m2.cards[id]?.zone !== 'HAND' || m2.cards[id]?.controllerParticipantId !== continuation.actorParticipantId) ||
             retrieveIds.some((id) => m2.cards[id]?.zone !== 'DISCARD' || m2.cards[id]?.controllerParticipantId !== continuation.actorParticipantId)) return { error: 'STALE_CONTINUATION' as const };
         for (const id of handIds) discardWithLifecycle(m2, id);
         const retrieved = m2.cards[retrieveIds[0]!]!; retrieved.zone = 'HAND';
+      } else {
+        if (allIds.some((id) => m2.cards[id]?.zone !== 'HAND' || m2.cards[id]?.controllerParticipantId !== continuation.actorParticipantId)) return { error: 'STALE_CONTINUATION' as const };
+        for (const id of allIds) discardWithLifecycle(m2, id);
       }
       selectedCardIds = allIds;
     }
-    discardWithLifecycle(m2, source.id);
+    if (!sourceAlreadyCommitted && source !== undefined) discardWithLifecycle(m2, source.id);
     m2.audit.push({ type: 'M2_EFFECT_CHOICE_RESOLVED', actorParticipantId: participantId,
       payload: { effectId: continuation.effectId, selectionCount: selectedCardIds.length, targetParticipantId: continuation.targetParticipantId } });
     applyM2StateToCanonical(state, m2);

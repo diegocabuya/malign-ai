@@ -97,13 +97,14 @@ export interface M2EffectGroupedChoiceContinuation {
   readonly schemaVersion: 1;
   readonly id: string;
   readonly gameVersion: number;
-  readonly effectId: 'CARD_EFFECT_BASE_2025_E006' | 'CARD_EFFECT_BASE_2025_E013';
+  readonly effectId: 'CARD_EFFECT_BASE_2025_E006' | 'CARD_EFFECT_BASE_2025_E013' | 'CARD_EFFECT_BASE_2025_E035' | 'CARD_EFFECT_BASE_2025_E045' | 'CARD_EFFECT_BASE_2025_E053';
   readonly actorParticipantId: string;
   readonly chooserParticipantId: string;
   readonly targetParticipantId: string;
   readonly sourceCardInstanceId: string;
   readonly groups: readonly M2EffectChoiceGroup[];
   readonly resourceCost: number;
+  readonly sourceLifecycleCommitted?: boolean;
   readonly status: 'OPEN';
 }
 
