@@ -28,6 +28,7 @@ export const HttpCommandRequestSchema = z.object({
     'SUBMIT_CHOICE',
     'SUBMIT_CAMPAIGN_NARRATIVE',
     'SUBMIT_COALITION_CONTRIBUTION',
+    'SUBMIT_MANUAL_DIE',
   ]),
   payloadSchemaVersion: id,
   payload: z.unknown(),

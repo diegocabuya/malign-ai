@@ -352,17 +352,60 @@ describe('M12-R05 — player projection redaction', () => {
   });
 });
 
-describe('M12-R06 — dice mode enforcement', () => {
-  it('rejects reachable MANUAL_DIE_INPUT before mutation or RNG consumption', () => {
+describe('M12-R06 — manual die continuation', () => {
+  const manualInput = (state: SetupGameState, requestId: string, value: number, suffix: string): SessionM1InteractionInput => ({
+    engineContractVersion: state.versions.engineContractVersion,
+    commandId: `manual-die-${suffix}`,
+    idempotencyKey: `manual-die-${suffix}`,
+    gameId: state.id,
+    expectedGameVersion: state.version,
+    commandType: 'SUBMIT_MANUAL_DIE',
+    payloadSchemaVersion: state.versions.fixtureSchemaVersion,
+    payload: { requestId, value },
+    correlationId: 'm1-2-full-campaign',
+  });
+
+  it('suspends for a private manual D10 request without consuming RNG, then resumes exactly once', () => {
     const testHarness = adjudicationHarness({ diceMode: 'MANUAL_DIE_INPUT' });
+    const initial = testHarness.store.snapshot(GAME_ID)!;
+    const initialEventCount = initial.events.length;
     runConstruct(testHarness);
-    const before = testHarness.store.snapshot(GAME_ID)!;
     const cursorBefore = testHarness.random.cursor;
-    const idempotencyBefore = testHarness.store.idempotencyCount();
-    const result = runActivation(testHarness);
-    expect(result.resultCode).toBe('INVALID_DICE_MODE');
+    const requested = runActivation(testHarness);
+    expect(requested).toMatchObject({ status: 'REQUIRES_CHOICE', resultCode: 'MANUAL_DIE_REQUIRED' });
+    expect(testHarness.random.cursor).toBe(cursorBefore);
+    const pendingState = testHarness.store.snapshot(GAME_ID)!;
+    const pending = pendingState.adjudication.pendingResolution;
+    if (pending?.kind !== 'MANUAL_DIE') throw new Error('Manual die request missing');
+    expect(testHarness.app.getM1AdjudicationProjection('session-p1', GAME_ID)).toMatchObject({
+      ok: true, projection: { pendingManualDieRequest: { requestId: pending.request.requestId, maySubmit: true } },
+    });
+    const completed = testHarness.app.executeM1Interaction('session-p1', manualInput(pendingState, pending.request.requestId, 8, 'valid'));
+    expect(completed).toMatchObject({ status: 'RESOLVED', resultCode: 'CAMPAIGN_ACTIVATION_COMPLETED' });
+    const after = testHarness.store.snapshot(GAME_ID)!;
+    expect(after.adjudication.pendingResolution).toBeUndefined();
+    expect(after.adjudication.dieRolls.at(-1)).toMatchObject({ rawValue: 8, manual: true, submittedByParticipantId: 'P1' });
+    expect(after.events.filter(({ type }) => type === 'DIE_REQUESTED')).toHaveLength(1);
+    expect(after.events.filter(({ type }) => type === 'DIE_ROLLED').at(-1)?.payload).toMatchObject({
+      rawValue: 8, manual: true, submittedByParticipantId: 'P1',
+    });
+    const replayed = replayM1Events(createM1StateSnapshot(initial), createM1ReplayBundle(
+      after.events.slice(initialEventCount), after.adjudication.traces,
+    ));
+    expect(canonicalizeJson(replayed)).toBe(canonicalizeJson(after));
+    expect(testHarness.random.cursor).toBe(cursorBefore);
+  });
+
+  it.each([0, 1.5, 11, Number.POSITIVE_INFINITY])('rejects invalid manual value %s atomically', (value) => {
+    const testHarness = adjudicationHarness({ diceMode: 'MANUAL_DIE_INPUT' });
+    runConstruct(testHarness); runActivation(testHarness);
+    const before = testHarness.store.snapshot(GAME_ID)!;
+    const pending = before.adjudication.pendingResolution;
+    if (pending?.kind !== 'MANUAL_DIE') throw new Error('Manual die request missing');
+    const cursorBefore = testHarness.random.cursor;
+    const rejected = testHarness.app.executeM1Interaction('session-p1', manualInput(before, pending.request.requestId, value, `invalid-${String(value)}`));
+    expect(rejected).toMatchObject({ status: 'REJECTED', resultCode: 'INVALID_DIE_VALUE' });
     expect(testHarness.store.snapshot(GAME_ID)).toEqual(before);
     expect(testHarness.random.cursor).toBe(cursorBefore);
-    expect(testHarness.store.idempotencyCount()).toBe(idempotencyBefore);
   });
 });

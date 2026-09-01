@@ -63,7 +63,7 @@ export interface SessionM1InteractionInput {
   readonly idempotencyKey: string;
   readonly gameId: string;
   readonly expectedGameVersion: number;
-  readonly commandType: 'SUBMIT_CHOICE' | 'SUBMIT_CAMPAIGN_NARRATIVE' | 'SUBMIT_COALITION_CONTRIBUTION';
+  readonly commandType: 'SUBMIT_CHOICE' | 'SUBMIT_CAMPAIGN_NARRATIVE' | 'SUBMIT_COALITION_CONTRIBUTION' | 'SUBMIT_MANUAL_DIE';
   readonly payloadSchemaVersion: string;
   readonly payload: unknown;
   readonly correlationId?: string;

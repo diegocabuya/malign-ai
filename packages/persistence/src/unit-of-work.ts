@@ -836,13 +836,19 @@ export class PostgresDurableUnitOfWork {
         }
         const participantId=normalized.participantIds.get(entry.participantId);
         if(participantId===undefined) throw new PersistenceError('CROSS_GAME_REFERENCE','Die-roll participant is invalid');
+        const enteredByParticipantId=entry.submittedByParticipantId===undefined
+          ? null
+          : normalized.participantIds.get(entry.submittedByParticipantId);
+        if(entry.submittedByParticipantId!==undefined&&enteredByParticipantId===undefined)
+          throw new PersistenceError('CROSS_GAME_REFERENCE','Manual die submitter is invalid');
+        const rngMetadata=entry.manual?null:JSON.stringify({requestId:entry.rngRequestId});
         const persistedDie=await client.query<{id:string}>(
           `INSERT INTO malign.die_rolls(game_id,turn_id,participant_id,die_type,mode,raw_value,
-             source_type,source_entity_id,rng_metadata_json,rng_schema_id,rng_schema_version,created_at)
-           VALUES ($1,$2,$3,'D10','DETERMINISTIC',$4,$5,$6,$7::jsonb,'malign.rng','0.2',$8)
+             source_type,source_entity_id,rng_metadata_json,rng_schema_id,rng_schema_version,entered_by_participant_id,created_at)
+           VALUES ($1,$2,$3,'D10',$4,$5,$6,$7,$8::jsonb,$9,$10,$11,$12)
            RETURNING id`,
-          [transition.gameId,normalized.turnId,participantId,entry.rawValue,entry.source,
-            traceId,JSON.stringify({requestId:entry.rngRequestId}),now]);
+          [transition.gameId,normalized.turnId,participantId,entry.manual?'MANUAL_DIE_INPUT':'DETERMINISTIC',entry.rawValue,entry.source,
+            traceId,rngMetadata,entry.manual?null:'malign.rng',entry.manual?null:'0.2',enteredByParticipantId,now]);
         const persistedDieId=persistedDie.rows[0]?.id;
         if(persistedDieId===undefined)throw new PersistenceError('TRANSACTION_WRITE_FAILED','Die-roll identity is missing');
         dieRollIds.set(entry.id,persistedDieId);

@@ -3,6 +3,7 @@ import type {
   AdjudicationTrace,
   ChoiceRequest,
   CoalitionContributionRequest,
+  ManualDieRequest,
   NarrativeRequest,
   SetupGameEvent,
   SetupGameEventType,
@@ -32,6 +33,7 @@ export interface M1AdjudicationProjection {
   readonly pendingChoice?: ChoiceRequest;
   readonly pendingNarrativeRequest?: NarrativeRequest;
   readonly pendingCoalitionRequest?: CoalitionContributionRequest & { readonly mayRespond: boolean };
+  readonly pendingManualDieRequest?: ManualDieRequest & { readonly maySubmit: boolean };
   readonly events: readonly SetupGameEvent[];
   readonly audit: {
     readonly resourceLedgerEntries: number;
@@ -112,6 +114,7 @@ const canonicalPayloadKeys: Readonly<Record<SetupGameEventType, readonly string[
   COALITION_REQUESTED: ['requestId', 'campaignId', 'sourceParticipantId', 'eligibleCount'],
   COALITION_RESPONSE_COMMITTED: ['requestId', 'participantId', 'responseCount', 'resolved'],
   COALITION_RESOLVED: ['requestId', 'campaignId', 'contributorCount'],
+  DIE_REQUESTED: ['requestId', 'activationId', 'participantId', 'dieType'],
   BOOST_PLANNED: ['participantId', 'cardInstanceId', 'campaignId', 'activationSequenceIndex'],
   BOOST_APPLIED: ['activationId', 'participantId', 'cardInstanceId', 'modifier'],
   PRE_ROLL_REACTION_OPENED: ['activationId', 'stage', 'eligibleCount'],
@@ -126,6 +129,7 @@ const canonicalPayloadKeys: Readonly<Record<SetupGameEventType, readonly string[
     'rawValue',
     'manual',
     'rngRequestId',
+    'submittedByParticipantId',
     'legitimacyModifier',
     'boostModifier',
     'modifiedRollRaw',
@@ -169,6 +173,7 @@ const canonicalPayloadKeys: Readonly<Record<SetupGameEventType, readonly string[
 const facilitatorAuditPayloadKeys: Readonly<Partial<Record<SetupGameEventType, readonly string[]>>> = {
   NARRATIVE_REQUESTED: ['pendingResolutionDigest'],
   CHOICE_REQUESTED: ['pendingResolutionDigest'],
+  DIE_REQUESTED: ['pendingResolutionDigest'],
   CAMPAIGN_ACTIVATION_COMPLETED: ['influenceResolutionDigest', 'traceDigest'],
 };
 
@@ -246,6 +251,10 @@ export const buildM1AdjudicationProjection = (state: SetupGameState, viewer: Act
     ...(pending?.kind === 'COALITION' && (participant.role === 'FACILITATOR' || pending.request.eligibleParticipantIds.includes(participantId))
       ? { pendingCoalitionRequest: { ...structuredClone(pending.request),
           mayRespond: participant.role === 'PLAYER' && pending.request.eligibleParticipantIds.includes(participantId) && pending.decisions[participantId] === undefined } }
+      : {}),
+    ...(pending?.kind === 'MANUAL_DIE' && (participant.role === 'FACILITATOR' || pending.request.requestedForParticipantId === participantId)
+      ? { pendingManualDieRequest: { ...structuredClone(pending.request),
+          maySubmit: participant.role === 'FACILITATOR' || pending.request.requestedForParticipantId === participantId } }
       : {}),
     events: projectedEvents(state, viewer),
     audit: {

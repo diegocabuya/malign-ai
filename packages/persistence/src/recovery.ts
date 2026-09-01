@@ -373,7 +373,7 @@ const crossAuthorityFailures = async (
       targetDt:String(source['targetDtId']??campaign['targetDtId']),baseCv:Number(source['baseCv']),
       effectiveCv:Number(source['effectiveCv']),costTier:String(source['baseTier']),
       resolutionTier:String(source['resolutionTier']),resourceCost:Number(source['resourceCost']),
-      rawValue:die===undefined?null:Number(die['rawValue']),requestId:die===undefined?null:String(die['rngRequestId']),
+      rawValue:die===undefined?null:Number(die['rawValue']),requestId:typeof die?.['rngRequestId']==='string'?die['rngRequestId']:null,
       modifiedRoll:source['modifiedRollRaw']===undefined?null:Number(source['modifiedRollRaw']),
       ertRoll:source['ertRoll']===undefined?null:Number(source['ertRoll']),
       ertResult:source['ertResult']===undefined?null:Number(source['ertResult']),outcome};
@@ -417,9 +417,9 @@ const crossAuthorityFailures = async (
   const expectedDice=sortCanonical(((adjudication['dieRolls'] as readonly unknown[]|undefined)??[]).map(value=>{
     const die=asRecord(value)??{};const participant=asRecord(participants[String(die['participantId'])])??{};
     return {participant:String(participant['userId']),source:String(die['source']),rawValue:Number(die['rawValue']),
-      requestId:String(die['rngRequestId'])};
+      requestId:typeof die['rngRequestId']==='string'?die['rngRequestId']:null};
   }));
-  const physicalDice=await client.query<{participant:string;source:string;rawValue:number;requestId:string}>(
+  const physicalDice=await client.query<{participant:string;source:string;rawValue:number;requestId:string|null}>(
     `SELECT p.external_user_ref participant,d.source_type source,d.raw_value "rawValue",
       d.rng_metadata_json->>'requestId' "requestId" FROM malign.die_rolls d
       JOIN malign.game_participants p ON p.id=d.participant_id

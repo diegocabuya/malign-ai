@@ -15,6 +15,7 @@ import {
   type M1ActionPlanSlot,
   type M1CampaignAssignment,
   type M1CampaignState,
+  type ManualDiePendingResolution,
   type NarrativeContinuationState,
   type NarrativePendingResolution,
   type PendingResolution,
@@ -51,6 +52,8 @@ export interface SubmitCoalitionContributionPayload {
   readonly requestId: string;
   readonly decision: 'CONTRIBUTE' | 'DECLINE';
 }
+
+export interface SubmitManualDiePayload { readonly requestId: string; readonly value: number }
 
 export interface SchedulerRunOptions {
   readonly gameId: string;
@@ -100,6 +103,10 @@ const isSubmitCampaignNarrativePayload = (value: unknown): value is SubmitCampai
 const isSubmitCoalitionContributionPayload = (value: unknown): value is SubmitCoalitionContributionPayload =>
   exactKeys(value, ['requestId', 'decision']) && typeof value.requestId === 'string' && value.requestId.length > 0 &&
   (value.decision === 'CONTRIBUTE' || value.decision === 'DECLINE');
+
+const isSubmitManualDiePayload = (value: unknown): value is SubmitManualDiePayload => exactKeys(value, ['requestId', 'value']) &&
+  typeof value.value === 'number' && Number.isFinite(value.value) && Number.isInteger(value.value) && value.value >= 1 && value.value <= 10 &&
+  typeof value.requestId === 'string' && value.requestId.length > 0;
 
 const countryForParticipant = (state: SetupGameState, participantId: string): CountryId | undefined =>
   state.seats[participantId]?.countryId;
@@ -457,9 +464,22 @@ export const replayM1Events = (
       case 'DIE_ROLLED':
         state.adjudication.dieRolls.push({
           id: String(payload.dieRollId), source: 'CAMPAIGN_ERT', participantId: String(payload.participantId),
-          rawValue: Number(payload.rawValue), manual: false, rngRequestId: String(payload.rngRequestId), gameVersion: event.gameVersion,
+          rawValue: Number(payload.rawValue), manual: payload.manual === true,
+          ...(payload.manual === true ? { submittedByParticipantId: String(payload.submittedByParticipantId) } : { rngRequestId: String(payload.rngRequestId) }),
+          gameVersion: event.gameVersion,
         });
+        if (state.adjudication.pendingResolution?.kind === 'MANUAL_DIE') {
+          delete state.adjudication.pendingResolution;
+          state.adjudication.scheduler.status = 'READY';
+        }
         break;
+      case 'DIE_REQUESTED': {
+        const serialized = payload.pendingResolutionJson;
+        if (typeof serialized !== 'string') throw new Error('Replay manual die request payload missing');
+        state.adjudication.pendingResolution = JSON.parse(serialized) as ManualDiePendingResolution;
+        state.adjudication.scheduler.status = 'SUSPENDED';
+        break;
+      }
       case 'INFLUENCE_MUTATED': {
         const pdId = String(payload.pdId);
         const type = String(payload.type) as CampaignAlignment;
@@ -622,7 +642,7 @@ export class M1AdjudicationEngine {
 
   dispatchInteraction(envelope: InteractionEnvelope): EngineCommandResult {
     const beforeVersion = this.store.snapshot(envelope.gameId)?.version ?? 0;
-    if (envelope.commandType !== 'SUBMIT_CHOICE' && envelope.commandType !== 'SUBMIT_CAMPAIGN_NARRATIVE' && envelope.commandType !== 'SUBMIT_COALITION_CONTRIBUTION') {
+    if (envelope.commandType !== 'SUBMIT_CHOICE' && envelope.commandType !== 'SUBMIT_CAMPAIGN_NARRATIVE' && envelope.commandType !== 'SUBMIT_COALITION_CONTRIBUTION' && envelope.commandType !== 'SUBMIT_MANUAL_DIE') {
       return rejectedResult(envelope, beforeVersion, 'NOT_AUTHORIZED', this.now);
     }
     return this.withTransactionalRandom((deferStableNotification) => dispatchAtomicCommand({
@@ -633,12 +653,16 @@ export class M1AdjudicationEngine {
         ? isSubmitChoicePayload(payload) ? undefined : 'INVALID_COMMAND_PAYLOAD'
         : commandType === 'SUBMIT_CAMPAIGN_NARRATIVE'
           ? isSubmitCampaignNarrativePayload(payload) ? undefined : 'INVALID_COMMAND_PAYLOAD'
-          : isSubmitCoalitionContributionPayload(payload) ? undefined : 'INVALID_COMMAND_PAYLOAD',
+          : commandType === 'SUBMIT_COALITION_CONTRIBUTION'
+            ? isSubmitCoalitionContributionPayload(payload) ? undefined : 'INVALID_COMMAND_PAYLOAD'
+            : isSubmitManualDiePayload(payload) ? undefined : 'INVALID_DIE_VALUE',
       prepare: (before, candidate) => candidate.commandType === 'SUBMIT_CHOICE'
         ? this.prepareChoice(before, candidate)
         : candidate.commandType === 'SUBMIT_CAMPAIGN_NARRATIVE'
           ? this.prepareNarrative(before, candidate)
-          : this.prepareCoalitionContribution(before, candidate),
+          : candidate.commandType === 'SUBMIT_COALITION_CONTRIBUTION'
+            ? this.prepareCoalitionContribution(before, candidate)
+            : this.prepareManualDie(before, candidate),
       deferStableNotification,
     }));
   }
@@ -700,9 +724,6 @@ export class M1AdjudicationEngine {
     const located = this.locateNextSlot(working);
     if (located === undefined) return { error: 'SCHEDULER_COMPLETE' as const, version };
     const { participantId, slot } = located;
-    if (slot.actionType === 'ACTIVATE_CAMPAIGN' && before.diceMode !== 'DIGITAL') {
-      return { error: 'INVALID_DICE_MODE' as const, version };
-    }
     const preStateHash = hashAuthoritativeM1State(before);
     const reveal = this.appendEvent(working, envelope, 'ACTION_REVEALED', {
       participantId,
@@ -768,6 +789,8 @@ export class M1AdjudicationEngine {
           resultPayload: structuredClone(activation.pending.request), emittedEventRefs: activation.eventRefs,
         };
       }
+      if (activation.pending.kind === 'MANUAL_DIE') return { nextState: working, status: 'REQUIRES_CHOICE' as const,
+        resultCode: 'MANUAL_DIE_REQUIRED', resultPayload: structuredClone(activation.pending.request), emittedEventRefs: activation.eventRefs };
       return {
         nextState: working,
         status: 'REQUIRES_CHOICE' as const,
@@ -1004,6 +1027,7 @@ export class M1AdjudicationEngine {
     narrativeContinuation: NarrativeContinuationState,
     eventRefs: string[],
     coalition: { readonly resolved: boolean; readonly bonus: number; readonly ledgerRefs: readonly string[] } = { resolved: false, bonus: 0, ledgerRefs: [] },
+    manualRoll?: { readonly value: number; readonly submitterParticipantId: string },
   ): ActivationOutcome {
     const hasCoalition = campaign.assignments.some(({ definitionId }) => definitionId === 'BASE_CARD_042');
     if (hasCoalition && !coalition.resolved) {
@@ -1039,13 +1063,22 @@ export class M1AdjudicationEngine {
     const effectiveCv = baseEffectiveCv + coalition.bonus;
     const resolutionTier = tierForCampaignValue(effectiveCv);
     const activationId = `${campaign.id}:activation:${campaign.activationCountThisTurn + 1}`;
-    for (const [type, stage] of [
-      ['PRE_ROLL_REACTION_OPENED', 'OPEN'],
-      ['PRE_ROLL_REACTION_EVALUATED', 'EVALUATE_ZERO_ELIGIBLE'],
-      ['PRE_ROLL_REACTION_CLOSED', 'CLOSE'],
-    ] as const) {
-      const event = this.appendEvent(state, envelope, type, { activationId, stage, eligibleCount: 0 }, eventRefs.at(-1));
-      eventRefs.push(event.id);
+    if (manualRoll === undefined) for (const [type, stage] of [['PRE_ROLL_REACTION_OPENED', 'OPEN'], ['PRE_ROLL_REACTION_EVALUATED', 'EVALUATE_ZERO_ELIGIBLE'],
+      ['PRE_ROLL_REACTION_CLOSED', 'CLOSE']] as const) {
+        const event = this.appendEvent(state, envelope, type, { activationId, stage, eligibleCount: 0 }, eventRefs.at(-1)); eventRefs.push(event.id);
+      }
+    if (state.diceMode === 'MANUAL_DIE_INPUT' && manualRoll === undefined) {
+      const requestId = `${activationId}:manual-die`; const eventId = `${state.id}:event:${state.events.length + 1}`;
+      const pending: ManualDiePendingResolution = { kind: 'MANUAL_DIE', resolutionId: activationId, gameId: state.id, participantId,
+        sequenceIndex: slot.sequenceIndex, campaignId: campaign.id, correlationId: envelope.correlationId ?? envelope.commandId,
+        causationId: eventId, versions: structuredClone(state.versions), request: { requestId, gameId: state.id, activationId,
+          requestedForParticipantId: participantId, dieType: 'D10', status: 'OPEN' }, continuation: structuredClone(narrativeContinuation),
+        coalitionBonus: coalition.bonus, coalitionLedgerRefs: [...coalition.ledgerRefs], eventRefs: [...eventRefs, eventId] };
+      const request = this.appendEvent(state, envelope, 'DIE_REQUESTED', { requestId, activationId, participantId, dieType: 'D10',
+        pendingResolutionJson: canonicalizeJson(pending), pendingResolutionDigest: sha256CanonicalJson(pending) }, eventRefs.at(-1));
+      if (request.id !== eventId) throw new Error('Manual die request event identity drift');
+      state.adjudication.pendingResolution = pending; state.adjudication.scheduler.status = 'SUSPENDED';
+      return { kind: 'PENDING', pending, eventRefs: [...eventRefs, request.id] };
     }
 
     const country = state.countries[countryId];
@@ -1092,23 +1125,21 @@ export class M1AdjudicationEngine {
     }
 
     let rawRoll: number;
-    try {
-      rawRoll = this.randomInteger(1, 10);
-    } catch {
-      return { error: 'RANDOM_PROVIDER_FAILURE' };
-    }
+    if (manualRoll !== undefined) rawRoll = manualRoll.value;
+    else try { rawRoll = this.randomInteger(1, 10); } catch { return { error: 'RANDOM_PROVIDER_FAILURE' }; }
     const legitimacyBefore = state.adjudication.legitimacyByPd[targetPdId] ?? null;
     const legitimacyModifier = legitimacyBefore === participantId ? 1 : 0;
     const normalized = normalizeErtRoll(rawRoll + legitimacyModifier + boostModifier);
     const dieRollId = `${state.id}:die-roll:${state.adjudication.dieRolls.length + 1}`;
-    const rngRequestId = `${state.id}:rng:campaign:${state.adjudication.dieRolls.length + 1}`;
+    const rngRequestId = manualRoll === undefined ? `${state.id}:rng:campaign:${state.adjudication.dieRolls.length + 1}` : undefined;
     state.adjudication.dieRolls.push({
       id: dieRollId,
       source: 'CAMPAIGN_ERT',
       participantId,
       rawValue: rawRoll,
-      manual: false,
-      rngRequestId,
+      manual: manualRoll !== undefined,
+      ...(rngRequestId === undefined ? {} : { rngRequestId }),
+      ...(manualRoll === undefined ? {} : { submittedByParticipantId: manualRoll.submitterParticipantId }),
       gameVersion: state.version + 1,
     });
     const dieEvent = this.appendEvent(state, envelope, 'DIE_ROLLED', {
@@ -1117,8 +1148,9 @@ export class M1AdjudicationEngine {
       source: 'CAMPAIGN_ERT',
       participantId,
       rawValue: rawRoll,
-      manual: false,
-      rngRequestId,
+      manual: manualRoll !== undefined,
+      rngRequestId: rngRequestId ?? '',
+      submittedByParticipantId: manualRoll?.submitterParticipantId ?? '',
       legitimacyModifier,
       boostModifier,
       modifiedRollRaw: normalized.modifiedRollRaw,
@@ -1308,6 +1340,8 @@ export class M1AdjudicationEngine {
         ledgerRefs: [...current.ledgerRefs, ...(contributionLedgerId === undefined ? [] : [contributionLedgerId])] });
     if ('error' in outcome) return { error: outcome.error, version };
     if (outcome.kind === 'PENDING') {
+      if (outcome.pending.kind === 'MANUAL_DIE') return { nextState: working, status: 'REQUIRES_CHOICE' as const,
+        resultCode: 'MANUAL_DIE_REQUIRED', resultPayload: structuredClone(outcome.pending.request), emittedEventRefs: outcome.eventRefs };
       if (outcome.pending.kind !== 'CHOICE') return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
       return { nextState: working, status: 'REQUIRES_CHOICE' as const, resultCode: 'CHOICE_REQUIRED',
         resultPayload: structuredClone(outcome.pending.choice), emittedEventRefs: outcome.eventRefs };
@@ -1315,6 +1349,45 @@ export class M1AdjudicationEngine {
     if (outcome.kind !== 'COMPLETE') return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
     return { nextState: working, resultCode: 'CAMPAIGN_ACTIVATION_COMPLETED', resultPayload: { campaignId: campaign.id,
       coalitionContributorCount: bonus }, emittedEventRefs: outcome.eventRefs, adjudicationTraceRefs: [outcome.traceId] };
+  }
+
+  private prepareManualDie(before: SetupGameState | undefined, envelope: InteractionEnvelope): PreparedResolution<SetupGameState> {
+    const version = before?.version ?? 0;
+    if (before === undefined) return { error: 'GAME_NOT_FOUND' as const, version };
+    if (envelope.expectedGameVersion !== before.version) return { error: 'STALE_STATE_VERSION' as const, version };
+    if (before.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const, version };
+    if (envelope.engineContractVersion !== before.versions.engineContractVersion) return { error: 'UNSUPPORTED_CONTRACT_VERSION' as const, version };
+    if (envelope.payloadSchemaVersion !== before.versions.fixtureSchemaVersion) return { error: 'UNSUPPORTED_PAYLOAD_VERSION' as const, version };
+    const payload = envelope.payload as SubmitManualDiePayload; const pending = before.adjudication.pendingResolution;
+    if (pending === undefined || pending.kind !== 'MANUAL_DIE' || pending.request.requestId !== payload.requestId) return { error: 'STALE_CONTINUATION' as const, version };
+    const actor = envelope.actorContext; const actorParticipantId = actor.participantId;
+    const participant = actorParticipantId === undefined ? undefined : before.participants[actorParticipantId];
+    const playerSeat = actorParticipantId === undefined ? undefined : before.seats[actorParticipantId];
+    const authorizedPlayer = actor.actorType === 'PLAYER' && actorParticipantId === pending.request.requestedForParticipantId && participant?.userId === actor.actorId &&
+      playerSeat !== undefined && actor.playerSeatId === playerSeat.id && actor.countryId === playerSeat.countryId && actor.permissions.includes('game:play');
+    const authorizedFacilitator = actor.actorType === 'FACILITATOR' && actorParticipantId === before.facilitatorParticipantId && participant?.userId === actor.actorId &&
+      actor.permissions.includes('game:facilitate');
+    if (!authorizedPlayer && !authorizedFacilitator) return { error: 'CHOICE_NOT_AUTHORIZED' as const, version };
+    const working = structuredClone(before); const current = working.adjudication.pendingResolution;
+    if (current === undefined || current.kind !== 'MANUAL_DIE') return { error: 'STALE_CONTINUATION' as const, version };
+    const slot = working.actionPlanning[current.participantId]?.lockedSlots.find(({ sequenceIndex }) => sequenceIndex === current.sequenceIndex);
+    const campaign = working.adjudication.campaigns[current.campaignId];
+    if (slot === undefined || campaign === undefined) return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
+    delete working.adjudication.pendingResolution; working.adjudication.scheduler.status = 'READY';
+    const systemEnvelope: InternalEnvelope = { ...this.internalEnvelope({ gameId: envelope.gameId, expectedGameVersion: envelope.expectedGameVersion,
+      commandId: envelope.commandId, idempotencyKey: envelope.idempotencyKey, correlationId: current.correlationId }), causationId: current.causationId };
+    const outcome = this.continueActivationAfterNarrative(working, current.participantId, slot, systemEnvelope, campaign, current.continuation,
+      [...current.eventRefs], { resolved: true, bonus: current.coalitionBonus, ledgerRefs: current.coalitionLedgerRefs },
+      { value: payload.value, submitterParticipantId: actorParticipantId! });
+    if ('error' in outcome) return { error: outcome.error, version };
+    if (outcome.kind === 'PENDING') {
+      if (outcome.pending.kind !== 'CHOICE') return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
+      return { nextState: working, status: 'REQUIRES_CHOICE' as const, resultCode: 'CHOICE_REQUIRED',
+        resultPayload: structuredClone(outcome.pending.choice), emittedEventRefs: outcome.eventRefs };
+    }
+    if (outcome.kind !== 'COMPLETE') return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
+    return { nextState: working, resultCode: 'CAMPAIGN_ACTIVATION_COMPLETED', resultPayload: { campaignId: campaign.id,
+      manualDieValue: payload.value }, emittedEventRefs: outcome.eventRefs, adjudicationTraceRefs: [outcome.traceId] };
   }
 
   private prepareNarrative(before: SetupGameState | undefined, envelope: InteractionEnvelope): PreparedResolution<SetupGameState> {
@@ -1399,6 +1472,8 @@ export class M1AdjudicationEngine {
         nextState: working, status: 'REQUIRES_CHOICE' as const, resultCode: 'COALITION_CONTRIBUTION_REQUIRED',
         resultPayload: structuredClone(outcome.pending.request), emittedEventRefs: outcome.eventRefs,
       };
+      if (outcome.pending.kind === 'MANUAL_DIE') return { nextState: working, status: 'REQUIRES_CHOICE' as const,
+        resultCode: 'MANUAL_DIE_REQUIRED', resultPayload: structuredClone(outcome.pending.request), emittedEventRefs: outcome.eventRefs };
       if (outcome.pending.kind !== 'CHOICE') return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
       return {
         nextState: working,

@@ -164,15 +164,34 @@ export interface CoalitionPendingResolution extends PendingResolutionBase {
   readonly ledgerRefs: readonly string[];
 }
 
-export type PendingResolution = ChoicePendingResolution | NarrativePendingResolution | CoalitionPendingResolution;
+export interface ManualDieRequest {
+  readonly requestId: string;
+  readonly gameId: string;
+  readonly activationId: string;
+  readonly requestedForParticipantId: string;
+  readonly dieType: 'D10';
+  readonly status: 'OPEN';
+}
+
+export interface ManualDiePendingResolution extends PendingResolutionBase {
+  readonly kind: 'MANUAL_DIE';
+  readonly request: ManualDieRequest;
+  readonly continuation: NarrativeContinuationState;
+  readonly coalitionBonus: number;
+  readonly coalitionLedgerRefs: readonly string[];
+  readonly eventRefs: readonly string[];
+}
+
+export type PendingResolution = ChoicePendingResolution | NarrativePendingResolution | CoalitionPendingResolution | ManualDiePendingResolution;
 
 export interface DieRollRecord {
   readonly id: string;
   readonly source: 'CAMPAIGN_ERT';
   readonly participantId: string;
   readonly rawValue: number;
-  readonly manual: false;
-  readonly rngRequestId: string;
+  readonly manual: boolean;
+  readonly rngRequestId?: string;
+  readonly submittedByParticipantId?: string;
   readonly gameVersion: number;
 }
 
