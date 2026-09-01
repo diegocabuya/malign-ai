@@ -55,7 +55,8 @@ const transfer = (state: M2BState, context: M2BEffectContext, targetId: string, 
 export const discardWithLifecycle = (state: M2BState, cardId: string): M2BEffectError | undefined => {
   const card = state.cards[cardId];
   if (card === undefined) return 'CARD_NOT_ELIGIBLE';
-  if (card.returnToOwnerOnDiscard && card.controllerParticipantId !== card.ownerParticipantId) {
+  const registeredCampaignReturn = card.definitionId === 'BASE_CARD_061' && card.zone === 'CAMPAIGN';
+  if (registeredCampaignReturn || (card.returnToOwnerOnDiscard && card.controllerParticipantId !== card.ownerParticipantId)) {
     card.controllerParticipantId = card.ownerParticipantId;
     card.zone = 'HAND';
     card.returnToOwnerOnDiscard = false;
@@ -227,6 +228,8 @@ const definitions: readonly M2BEffectDefinition[] = [
 ] as const;
 
 export const M2_IMPLEMENTED_EFFECT_IDS: readonly string[] = definitions.map(({ effectId }) => effectId);
+
+export const M2_EVENT_DRIVEN_EFFECT_IDS = ['CARD_EFFECT_BASE_2025_E033'] as const;
 
 export const BASE_2025_PAIR_BONUSES: readonly (readonly [string, string])[] = [
   ['CARD_DEF_BASE_2025_D002', 'CARD_DEF_BASE_2025_D098'], ['CARD_DEF_BASE_2025_D008', 'CARD_DEF_BASE_2025_D044'],

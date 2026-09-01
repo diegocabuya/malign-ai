@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { applyM2StateToCanonical, BASE_2025_PAIR_BONUSES, buildDurableEngineTransition, buildM2StateFromCanonical, M2BEffectDispatcher, M2_EFFECT_MANIFEST, M2_IMPLEMENTED_EFFECT_IDS, M2_PAIR_BONUS_EFFECT_IDS } from '../../packages/game-engine/src/index.js';
+import { applyM2StateToCanonical, BASE_2025_PAIR_BONUSES, buildDurableEngineTransition, buildM2StateFromCanonical, M2BEffectDispatcher, M2_EFFECT_MANIFEST, M2_EVENT_DRIVEN_EFFECT_IDS, M2_IMPLEMENTED_EFFECT_IDS, M2_PAIR_BONUS_EFFECT_IDS } from '../../packages/game-engine/src/index.js';
 import { command, completeAndStart, harness, trustedBindings } from '../m1-0/test-fixtures.js';
 
 describe('M2R-R01 canonical state integration seam', () => {
@@ -131,6 +131,7 @@ describe('M2R-R01 canonical state integration seam', () => {
       effectId: effect_id, sourceDefinitionId: source_definition_id,
     })));
     expect(M2_IMPLEMENTED_EFFECT_IDS).toHaveLength(40);
+    expect(M2_EVENT_DRIVEN_EFFECT_IDS).toEqual(['CARD_EFFECT_BASE_2025_E033']);
     const manifestHarness = harness(); const manifestState = completeAndStart(manifestHarness);
     M2_PAIR_BONUS_EFFECT_IDS.forEach((effectId, index) => {
       const pair = BASE_2025_PAIR_BONUSES[index]!;
@@ -207,13 +208,13 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(committed.m2Audit?.slice(-2).map(({ type }) => type)).toEqual(['RESOURCE_SPENT', 'CAMPAIGN_DISCARDED']);
   });
 
-  it('returns a borrowed campaign card to its printed owner when the campaign is discarded', () => {
+  it('returns registered E033 to its printed owner when its campaign is discarded', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
-    const borrowed = state.cards['FLUMA-CARD-061']!;
-    borrowed.controllerParticipantId = 'P1'; borrowed.returnToOwnerOnDiscard = true; borrowed.zone = 'CAMPAIGN';
+    const returning = state.cards['FLUMA-CARD-061']!;
+    returning.controllerParticipantId = 'P1'; returning.returnToOwnerOnDiscard = false; returning.zone = 'CAMPAIGN';
     state.adjudication.campaigns.CAMPAIGN_BORROWED = {
       id: 'CAMPAIGN_BORROWED', ownerParticipantId: 'P1', row: 'I', alignment: 'MALIGN', targetDtId: 'RELIGION:NONE',
-      assignments: [{ slot: 'INTENT', cardInstanceId: borrowed.id, definitionId: borrowed.definitionId, influenceValue: 1 }], activationCountThisTurn: 0,
+      assignments: [{ slot: 'INTENT', cardInstanceId: returning.id, definitionId: returning.definitionId, influenceValue: 1 }], activationCountThisTurn: 0,
     };
     expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
     expect(testHarness.dispatcher.executeM2CoreOperation({
@@ -221,9 +222,9 @@ describe('M2R-R01 canonical state integration seam', () => {
       operation: { kind: 'DISCARD_CAMPAIGN', actorParticipantId: 'P1', campaignId: 'CAMPAIGN_BORROWED' },
     })).toMatchObject({ status: 'RESOLVED' });
     const committed = testHarness.store.snapshot(state.id)!;
-    expect(committed.cards[borrowed.id]).toMatchObject({ zone: 'HAND', controllerParticipantId: 'P2', returnToOwnerOnDiscard: false });
-    expect(committed.strategy.P2.handCardInstanceIds).toContain(borrowed.id);
-    expect(committed.strategy.P1.handCardInstanceIds).not.toContain(borrowed.id);
+    expect(committed.cards[returning.id]).toMatchObject({ zone: 'HAND', controllerParticipantId: 'P2', returnToOwnerOnDiscard: false });
+    expect(committed.strategy.P2.handCardInstanceIds).toContain(returning.id);
+    expect(committed.strategy.P1.handCardInstanceIds).not.toContain(returning.id);
   });
 
   it('executes core legitimacy and backlash operations through canonical atomic state', () => {
