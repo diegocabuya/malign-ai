@@ -219,12 +219,11 @@ const handlers: Record<string, M2BEffectHandler> = {
       if (typeof roll !== 'number' || !Number.isInteger(roll) || !Number.isFinite(roll) || roll < 1 || roll > 10) return 'INVALID_DIE_VALUE';
       if (roll <= 4) passing.push(participantId);
     }
-    if (passing.some((participantId) => state.participants[participantId]!.resources < 1)) return 'INSUFFICIENT_RESOURCES';
     for (const participantId of otherIds) {
       const roll = rollRecord[participantId] as number;
       audit(state, context, 'DIE_ROLLED', { rollerParticipantId: participantId, rawValue: roll, manual: false });
     }
-    for (const participantId of passing) {
+    for (const participantId of passing.filter((participantId)=>state.participants[participantId]!.resources>0)) {
       const payer = state.participants[participantId]!;
       payer.resources -= 1; recipient.resources += 1;
       audit(state, context, 'RESOURCE_TRANSFERRED', { sourceParticipantId: participantId, targetParticipantId: recipient.id, amount: 1 });

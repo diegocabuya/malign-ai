@@ -796,19 +796,18 @@ export class SetupCommandDispatcher {
               : [];
             const deckEligible = options.effectId === 'CARD_EFFECT_BASE_2025_E035'
               ? [...(working.strategy[options.actorParticipantId]?.operationsDeckOrder ?? [])].sort() : [];
-            const requiredHandSelections = options.effectId === 'CARD_EFFECT_BASE_2025_E006' ? 5 : options.effectId === 'CARD_EFFECT_BASE_2025_E013' ? 2 : 1;
+            const requiredHandSelections = options.effectId === 'CARD_EFFECT_BASE_2025_E006' ? Math.min(5,discardEligible.length) : options.effectId === 'CARD_EFFECT_BASE_2025_E013' ? 2 : 1;
             if (discardEligible.length < requiredHandSelections ||
-                (options.effectId === 'CARD_EFFECT_BASE_2025_E013' && retrieveEligible.length === 0) ||
                 (options.effectId === 'CARD_EFFECT_BASE_2025_E035' && (discardEligible.length === 0 || deckEligible.length === 0))) return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
             working.m2EffectChoice = {
               kind: 'M2_EFFECT_GROUPED_CHOICE', schemaVersion: 1, id: continuationId, gameVersion: working.version + 1,
               effectId: options.effectId, actorParticipantId: options.actorParticipantId, chooserParticipantId: options.actorParticipantId,
               targetParticipantId, sourceCardInstanceId: options.sourceCardInstanceId,
               groups: options.effectId === 'CARD_EFFECT_BASE_2025_E006'
-                ? [{ groupId: 'DISCARD_FROM_TARGET_HAND', minSelections: 5, maxSelections: 5, eligibleCardIds: discardEligible }]
+                ? [{ groupId: 'DISCARD_FROM_TARGET_HAND', minSelections: requiredHandSelections, maxSelections: requiredHandSelections, eligibleCardIds: discardEligible }]
                 : options.effectId === 'CARD_EFFECT_BASE_2025_E013'
                   ? [{ groupId: 'DISCARD_FROM_HAND', minSelections: 2, maxSelections: 2, eligibleCardIds: discardEligible },
-                    { groupId: 'RETRIEVE_FROM_DISCARD', minSelections: 1, maxSelections: 1, eligibleCardIds: retrieveEligible }]
+                    { groupId: 'RETRIEVE_FROM_DISCARD', minSelections: Math.min(1,retrieveEligible.length), maxSelections: Math.min(1,retrieveEligible.length), eligibleCardIds: retrieveEligible }]
                   : [{ groupId: 'SELECT_FROM_DECK', minSelections: 1, maxSelections: 1, eligibleCardIds: deckEligible },
                     { groupId: 'SELECT_FROM_HAND', minSelections: 1, maxSelections: 1, eligibleCardIds: discardEligible }],
               resourceCost: options.effectId === 'CARD_EFFECT_BASE_2025_E006' || options.effectId === 'CARD_EFFECT_BASE_2025_E035' ? 1 : 0, status: 'OPEN',
@@ -1644,7 +1643,8 @@ export class SetupCommandDispatcher {
         if (handIds.some((id) => m2.cards[id]?.zone !== 'HAND' || m2.cards[id]?.controllerParticipantId !== continuation.actorParticipantId) ||
             retrieveIds.some((id) => m2.cards[id]?.zone !== 'DISCARD' || m2.cards[id]?.controllerParticipantId !== continuation.actorParticipantId)) return { error: 'STALE_CONTINUATION' as const };
         for (const id of handIds) discardWithLifecycle(m2, id);
-        const retrieved = m2.cards[retrieveIds[0]!]!; retrieved.zone = 'HAND';
+        const retrievedId=retrieveIds[0];
+        if(retrievedId!==undefined)m2.cards[retrievedId]!.zone = 'HAND';
       } else {
         if (allIds.some((id) => m2.cards[id]?.zone !== 'HAND' || m2.cards[id]?.controllerParticipantId !== continuation.actorParticipantId)) return { error: 'STALE_CONTINUATION' as const };
         for (const id of allIds) discardWithLifecycle(m2, id);

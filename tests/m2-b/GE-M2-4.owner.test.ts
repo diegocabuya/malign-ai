@@ -10,7 +10,11 @@ import {
 } from '../../packages/game-engine/src/index.js';
 import { m2bState } from './test-fixtures.js';
 
-const actionOwners = Array.from({ length: 30 }, (_, index) => `GE-ACT-${String(index + 1).padStart(3, '0')}`);
+// These owners execute their full authenticated/canonical scenarios in
+// M2R-R01.integrated-state.test.ts rather than duplicating a shallow fixture mutation here.
+const integratedActionOwners = new Set(['GE-ACT-002','GE-ACT-003','GE-ACT-004','GE-ACT-005','GE-ACT-018','GE-ACT-019','GE-ACT-020','GE-ACT-021','GE-ACT-022','GE-ACT-023','GE-ACT-027']);
+const actionOwners = Array.from({ length: 30 }, (_, index) => `GE-ACT-${String(index + 1).padStart(3, '0')}`)
+  .filter((id)=>!integratedActionOwners.has(id));
 const regimeOwners = Array.from({ length: 15 }, (_, index) => `GE-REG-${String(index + 1).padStart(3, '0')}`);
 
 describe('M2-4 owner gate — Action/Starter Cards and Regime Abilities', () => {

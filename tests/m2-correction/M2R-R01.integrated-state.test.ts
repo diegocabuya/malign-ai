@@ -492,7 +492,7 @@ describe('M2R-R01 canonical state integration seam', () => {
     )))).toBe(canonicalizeJson(current));
   });
 
-  it('resolves planned E050 for one AP at ON_CAMPAIGN_ROLL and preserves raw versus modified roll', () => {
+  it('GE-ACT-027 — resolves planned E050 for one AP at ON_CAMPAIGN_ROLL and preserves raw versus modified roll', () => {
     const testHarness = adjudicationHarness({ boost: true, die: 10 });
     const replayBase = testHarness.store.snapshot(GAME_ID)!; const replayBaseEventCount = replayBase.events.length;
     runConstruct(testHarness);
@@ -526,8 +526,9 @@ describe('M2R-R01 canonical state integration seam', () => {
     });
   });
 
-  it('rolls internally for every other player and resolves E046 transfers atomically', () => {
+  it('GE-ACT-022 — rolls internally for every other player and transfers only on results at most four', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    testHarness.random.enqueue(1,4,5,10); testHarness.random.requireScript();
     const source = state.cards['ARDEN-CARD-081']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
     expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
     const before = Object.fromEntries(Object.entries(state.countries).map(([id, country]) => [id, country.resources]));
@@ -537,34 +538,39 @@ describe('M2R-R01 canonical state integration seam', () => {
       parameters: { rollsByParticipant: { P2: 10, P3: 10, P4: 10, P5: 10 } },
     })).toMatchObject({ status: 'RESOLVED' });
     const committed = testHarness.store.snapshot(state.id)!;
-    expect(committed.countries.ARDEN.resources).toBe(before.ARDEN! + 4);
+    expect(committed.countries.ARDEN.resources).toBe(before.ARDEN! + 2);
     expect(committed.countries.FLUMA.resources).toBe(before.FLUMA! - 1);
     expect(committed.countries.URSARIA.resources).toBe(before.URSARIA! - 1);
-    expect(committed.countries.PRESQUE.resources).toBe(before.PRESQUE! - 1);
-    expect(committed.countries.DINESIA.resources).toBe(before.DINESIA! - 1);
+    expect(committed.countries.PRESQUE.resources).toBe(before.PRESQUE!);
+    expect(committed.countries.DINESIA.resources).toBe(before.DINESIA!);
     expect(committed.cards[source.id]?.zone).toBe('DISCARD');
     expect(testHarness.random.requests.slice(-4)).toEqual(Array.from({ length: 4 }, () => ({ minInclusive: 1, maxInclusive: 10 })));
     expect(committed.m2Audit?.slice(-8).map(({ type }) => type)).toEqual([
       'DIE_ROLLED', 'DIE_ROLLED', 'DIE_ROLLED', 'DIE_ROLLED',
-      'RESOURCE_TRANSFERRED', 'RESOURCE_TRANSFERRED', 'RESOURCE_TRANSFERRED', 'RESOURCE_TRANSFERRED',
+      'RESOURCE_TRANSFERRED', 'RESOURCE_TRANSFERRED',
     ]);
   });
 
-  it('rejects E046 without partial transfer when any passing player cannot pay', () => {
+  it('GE-ACT-023 — E046 records a passing roll for a zero-resource target without going negative', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    testHarness.random.enqueue(1,5,5,5); testHarness.random.requireScript();
     const source = state.cards['ARDEN-CARD-081']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
     state.countries.FLUMA.resources = 0;
     expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
-    const before = testHarness.store.snapshot(state.id);
+    const before = testHarness.store.snapshot(state.id)!;
     expect(testHarness.dispatcher.executeM2Effect({
       gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-E046-FAIL-1', idempotencyKey: 'M2-E046-FAIL-K1',
       actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E046', effectVersion: '0.1', parameters: {},
-    })).toMatchObject({ status: 'REJECTED', error: { code: 'INSUFFICIENT_RESOURCES' } });
-    expect(testHarness.store.snapshot(state.id)).toEqual(before);
-    expect(testHarness.random.cursor).toBe(0);
+    })).toMatchObject({ status: 'RESOLVED' });
+    const committed=testHarness.store.snapshot(state.id)!;
+    expect(committed.countries.FLUMA.resources).toBe(0);
+    expect(committed.countries.ARDEN.resources).toBe(before.countries.ARDEN.resources);
+    expect(committed.m2Audit?.filter(({type})=>type==='DIE_ROLLED')).toHaveLength(4);
+    expect(committed.m2Audit?.filter(({type})=>type==='RESOURCE_TRANSFERRED')).toHaveLength(0);
+    expect(testHarness.random.cursor).toBe(4);
   });
 
-  it('selects E028 review cards with authoritative RNG and leaves the target hand unchanged', () => {
+  it('GE-ACT-018 — selects E028 review cards with authoritative RNG and leaves the target hand unchanged', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     const source = state.cards['ARDEN-CARD-056']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
     for (const cardId of ['FLUMA-CARD-001', 'FLUMA-CARD-002', 'FLUMA-CARD-003']) {
@@ -643,7 +649,7 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(testHarness.random.requests.at(-1)).toEqual({ minInclusive: 1, maxInclusive: 10 });
   });
 
-  it('resolves E006 grouped choice with exact five-card discard and atomic resource payment', () => {
+  it('GE-ACT-002 — resolves E006 grouped choice with exact five-card discard and atomic resource payment', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     const source = state.cards['ARDEN-CARD-012']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
     const selectedIds = ['FLUMA-CARD-001', 'FLUMA-CARD-002', 'FLUMA-CARD-003', 'FLUMA-CARD-004', 'FLUMA-CARD-005'];
@@ -665,7 +671,31 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(committed.cards[source.id]?.zone).toBe('DISCARD');
   });
 
-  it('resolves E013 grouped hand discards and retrieves only a frozen discard option', () => {
+  it('GE-ACT-003 — E006 freezes and discards the entire target hand when fewer than five exist', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    const source = state.cards['ARDEN-CARD-012']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
+    const selectedIds = ['FLUMA-CARD-001', 'FLUMA-CARD-002', 'FLUMA-CARD-003', 'FLUMA-CARD-004'];
+    state.strategy.P2.handCardInstanceIds = [...selectedIds];
+    for (const id of selectedIds) { const card = state.cards[id]!; card.controllerParticipantId = 'P2'; card.zone = 'HAND'; }
+    for (const card of Object.values(state.cards).filter(({controllerParticipantId,zone,id})=>
+      controllerParticipantId==='P2'&&zone==='HAND'&&!selectedIds.includes(id))) card.zone='OPERATIONS_DECK';
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2Effect({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-E006-FOUR-OPEN-1', idempotencyKey: 'M2-E006-FOUR-OPEN-K1',
+      actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E006', effectVersion: '0.1',
+      parameters: { targetParticipantId: 'P2' },
+    })).toMatchObject({ status: 'RESOLVED', resultCode: 'M2_EFFECT_CHOICE_REQUESTED' });
+    const opened=testHarness.store.snapshot(state.id)!; const group=opened.m2EffectChoice?.kind==='M2_EFFECT_GROUPED_CHOICE'?opened.m2EffectChoice.groups[0]:undefined;
+    expect(group).toMatchObject({minSelections:4,maxSelections:4,eligibleCardIds:selectedIds});
+    const p1=trustedBindings().find(({participantId})=>participantId==='P1')!.authenticatedSessionId;
+    expect(testHarness.app.execute(p1,command('SUBMIT_M2_EFFECT_CHOICE',state.id,opened.version,{
+      continuationId:opened.m2EffectChoice!.id,selections:{DISCARD_FROM_TARGET_HAND:selectedIds},
+    },{commandId:'M2-E006-FOUR-RESOLVE-1',idempotencyKey:'M2-E006-FOUR-RESOLVE-K1'}))).toMatchObject({status:'RESOLVED'});
+    const committed=testHarness.store.snapshot(state.id)!;
+    selectedIds.forEach(id=>expect(committed.cards[id]?.zone).toBe('DISCARD'));
+  });
+
+  it('GE-ACT-004 — resolves E013 grouped hand discards and retrieves only a frozen discard option', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     const source = state.cards['ARDEN-CARD-023']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
     const handIds = ['ARDEN-CARD-001', 'ARDEN-CARD-002'];
@@ -684,6 +714,31 @@ describe('M2R-R01 canonical state integration seam', () => {
     const committed = testHarness.store.snapshot(state.id)!;
     handIds.forEach((id) => expect(committed.cards[id]?.zone).toBe('DISCARD'));
     expect(committed.cards[retrieved.id]?.zone).toBe('HAND');
+    expect(committed.cards[source.id]?.zone).toBe('DISCARD');
+  });
+
+  it('GE-ACT-005 — E013 completes after two discards when no recovery card is eligible', () => {
+    const testHarness=harness(); const state=completeAndStart(testHarness); state.phase='RESOLUTION_STAGE';
+    const source=state.cards['ARDEN-CARD-023']!; source.controllerParticipantId='P1'; source.zone='HAND';
+    const handIds=['ARDEN-CARD-001','ARDEN-CARD-002'];
+    state.strategy.P1.handCardInstanceIds=[source.id,...handIds]; state.strategy.P1.discardCardInstanceIds=[];
+    for(const card of Object.values(state.cards).filter(({controllerParticipantId,zone,id})=>
+      controllerParticipantId==='P1'&&zone==='DISCARD'&&id!==source.id))card.zone='OPERATIONS_DECK';
+    for(const id of handIds){state.cards[id]!.controllerParticipantId='P1';state.cards[id]!.zone='HAND';}
+    expect(testHarness.store.commitState(state.id,state.version,state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2Effect({gameId:state.id,expectedGameVersion:state.version,
+      commandId:'M2-E013-NONE-OPEN-1',idempotencyKey:'M2-E013-NONE-OPEN-K1',actorParticipantId:'P1',
+      sourceCardInstanceId:source.id,effectId:'CARD_EFFECT_BASE_2025_E013',effectVersion:'0.1',parameters:{},
+    })).toMatchObject({status:'RESOLVED',resultCode:'M2_EFFECT_CHOICE_REQUESTED'});
+    const opened=testHarness.store.snapshot(state.id)!;
+    expect(opened.m2EffectChoice?.kind==='M2_EFFECT_GROUPED_CHOICE'?opened.m2EffectChoice.groups[1]:undefined)
+      .toMatchObject({minSelections:0,maxSelections:0,eligibleCardIds:[]});
+    const p1=trustedBindings().find(({participantId})=>participantId==='P1')!.authenticatedSessionId;
+    expect(testHarness.app.execute(p1,command('SUBMIT_M2_EFFECT_CHOICE',state.id,opened.version,{
+      continuationId:opened.m2EffectChoice!.id,selections:{DISCARD_FROM_HAND:handIds,RETRIEVE_FROM_DISCARD:[]},
+    },{commandId:'M2-E013-NONE-RESOLVE-1',idempotencyKey:'M2-E013-NONE-RESOLVE-K1'}))).toMatchObject({status:'RESOLVED'});
+    const committed=testHarness.store.snapshot(state.id)!;
+    handIds.forEach(id=>expect(committed.cards[id]?.zone).toBe('DISCARD'));
     expect(committed.cards[source.id]?.zone).toBe('DISCARD');
   });
 
@@ -710,7 +765,27 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(new Set([...committed.strategy.P1.handCardInstanceIds, ...committed.strategy.P1.operationsDeckOrder]).size).toBe(18);
   });
 
-  it('draws three for E045 then suspends only for the exact hand-limit overflow', () => {
+  it('GE-ACT-020 — E045 draws exactly three without a continuation below the hand limit', () => {
+    const testHarness=harness(); const state=completeAndStart(testHarness); state.phase='RESOLUTION_STAGE';
+    const source=state.cards['ARDEN-CARD-080']!; source.controllerParticipantId='P1'; source.zone='HAND';
+    const handIds=Array.from({length:6},(_,index)=>`ARDEN-CARD-${String(index+1).padStart(3,'0')}`);
+    const deckIds=['ARDEN-CARD-011','ARDEN-CARD-012','ARDEN-CARD-013'];
+    state.strategy.P1.handCardInstanceIds=[source.id,...handIds];state.strategy.P1.operationsDeckOrder=[...deckIds];state.strategy.P1.discardCardInstanceIds=[];
+    handIds.forEach(id=>{state.cards[id]!.controllerParticipantId='P1';state.cards[id]!.zone='HAND';});
+    deckIds.forEach((id,index)=>{state.cards[id]!.controllerParticipantId='P1';state.cards[id]!.zone='OPERATIONS_DECK';state.cards[id]!.zonePosition=index;});
+    expect(testHarness.store.commitState(state.id,state.version,state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2Effect({gameId:state.id,expectedGameVersion:state.version,
+      commandId:'M2-E045-DRAW-1',idempotencyKey:'M2-E045-DRAW-K1',actorParticipantId:'P1',sourceCardInstanceId:source.id,
+      effectId:'CARD_EFFECT_BASE_2025_E045',effectVersion:'0.1',parameters:{},
+    })).toMatchObject({status:'RESOLVED',resultCode:'M2_EFFECT_EXECUTED',resultPayload:{drawnCount:3,overflow:0}});
+    const committed=testHarness.store.snapshot(state.id)!;
+    expect(committed.strategy.P1.handCardInstanceIds).toHaveLength(9);
+    expect(committed.strategy.P1.operationsDeckOrder).toEqual([]);
+    expect(committed.cards[source.id]?.zone).toBe('DISCARD');
+    expect(committed.m2EffectChoice).toBeUndefined();
+  });
+
+  it('GE-ACT-021 — draws three for E045 then suspends only for the exact hand-limit overflow', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     const source = state.cards['ARDEN-CARD-080']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
     const handIds = Array.from({ length: 9 }, (_, index) => `ARDEN-CARD-${String(index + 1).padStart(3, '0')}`);
@@ -736,7 +811,7 @@ describe('M2R-R01 canonical state integration seam', () => {
     discardIds.forEach((id) => expect(committed.cards[id]?.zone).toBe('DISCARD'));
   });
 
-  it('resolves E035 as paid hand/deck swap followed by authoritative shuffle', () => {
+  it('GE-ACT-019 — resolves E035 as paid hand/deck swap followed by authoritative shuffle', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     const source = state.cards['ARDEN-CARD-064']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
     const hand = state.cards['ARDEN-CARD-001']!; hand.controllerParticipantId = 'P1'; hand.zone = 'HAND';
