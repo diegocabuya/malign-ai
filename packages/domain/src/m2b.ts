@@ -85,6 +85,30 @@ export interface M2EffectCardChoiceContinuation {
   readonly status: 'OPEN';
 }
 
+export interface M2EffectChoiceGroup {
+  readonly groupId: string;
+  readonly minSelections: number;
+  readonly maxSelections: number;
+  readonly eligibleCardIds: readonly string[];
+}
+
+export interface M2EffectGroupedChoiceContinuation {
+  readonly kind: 'M2_EFFECT_GROUPED_CHOICE';
+  readonly schemaVersion: 1;
+  readonly id: string;
+  readonly gameVersion: number;
+  readonly effectId: 'CARD_EFFECT_BASE_2025_E006' | 'CARD_EFFECT_BASE_2025_E013';
+  readonly actorParticipantId: string;
+  readonly chooserParticipantId: string;
+  readonly targetParticipantId: string;
+  readonly sourceCardInstanceId: string;
+  readonly groups: readonly M2EffectChoiceGroup[];
+  readonly resourceCost: number;
+  readonly status: 'OPEN';
+}
+
+export type M2EffectChoiceContinuation = M2EffectCardChoiceContinuation | M2EffectGroupedChoiceContinuation;
+
 export type M2CoreOperation =
   | { readonly kind: 'APPLY_BACKLASH'; readonly actorParticipantId: string; readonly pdId: string; readonly amount: number }
   | { readonly kind: 'ESTABLISH_LEGITIMACY'; readonly actorParticipantId: string; readonly pdId: string; readonly replacePdId?: string }

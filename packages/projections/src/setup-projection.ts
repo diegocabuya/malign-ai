@@ -84,6 +84,7 @@ export interface SetupGameProjection {
     readonly effectId: string;
     readonly chooserParticipantId: string;
     readonly optionCardIds?: readonly string[];
+    readonly groups?: readonly { readonly groupId: string; readonly minSelections: number; readonly maxSelections: number; readonly optionCardIds: readonly string[] }[];
   };
   readonly outcome?: NonNullable<NonNullable<SetupGameState['endGame']>['outcome']>;
   readonly viewerPrivateState?: ViewerPrivateStateProjection;
@@ -225,7 +226,10 @@ export const buildSetupGameProjection = (state: SetupGameState, viewer: ActorCon
         effectId: state.m2EffectChoice.effectId,
         chooserParticipantId: state.m2EffectChoice.chooserParticipantId,
         ...(participant.role === 'FACILITATOR' || state.m2EffectChoice.chooserParticipantId === viewerParticipantId
-          ? { optionCardIds: [...state.m2EffectChoice.eligibleCardIds] }
+          ? state.m2EffectChoice.kind === 'M2_EFFECT_CARD_CHOICE'
+            ? { optionCardIds: [...state.m2EffectChoice.eligibleCardIds] }
+            : { groups: state.m2EffectChoice.groups.map((group) => ({ groupId: group.groupId, minSelections: group.minSelections,
+              maxSelections: group.maxSelections, optionCardIds: [...group.eligibleCardIds] })) }
           : {}),
       },
     }),

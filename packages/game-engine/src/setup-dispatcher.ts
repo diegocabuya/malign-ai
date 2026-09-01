@@ -115,10 +115,9 @@ export interface PlayReactionPayload {
   readonly effectId: string;
 }
 
-export interface SubmitM2EffectChoicePayload {
-  readonly continuationId: string;
-  readonly selectedCardId: string;
-}
+export type SubmitM2EffectChoicePayload =
+  | { readonly continuationId: string; readonly selectedCardId: string }
+  | { readonly continuationId: string; readonly selections: Readonly<Record<string, readonly string[]>> };
 
 export type SetupCommandPayload =
   | CreateGamePayload
@@ -338,10 +337,14 @@ export const validateSetupCommandPayload = (
       return hasExactKeys(payload, ['cardId', 'effectId']) && isNonEmptyString(payload.cardId) && isNonEmptyString(payload.effectId)
         ? undefined
         : 'INVALID_COMMAND_PAYLOAD';
-    case 'SUBMIT_M2_EFFECT_CHOICE':
-      return hasExactKeys(payload, ['continuationId', 'selectedCardId']) && isNonEmptyString(payload.continuationId) && isNonEmptyString(payload.selectedCardId)
-        ? undefined
-        : 'INVALID_COMMAND_PAYLOAD';
+    case 'SUBMIT_M2_EFFECT_CHOICE': {
+      if (!isRecord(payload) || !isNonEmptyString(payload.continuationId)) return 'INVALID_COMMAND_PAYLOAD';
+      const choiceKeys = Object.keys(payload).sort().join('|');
+      if (choiceKeys === 'continuationId|selectedCardId') return isNonEmptyString(payload.selectedCardId) ? undefined : 'INVALID_COMMAND_PAYLOAD';
+      if (choiceKeys !== 'continuationId|selections' || !isRecord(payload.selections)) return 'INVALID_COMMAND_PAYLOAD';
+      return Object.values(payload.selections).every((selection) => Array.isArray(selection) && selection.every((id) => isNonEmptyString(id)))
+        ? undefined : 'INVALID_COMMAND_PAYLOAD';
+    }
   }
   return 'INVALID_COMMAND_PAYLOAD';
 };
@@ -613,10 +616,12 @@ export class SetupCommandDispatcher {
         }
         const working = structuredClone(before);
         const m2 = buildM2StateFromCanonical(working);
-        if (options.effectId === 'CARD_EFFECT_BASE_2025_E016' || options.effectId === 'CARD_EFFECT_BASE_2025_E047') {
+        if (['CARD_EFFECT_BASE_2025_E006', 'CARD_EFFECT_BASE_2025_E013', 'CARD_EFFECT_BASE_2025_E016', 'CARD_EFFECT_BASE_2025_E047'].includes(options.effectId)) {
           if (working.m2EffectChoice !== undefined) return { error: 'SCHEDULER_SUSPENDED' as const, version: before.version };
-          const targetParticipantId = typeof options.parameters.targetParticipantId === 'string' ? options.parameters.targetParticipantId : undefined;
+          const targetParticipantId = options.effectId === 'CARD_EFFECT_BASE_2025_E013' ? options.actorParticipantId
+            : typeof options.parameters.targetParticipantId === 'string' ? options.parameters.targetParticipantId : undefined;
           if (targetParticipantId === undefined || m2.participants[targetParticipantId] === undefined) return { error: 'INVALID_EFFECT_INPUT' as const, version: before.version };
+          if (options.effectId === 'CARD_EFFECT_BASE_2025_E006' && targetParticipantId === options.actorParticipantId) return { error: 'INVALID_EFFECT_INPUT' as const, version: before.version };
           let choiceRoll: number | undefined;
           if (options.effectId === 'CARD_EFFECT_BASE_2025_E047') {
             const roll = this.random.integer(1, 10); choiceRoll = roll;
@@ -634,16 +639,41 @@ export class SetupCommandDispatcher {
             .map(({ id }) => id).sort();
           if (eligibleCardIds.length === 0) return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
           const continuationId = `${working.id}:m2-effect-choice:${working.version + 1}`;
-          working.m2EffectChoice = {
-            kind: 'M2_EFFECT_CARD_CHOICE', schemaVersion: 1, id: continuationId, gameVersion: working.version + 1,
-            effectId: options.effectId, actorParticipantId: options.actorParticipantId,
-            chooserParticipantId: options.effectId === 'CARD_EFFECT_BASE_2025_E047' ? targetParticipantId : options.actorParticipantId,
-            targetParticipantId, sourceCardInstanceId: options.sourceCardInstanceId, eligibleCardIds,
-            ...(choiceRoll === undefined ? {} : { roll: choiceRoll }), status: 'OPEN',
-          };
+          if (options.effectId === 'CARD_EFFECT_BASE_2025_E006' || options.effectId === 'CARD_EFFECT_BASE_2025_E013') {
+            const discardEligible = options.effectId === 'CARD_EFFECT_BASE_2025_E006' ? eligibleCardIds
+              : eligibleCardIds.filter((id) => id !== options.sourceCardInstanceId);
+            const retrieveEligible = options.effectId === 'CARD_EFFECT_BASE_2025_E013'
+              ? Object.values(m2.cards).filter((card) => card.controllerParticipantId === options.actorParticipantId && card.zone === 'DISCARD').map(({ id }) => id).sort()
+              : [];
+            if (discardEligible.length < (options.effectId === 'CARD_EFFECT_BASE_2025_E006' ? 5 : 2) ||
+                (options.effectId === 'CARD_EFFECT_BASE_2025_E013' && retrieveEligible.length === 0)) return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
+            working.m2EffectChoice = {
+              kind: 'M2_EFFECT_GROUPED_CHOICE', schemaVersion: 1, id: continuationId, gameVersion: working.version + 1,
+              effectId: options.effectId, actorParticipantId: options.actorParticipantId, chooserParticipantId: options.actorParticipantId,
+              targetParticipantId, sourceCardInstanceId: options.sourceCardInstanceId,
+              groups: options.effectId === 'CARD_EFFECT_BASE_2025_E006'
+                ? [{ groupId: 'DISCARD_FROM_TARGET_HAND', minSelections: 5, maxSelections: 5, eligibleCardIds: discardEligible }]
+                : [{ groupId: 'DISCARD_FROM_HAND', minSelections: 2, maxSelections: 2, eligibleCardIds: discardEligible },
+                  { groupId: 'RETRIEVE_FROM_DISCARD', minSelections: 1, maxSelections: 1, eligibleCardIds: retrieveEligible }],
+              resourceCost: options.effectId === 'CARD_EFFECT_BASE_2025_E006' ? 1 : 0, status: 'OPEN',
+            };
+          } else {
+            const simpleEffectId = options.effectId === 'CARD_EFFECT_BASE_2025_E016'
+              ? 'CARD_EFFECT_BASE_2025_E016' as const : 'CARD_EFFECT_BASE_2025_E047' as const;
+            working.m2EffectChoice = {
+              kind: 'M2_EFFECT_CARD_CHOICE', schemaVersion: 1, id: continuationId, gameVersion: working.version + 1,
+              effectId: simpleEffectId, actorParticipantId: options.actorParticipantId,
+              chooserParticipantId: options.effectId === 'CARD_EFFECT_BASE_2025_E047' ? targetParticipantId : options.actorParticipantId,
+              targetParticipantId, sourceCardInstanceId: options.sourceCardInstanceId, eligibleCardIds,
+              ...(choiceRoll === undefined ? {} : { roll: choiceRoll }), status: 'OPEN',
+            };
+          }
+          const choice = working.m2EffectChoice;
           const event = this.appendEvent(working, candidate, 'CHOICE_REQUESTED', { continuationId, effectId: options.effectId,
-            chooserParticipantId: working.m2EffectChoice.chooserParticipantId, optionCount: eligibleCardIds.length }, 'OWNER_AND_FACILITATOR');
-          return { nextState: working, resultCode: 'M2_EFFECT_CHOICE_REQUESTED', resultPayload: { continuationId, chooserParticipantId: working.m2EffectChoice.chooserParticipantId }, emittedEventRefs: [event.id] };
+            chooserParticipantId: choice.chooserParticipantId,
+            optionCount: choice.kind === 'M2_EFFECT_CARD_CHOICE' ? choice.eligibleCardIds.length
+              : choice.groups.reduce((total, group) => total + group.eligibleCardIds.length, 0) }, 'OWNER_AND_FACILITATOR');
+          return { nextState: working, resultCode: 'M2_EFFECT_CHOICE_REQUESTED', resultPayload: { continuationId, chooserParticipantId: choice.chooserParticipantId }, emittedEventRefs: [event.id] };
         }
         if (targetDtEffect) {
           const targetDtId = options.parameters.targetDtId;
@@ -1172,21 +1202,48 @@ export class SetupCommandDispatcher {
     if (participantId === undefined) return { error: 'INVALID_ACTOR_CONTEXT' as const };
     if (continuation === undefined || continuation.id !== payload.continuationId) return { error: 'STALE_CONTINUATION' as const };
     if (continuation.chooserParticipantId !== participantId) return { error: 'NOT_AUTHORIZED' as const };
-    if (!continuation.eligibleCardIds.includes(payload.selectedCardId)) return { error: 'INVALID_EFFECT_INPUT' as const };
     const m2 = buildM2StateFromCanonical(state);
-    const selected = m2.cards[payload.selectedCardId];
     const source = m2.cards[continuation.sourceCardInstanceId];
-    if (selected?.zone !== 'HAND' || selected.controllerParticipantId !== continuation.targetParticipantId ||
-        source?.zone !== 'HAND' || source.controllerParticipantId !== continuation.actorParticipantId) return { error: 'STALE_CONTINUATION' as const };
-    if (continuation.effectId === 'CARD_EFFECT_BASE_2025_E016') {
-      selected.controllerParticipantId = continuation.actorParticipantId;
-      selected.returnToOwnerOnDiscard = selected.ownerParticipantId !== continuation.actorParticipantId;
+    if (source?.zone !== 'HAND' || source.controllerParticipantId !== continuation.actorParticipantId) return { error: 'STALE_CONTINUATION' as const };
+    let selectedCardIds: readonly string[];
+    if (continuation.kind === 'M2_EFFECT_CARD_CHOICE') {
+      if (!('selectedCardId' in payload) || !continuation.eligibleCardIds.includes(payload.selectedCardId)) return { error: 'INVALID_EFFECT_INPUT' as const };
+      const selected = m2.cards[payload.selectedCardId];
+      if (selected?.zone !== 'HAND' || selected.controllerParticipantId !== continuation.targetParticipantId) return { error: 'STALE_CONTINUATION' as const };
+      if (continuation.effectId === 'CARD_EFFECT_BASE_2025_E016') {
+        selected.controllerParticipantId = continuation.actorParticipantId;
+        selected.returnToOwnerOnDiscard = selected.ownerParticipantId !== continuation.actorParticipantId;
+      } else {
+        const error = discardWithLifecycle(m2, selected.id); if (error !== undefined) return { error };
+      }
+      selectedCardIds = [selected.id];
     } else {
-      const error = discardWithLifecycle(m2, selected.id); if (error !== undefined) return { error };
+      if (!('selections' in payload) || Object.keys(payload.selections).sort().join('|') !== continuation.groups.map(({ groupId }) => groupId).sort().join('|')) {
+        return { error: 'INVALID_EFFECT_INPUT' as const };
+      }
+      const selections = continuation.groups.map((group) => ({ group, ids: payload.selections[group.groupId] ?? [] }));
+      if (selections.some(({ group, ids }) => ids.length < group.minSelections || ids.length > group.maxSelections ||
+          new Set(ids).size !== ids.length || ids.some((id) => !group.eligibleCardIds.includes(id)))) return { error: 'INVALID_EFFECT_INPUT' as const };
+      const allIds = selections.flatMap(({ ids }) => ids);
+      if (new Set(allIds).size !== allIds.length) return { error: 'INVALID_EFFECT_INPUT' as const };
+      if (continuation.effectId === 'CARD_EFFECT_BASE_2025_E006') {
+        const actorState = m2.participants[continuation.actorParticipantId]!;
+        if (actorState.resources < continuation.resourceCost) return { error: 'INSUFFICIENT_RESOURCES' as const };
+        if (allIds.some((id) => m2.cards[id]?.zone !== 'HAND' || m2.cards[id]?.controllerParticipantId !== continuation.targetParticipantId)) return { error: 'STALE_CONTINUATION' as const };
+        actorState.resources -= continuation.resourceCost;
+        for (const id of allIds) discardWithLifecycle(m2, id);
+      } else {
+        const handIds = payload.selections.DISCARD_FROM_HAND ?? []; const retrieveIds = payload.selections.RETRIEVE_FROM_DISCARD ?? [];
+        if (handIds.some((id) => m2.cards[id]?.zone !== 'HAND' || m2.cards[id]?.controllerParticipantId !== continuation.actorParticipantId) ||
+            retrieveIds.some((id) => m2.cards[id]?.zone !== 'DISCARD' || m2.cards[id]?.controllerParticipantId !== continuation.actorParticipantId)) return { error: 'STALE_CONTINUATION' as const };
+        for (const id of handIds) discardWithLifecycle(m2, id);
+        const retrieved = m2.cards[retrieveIds[0]!]!; retrieved.zone = 'HAND';
+      }
+      selectedCardIds = allIds;
     }
     discardWithLifecycle(m2, source.id);
     m2.audit.push({ type: 'M2_EFFECT_CHOICE_RESOLVED', actorParticipantId: participantId,
-      payload: { effectId: continuation.effectId, selectedCardId: selected.id, targetParticipantId: continuation.targetParticipantId } });
+      payload: { effectId: continuation.effectId, selectionCount: selectedCardIds.length, targetParticipantId: continuation.targetParticipantId } });
     applyM2StateToCanonical(state, m2);
     delete state.m2EffectChoice;
     const events = [
@@ -1194,7 +1251,7 @@ export class SetupCommandDispatcher {
       this.appendEvent(state, envelope, 'M2_EFFECT_EXECUTED', { effectId: continuation.effectId, actorParticipantId: continuation.actorParticipantId,
         sourceCardInstanceId: continuation.sourceCardInstanceId, auditCount: 1 }),
     ];
-    return { resultCode: 'M2_EFFECT_CHOICE_RESOLVED', resultPayload: { effectId: continuation.effectId, selectedCardId: selected.id }, events };
+    return { resultCode: 'M2_EFFECT_CHOICE_RESOLVED', resultPayload: { effectId: continuation.effectId, selectedCardIds }, events };
   }
 
   private join(state: SetupGameState, envelope: SetupEnvelope) {
