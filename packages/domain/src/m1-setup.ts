@@ -117,7 +117,7 @@ export interface InitiativeState {
   readonly maintenance: Record<string, InitiativeMaintenanceState>;
 }
 
-export type M1ActionType = 'CONSTRUCT_CAMPAIGN' | 'ACTIVATE_CAMPAIGN';
+export type M1ActionType = 'CONSTRUCT_CAMPAIGN' | 'ACTIVATE_CAMPAIGN' | 'PLAY_BOOST';
 
 export interface ConstructCampaignPlanPayload {
   readonly row: 'I';
@@ -132,7 +132,13 @@ export interface ActivateCampaignPlanPayload {
   readonly requestedTargetPdId?: string;
 }
 
-export type M1ActionPayload = ConstructCampaignPlanPayload | ActivateCampaignPlanPayload;
+export interface PlayBoostPlanPayload {
+  readonly cardInstanceId: string;
+  readonly campaignId: string;
+  readonly activationSequenceIndex: number;
+}
+
+export type M1ActionPayload = ConstructCampaignPlanPayload | ActivateCampaignPlanPayload | PlayBoostPlanPayload;
 
 export interface M1ActionPlanSlot {
   readonly sequenceIndex: number;
@@ -162,7 +168,7 @@ export interface ResourceLedgerEntry {
   readonly id: string;
   readonly participantId: string | null;
   readonly countryId: CountryId;
-  readonly reason: 'SCENARIO_SETUP' | 'TURN_INCOME' | 'CAMPAIGN_ACTIVATION_COST';
+  readonly reason: 'SCENARIO_SETUP' | 'TURN_INCOME' | 'CAMPAIGN_ACTIVATION_COST' | 'COALITION_CONTRIBUTION';
   readonly delta: number;
   readonly balanceAfter: number;
   readonly gameVersion: number;
@@ -210,6 +216,11 @@ export type SetupGameEventType =
   | 'CAMPAIGN_ACTIVATION_STARTED'
   | 'NARRATIVE_REQUESTED'
   | 'NARRATIVE_SUBMITTED'
+  | 'COALITION_REQUESTED'
+  | 'COALITION_RESPONSE_COMMITTED'
+  | 'COALITION_RESOLVED'
+  | 'BOOST_PLANNED'
+  | 'BOOST_APPLIED'
   | 'PRE_ROLL_REACTION_OPENED'
   | 'PRE_ROLL_REACTION_EVALUATED'
   | 'PRE_ROLL_REACTION_CLOSED'

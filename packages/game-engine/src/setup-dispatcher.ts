@@ -244,6 +244,10 @@ const isActivatePlanPayload = (value: unknown): boolean =>
   isNonEmptyString(value.campaignId) &&
   (!Object.hasOwn(value, 'requestedTargetPdId') || isNonEmptyString(value.requestedTargetPdId));
 
+const isPlayBoostPlanPayload = (value: unknown): boolean =>
+  hasExactKeys(value, ['cardInstanceId', 'campaignId', 'activationSequenceIndex']) && isNonEmptyString(value.cardInstanceId) &&
+  isNonEmptyString(value.campaignId) && isPositiveInteger(value.activationSequenceIndex);
+
 const isActionPlanSlotPayload = (value: unknown): value is Record<string, unknown> => {
   if (
     !hasExactKeys(value, ['sequenceIndex', 'actionType', 'actionPayload']) ||
@@ -251,6 +255,7 @@ const isActionPlanSlotPayload = (value: unknown): value is Record<string, unknow
   ) return false;
   if (value.actionType === 'CONSTRUCT_CAMPAIGN') return isConstructPlanPayload(value.actionPayload);
   if (value.actionType === 'ACTIVATE_CAMPAIGN') return isActivatePlanPayload(value.actionPayload);
+  if (value.actionType === 'PLAY_BOOST') return isPlayBoostPlanPayload(value.actionPayload);
   return false;
 };
 
@@ -521,6 +526,7 @@ export class SetupCommandDispatcher {
         resetTurnFlags(cleanup.state); applyM2StateToCanonical(working, cleanup.state);
         delete working.vetoBlockedParticipantIdsThisTurn;
         delete working.vetoAbuseReviewByWindowParticipant;
+        delete working.adjudication.plannedBoostsByParticipant;
         for (const campaignId of cleanup.discardedCampaignIds) events.push(this.appendEvent(working, candidate, 'CAMPAIGN_DISCARDED', { campaignId }));
         for (const campaignId of cleanup.agedCampaignIds) events.push(this.appendEvent(working, candidate, 'CAMPAIGN_AGED', { campaignId, row: 'II' }));
         events.push(this.appendEvent(working, candidate, 'TURN_FLAGS_RESET', {}));
@@ -2169,7 +2175,7 @@ export class SetupCommandDispatcher {
           )
         )
           return "INVALID_DT";
-      } else {
+      } else if (slot.actionType === 'ACTIVATE_CAMPAIGN') {
         const payload = slot.actionPayload as unknown as {
           readonly campaignId: string;
           readonly requestedTargetPdId?: string;
@@ -2181,6 +2187,15 @@ export class SetupCommandDispatcher {
         ) {
           return "INVALID_TARGET_PD";
         }
+      } else {
+        const payload = slot.actionPayload as unknown as { readonly cardInstanceId: string; readonly campaignId: string; readonly activationSequenceIndex: number };
+        const card = state.cards[payload.cardInstanceId];
+        if (card === undefined || card.controllerParticipantId !== participantId) return 'CARD_NOT_CONTROLLED';
+        if (card.zone !== 'HAND' || card.definitionId !== 'BASE_CARD_087') return 'CARD_NOT_ELIGIBLE';
+        allCommittedCardIds.push(card.id);
+        const activation = slots.find((candidate) => candidate.sequenceIndex === payload.activationSequenceIndex && candidate.actionType === 'ACTIVATE_CAMPAIGN');
+        if (activation === undefined || activation.sequenceIndex <= slot.sequenceIndex ||
+            (activation.actionPayload as unknown as { readonly campaignId: string }).campaignId !== payload.campaignId) return 'INVALID_ACTION_PLAN';
       }
     }
     if (new Set(allCommittedCardIds).size !== allCommittedCardIds.length)

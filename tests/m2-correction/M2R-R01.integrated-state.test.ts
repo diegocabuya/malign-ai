@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { applyM2StateToCanonical, BASE_2025_PAIR_BONUSES, buildDurableEngineTransition, buildM2StateFromCanonical, M2BEffectDispatcher, M2_EFFECT_MANIFEST, M2_EVENT_DRIVEN_EFFECT_IDS, M2_IMPLEMENTED_EFFECT_IDS, M2_PAIR_BONUS_EFFECT_IDS } from '../../packages/game-engine/src/index.js';
+import { applyM2StateToCanonical, BASE_2025_PAIR_BONUSES, buildDurableEngineTransition, buildM2StateFromCanonical, createM1ReplayBundle, createM1StateSnapshot, M2BEffectDispatcher, M2_EFFECT_MANIFEST, M2_EVENT_DRIVEN_EFFECT_IDS, M2_IMPLEMENTED_EFFECT_IDS, M2_PAIR_BONUS_EFFECT_IDS, replayM1Events } from '../../packages/game-engine/src/index.js';
 import { command, completeAndStart, harness, trustedBindings } from '../m1-0/test-fixtures.js';
+import { adjudicationHarness, FULL_CAMPAIGN, GAME_ID, runActivation, runConstruct } from '../m1-2/test-fixtures.js';
+import { canonicalizeJson } from '../../packages/shared/src/index.js';
 
 describe('M2R-R01 canonical state integration seam', () => {
   it('round-trips resources, VP, influence, legitimacy and scheduler through canonical state', () => {
@@ -273,6 +275,8 @@ describe('M2R-R01 canonical state integration seam', () => {
       'CARD_EFFECT_BASE_2025_E035',
       'CARD_EFFECT_BASE_2025_E053',
       'CARD_EFFECT_BASE_2025_E048',
+      'CARD_EFFECT_BASE_2025_E021',
+      'CARD_EFFECT_BASE_2025_E050',
     ]);
     const manifestHarness = harness(); const manifestState = completeAndStart(manifestHarness);
     M2_PAIR_BONUS_EFFECT_IDS.forEach((effectId, index) => {
@@ -291,6 +295,73 @@ describe('M2R-R01 canonical state integration seam', () => {
       actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E021', effectVersion: '0.1', parameters: {},
     })).toMatchObject({ status: 'REJECTED', error: { code: 'EFFECT_DISABLED' } });
     expect(testHarness.store.snapshot(state.id)).toEqual(before);
+  });
+
+  it('resolves E021 through one durable voluntary response per other active player and applies committed contributors to effective CV', () => {
+    const testHarness = adjudicationHarness({ serials: [FULL_CAMPAIGN.intent.serial, FULL_CAMPAIGN.method.serial, 42] });
+    runConstruct(testHarness);
+    const seeded = testHarness.store.snapshot(GAME_ID)!; seeded.countries.URSARIA.resources = 0;
+    expect(testHarness.store.commitState(GAME_ID, seeded.version, seeded)).toBe(true);
+    const replayBase = testHarness.store.snapshot(GAME_ID)!; const replayBaseEventCount = replayBase.events.length;
+    expect(runActivation(testHarness)).toMatchObject({ status: 'REQUIRES_CHOICE', resultCode: 'COALITION_CONTRIBUTION_REQUIRED' });
+    let current = testHarness.store.snapshot(GAME_ID)!; const pending = current.adjudication.pendingResolution;
+    expect(pending).toMatchObject({ kind: 'COALITION', request: { sourceParticipantId: 'P1', eligibleParticipantIds: ['P2', 'P3', 'P4', 'P5'] } });
+    if (pending?.kind !== 'COALITION') throw new Error('E021 coalition continuation missing');
+    const requestId = pending.request.requestId; const baseEffectiveCv = pending.continuation.effectiveCv;
+    const resourcesBefore = Object.fromEntries(Object.entries(current.seats).filter(([id]) => id !== 'F1').map(([id, seat]) => [id, current.countries[seat.countryId].resources]));
+    const submit = (participantId: string, decision: 'CONTRIBUTE' | 'DECLINE', suffix: string) => testHarness.app.executeM1Interaction(`session-${participantId.toLowerCase()}`, {
+      engineContractVersion: current.versions.engineContractVersion, commandId: `E021-${suffix}`, idempotencyKey: `E021-${suffix}`,
+      gameId: GAME_ID, expectedGameVersion: current.version, commandType: 'SUBMIT_COALITION_CONTRIBUTION',
+      payloadSchemaVersion: current.versions.fixtureSchemaVersion, payload: { requestId, decision },
+    });
+    const beforeOwnerAttempt = structuredClone(current);
+    expect(submit('P1', 'CONTRIBUTE', 'OWNER')).toMatchObject({ status: 'REJECTED', error: { code: 'CHOICE_NOT_AUTHORIZED' } });
+    expect(testHarness.store.snapshot(GAME_ID)).toEqual(beforeOwnerAttempt);
+    const first = submit('P2', 'CONTRIBUTE', 'P2'); expect(first).toMatchObject({ status: 'RESOLVED', resultCode: 'COALITION_RESPONSE_COMMITTED' });
+    current = testHarness.store.snapshot(GAME_ID)!;
+    expect(testHarness.app.executeM1Interaction('session-p2', {
+      engineContractVersion: current.versions.engineContractVersion, commandId: 'E021-P2', idempotencyKey: 'E021-P2', gameId: GAME_ID,
+      expectedGameVersion: first.gameVersionBefore, commandType: 'SUBMIT_COALITION_CONTRIBUTION', payloadSchemaVersion: current.versions.fixtureSchemaVersion,
+      payload: { requestId, decision: 'CONTRIBUTE' },
+    })).toEqual(first);
+    const beforeDuplicate = structuredClone(current);
+    expect(submit('P2', 'CONTRIBUTE', 'P2-DUPLICATE')).toMatchObject({ status: 'REJECTED', error: { code: 'CHOICE_ALREADY_RESOLVED' } });
+    expect(testHarness.store.snapshot(GAME_ID)).toEqual(beforeDuplicate);
+    const beforeInsufficient = structuredClone(current);
+    expect(submit('P3', 'CONTRIBUTE', 'P3-INSUFFICIENT')).toMatchObject({ status: 'REJECTED', error: { code: 'COST_PAYMENT_FAILED' } });
+    expect(testHarness.store.snapshot(GAME_ID)).toEqual(beforeInsufficient);
+    for (const [participantId, decision] of [['P3', 'DECLINE'], ['P4', 'CONTRIBUTE'], ['P5', 'DECLINE']] as const) {
+      current = testHarness.store.snapshot(GAME_ID)!;
+      expect(submit(participantId, decision, participantId)).toMatchObject({ status: 'RESOLVED' });
+    }
+    current = testHarness.store.snapshot(GAME_ID)!; const trace = current.adjudication.traces.at(-1)!;
+    expect(trace.effectiveCv).toBe(baseEffectiveCv + 2);
+    expect(current.countries.FLUMA.resources).toBe(resourcesBefore.P2! - 1);
+    expect(current.countries.PRESQUE.resources).toBe(resourcesBefore.P4! - 1);
+    expect(current.resourceLedger.filter(({ reason }) => reason === 'COALITION_CONTRIBUTION')).toHaveLength(2);
+    expect(current.adjudication.pendingResolution).toBeUndefined();
+    expect(canonicalizeJson(replayM1Events(createM1StateSnapshot(replayBase), createM1ReplayBundle(
+      current.events.slice(replayBaseEventCount), current.adjudication.traces,
+    )))).toBe(canonicalizeJson(current));
+  });
+
+  it('resolves planned E050 for one AP at ON_CAMPAIGN_ROLL and preserves raw versus modified roll', () => {
+    const testHarness = adjudicationHarness({ boost: true, die: 10 });
+    const replayBase = testHarness.store.snapshot(GAME_ID)!; const replayBaseEventCount = replayBase.events.length;
+    runConstruct(testHarness);
+    expect(runActivation(testHarness)).toMatchObject({ status: 'RESOLVED', resultCode: 'BOOST_PLANNED' });
+    const planned = testHarness.store.snapshot(GAME_ID)!;
+    expect(planned.adjudication.plannedBoostsByParticipant?.P1).toMatchObject({ cardInstanceId: 'ARDEN-CARD-087', activationSequenceIndex: 3 });
+    expect(runActivation(testHarness)).toMatchObject({ status: 'RESOLVED', resultCode: 'CAMPAIGN_ACTIVATION_COMPLETED' });
+    const committed = testHarness.store.snapshot(GAME_ID)!; const trace = committed.adjudication.traces.at(-1)!;
+    expect(trace).toMatchObject({ rawRoll: 10, modifiedRollRaw: 11, ertRoll: 10 });
+    expect(committed.cards['ARDEN-CARD-087']?.zone).toBe('DISCARD');
+    expect(committed.strategy.P1.discardCardInstanceIds).toContain('ARDEN-CARD-087');
+    expect(committed.adjudication.plannedBoostsByParticipant?.P1).toBeUndefined();
+    expect(committed.events.find(({ type }) => type === 'BOOST_APPLIED')?.payload).toMatchObject({ modifier: 1 });
+    expect(canonicalizeJson(replayM1Events(createM1StateSnapshot(replayBase), createM1ReplayBundle(
+      committed.events.slice(replayBaseEventCount), committed.adjudication.traces,
+    )))).toBe(canonicalizeJson(committed));
   });
 
   it('executes fixed registry resource effects and honors remove-from-game lifecycle', () => {

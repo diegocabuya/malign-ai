@@ -101,6 +101,7 @@ const campaignRule = (
 export const BASE_2025_M1_CAMPAIGN_CARD_RULES: Readonly<Record<string, M1CampaignCardRule>> = Object.fromEntries(
   [
     campaignRule(3, 'DUAL', { METHOD: 3, AMPLIFIER: 3 }),
+    campaignRule(42, 'DUAL', { METHOD: 2, AMPLIFIER: 2 }),
     campaignRule(45, 'MALIGN', { METHOD: 6, AMPLIFIER: 6 }),
     campaignRule(86, 'MALIGN', { METHOD: 3, AMPLIFIER: 3 }, { pairBonusWithDefinitionId: 'BASE_CARD_045' }),
     campaignRule(97, 'MALIGN', { INTENT: 2 }, { allowsAnyTargetDt: true }),

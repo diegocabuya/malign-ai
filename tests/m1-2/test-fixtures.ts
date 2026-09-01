@@ -120,6 +120,7 @@ export const adjudicationHarness = (options: {
   readonly vp?: number;
   readonly diceMode?: DiceMode;
   readonly includeNarrative?: boolean;
+  readonly boost?: boolean;
 } = {}): AdjudicationHarness => {
   const testHarness = harness({ states: [planningState(options.diceMode)], bindings: trustedBindings() });
   for (const participantId of ['F1', ...PLAYER_IDS]) {
@@ -128,7 +129,7 @@ export const adjudicationHarness = (options: {
   const state = testHarness.store.snapshot(GAME_ID);
   if (state === undefined) throw new Error('M1-2 planning state missing');
   const serials = options.serials ?? [FULL_CAMPAIGN.intent.serial, FULL_CAMPAIGN.method.serial, FULL_CAMPAIGN.amplifier.serial];
-  placeRequiredCardsInHand(state, 'P1', serials);
+  placeRequiredCardsInHand(state, 'P1', [...serials, ...(options.boost === true ? [87] : [])]);
   const targetDt = options.targetDt ?? FULL_CAMPAIGN.target_dt;
   const targetPd = options.targetPd ?? FULL_CAMPAIGN.target_pd;
   const seededResources = options.resources ?? FULL_CAMPAIGN.resources_before_activation;
@@ -179,8 +180,12 @@ export const adjudicationHarness = (options: {
         targetDtId: targetDt,
       },
     },
+    ...(options.boost === true ? [{
+      sequenceIndex: 2, actionType: 'PLAY_BOOST' as const,
+      actionPayload: { cardInstanceId: cardInstanceId('ARDEN', 87), campaignId: FULL_CAMPAIGN.campaign_id, activationSequenceIndex: 3 },
+    }] : []),
     {
-      sequenceIndex: 2,
+      sequenceIndex: options.boost === true ? 3 : 2,
       actionType: 'ACTIVATE_CAMPAIGN' as const,
       actionPayload: { campaignId: FULL_CAMPAIGN.campaign_id, requestedTargetPdId: targetPd },
     },

@@ -2,6 +2,7 @@ import type { ActorContext } from '@malign-ai/contracts';
 import type {
   AdjudicationTrace,
   ChoiceRequest,
+  CoalitionContributionRequest,
   NarrativeRequest,
   SetupGameEvent,
   SetupGameEventType,
@@ -30,6 +31,7 @@ export interface M1AdjudicationProjection {
   readonly game: SetupGameProjection;
   readonly pendingChoice?: ChoiceRequest;
   readonly pendingNarrativeRequest?: NarrativeRequest;
+  readonly pendingCoalitionRequest?: CoalitionContributionRequest & { readonly mayRespond: boolean };
   readonly events: readonly SetupGameEvent[];
   readonly audit: {
     readonly resourceLedgerEntries: number;
@@ -107,6 +109,11 @@ const canonicalPayloadKeys: Readonly<Record<SetupGameEventType, readonly string[
     'inputCausationId',
     'ownerParticipantId',
   ],
+  COALITION_REQUESTED: ['requestId', 'campaignId', 'sourceParticipantId', 'eligibleCount'],
+  COALITION_RESPONSE_COMMITTED: ['requestId', 'participantId', 'responseCount', 'resolved'],
+  COALITION_RESOLVED: ['requestId', 'campaignId', 'contributorCount'],
+  BOOST_PLANNED: ['participantId', 'cardInstanceId', 'campaignId', 'activationSequenceIndex'],
+  BOOST_APPLIED: ['activationId', 'participantId', 'cardInstanceId', 'modifier'],
   PRE_ROLL_REACTION_OPENED: ['activationId', 'stage', 'eligibleCount'],
   PRE_ROLL_REACTION_EVALUATED: ['activationId', 'stage', 'eligibleCount'],
   PRE_ROLL_REACTION_CLOSED: ['activationId', 'stage', 'eligibleCount'],
@@ -120,6 +127,7 @@ const canonicalPayloadKeys: Readonly<Record<SetupGameEventType, readonly string[
     'manual',
     'rngRequestId',
     'legitimacyModifier',
+    'boostModifier',
     'modifiedRollRaw',
     'ertRoll',
   ],
@@ -234,6 +242,10 @@ export const buildM1AdjudicationProjection = (state: SetupGameState, viewer: Act
     ...(maySeePending && pending?.kind === 'CHOICE' ? { pendingChoice: structuredClone(pending.choice) } : {}),
     ...(maySeePending && pending?.kind === 'NARRATIVE'
       ? { pendingNarrativeRequest: structuredClone(pending.narrativeRequest) }
+      : {}),
+    ...(pending?.kind === 'COALITION' && (participant.role === 'FACILITATOR' || pending.request.eligibleParticipantIds.includes(participantId))
+      ? { pendingCoalitionRequest: { ...structuredClone(pending.request),
+          mayRespond: participant.role === 'PLAYER' && pending.request.eligibleParticipantIds.includes(participantId) && pending.decisions[participantId] === undefined } }
       : {}),
     events: projectedEvents(state, viewer),
     audit: {

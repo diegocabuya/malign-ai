@@ -9,6 +9,7 @@ import {
   type AdjudicationTrace,
   type CampaignContinuationState,
   type CampaignNarrativeProvenance,
+  type CoalitionPendingResolution,
   type CountryId,
   type InfluenceStackState,
   type M1ActionPlanSlot,
@@ -27,6 +28,7 @@ import {
   lookupErt,
   normalizeErtRoll,
   resolveTwoToOne,
+  tierForCampaignValue,
   type AssignedCampaignComponent,
   type CampaignAlignment,
 } from '@malign-ai/rules';
@@ -43,6 +45,11 @@ export interface SubmitChoicePayload {
 export interface SubmitCampaignNarrativePayload {
   readonly campaignId: string;
   readonly narrative: string;
+}
+
+export interface SubmitCoalitionContributionPayload {
+  readonly requestId: string;
+  readonly decision: 'CONTRIBUTE' | 'DECLINE';
 }
 
 export interface SchedulerRunOptions {
@@ -89,6 +96,10 @@ const isSubmitCampaignNarrativePayload = (value: unknown): value is SubmitCampai
   value.campaignId.length > 0 &&
   typeof value.narrative === 'string' &&
   value.narrative.trim().length > 0;
+
+const isSubmitCoalitionContributionPayload = (value: unknown): value is SubmitCoalitionContributionPayload =>
+  exactKeys(value, ['requestId', 'decision']) && typeof value.requestId === 'string' && value.requestId.length > 0 &&
+  (value.decision === 'CONTRIBUTE' || value.decision === 'DECLINE');
 
 const countryForParticipant = (state: SetupGameState, participantId: string): CountryId | undefined =>
   state.seats[participantId]?.countryId;
@@ -346,6 +357,45 @@ export const replayM1Events = (
         state.adjudication.scheduler.status = 'SUSPENDED';
         break;
       }
+      case 'COALITION_REQUESTED': {
+        state.adjudication.pendingResolution = parseCanonicalRecord<PendingResolution>(payload.pendingResolutionJson,
+          payload.pendingResolutionDigest, 'Coalition pending resolution');
+        state.adjudication.scheduler.status = 'SUSPENDED';
+        break;
+      }
+      case 'COALITION_RESPONSE_COMMITTED': {
+        if (payload.resolved === true) {
+          delete state.adjudication.pendingResolution; state.adjudication.scheduler.status = 'READY';
+        } else {
+          state.adjudication.pendingResolution = parseCanonicalRecord<PendingResolution>(payload.pendingResolutionJson,
+            payload.pendingResolutionDigest, 'Coalition pending update');
+        }
+        break;
+      }
+      case 'BOOST_PLANNED': {
+        state.adjudication.plannedBoostsByParticipant ??= {};
+        state.adjudication.plannedBoostsByParticipant[String(payload.participantId)] = { cardInstanceId: String(payload.cardInstanceId),
+          campaignId: String(payload.campaignId), activationSequenceIndex: Number(payload.activationSequenceIndex) };
+        break;
+      }
+      case 'BOOST_APPLIED': {
+        const participantId = String(payload.participantId); const cardId = String(payload.cardInstanceId); const card = state.cards[cardId];
+        if (card !== undefined) card.zone = 'DISCARD';
+        const strategy = state.strategy[participantId];
+        if (strategy !== undefined) { strategy.handCardInstanceIds = strategy.handCardInstanceIds.filter((id) => id !== cardId);
+          if (!strategy.discardCardInstanceIds.includes(cardId)) strategy.discardCardInstanceIds.push(cardId); }
+        delete state.adjudication.plannedBoostsByParticipant?.[participantId];
+        break;
+      }
+      case 'RESOURCE_CHANGED': {
+        if (payload.reason === 'COALITION_CONTRIBUTION') {
+          const countryId = String(payload.countryId) as CountryId; const participantId = String(payload.participantId);
+          state.countries[countryId].resources = Number(payload.balanceAfter);
+          state.resourceLedger.push({ id: String(payload.ledgerId), participantId, countryId, reason: 'COALITION_CONTRIBUTION',
+            delta: Number(payload.delta), balanceAfter: Number(payload.balanceAfter), gameVersion: event.gameVersion });
+        }
+        break;
+      }
       case 'NARRATIVE_SUBMITTED': {
         const campaignId = String(payload.campaignId);
         state.adjudication.narrativesByCampaign[campaignId] = {
@@ -572,7 +622,7 @@ export class M1AdjudicationEngine {
 
   dispatchInteraction(envelope: InteractionEnvelope): EngineCommandResult {
     const beforeVersion = this.store.snapshot(envelope.gameId)?.version ?? 0;
-    if (envelope.commandType !== 'SUBMIT_CHOICE' && envelope.commandType !== 'SUBMIT_CAMPAIGN_NARRATIVE') {
+    if (envelope.commandType !== 'SUBMIT_CHOICE' && envelope.commandType !== 'SUBMIT_CAMPAIGN_NARRATIVE' && envelope.commandType !== 'SUBMIT_COALITION_CONTRIBUTION') {
       return rejectedResult(envelope, beforeVersion, 'NOT_AUTHORIZED', this.now);
     }
     return this.withTransactionalRandom((deferStableNotification) => dispatchAtomicCommand({
@@ -581,10 +631,14 @@ export class M1AdjudicationEngine {
       now: this.now,
       validatePayload: ({ commandType, payload }) => commandType === 'SUBMIT_CHOICE'
         ? isSubmitChoicePayload(payload) ? undefined : 'INVALID_COMMAND_PAYLOAD'
-        : isSubmitCampaignNarrativePayload(payload) ? undefined : 'INVALID_COMMAND_PAYLOAD',
+        : commandType === 'SUBMIT_CAMPAIGN_NARRATIVE'
+          ? isSubmitCampaignNarrativePayload(payload) ? undefined : 'INVALID_COMMAND_PAYLOAD'
+          : isSubmitCoalitionContributionPayload(payload) ? undefined : 'INVALID_COMMAND_PAYLOAD',
       prepare: (before, candidate) => candidate.commandType === 'SUBMIT_CHOICE'
         ? this.prepareChoice(before, candidate)
-        : this.prepareNarrative(before, candidate),
+        : candidate.commandType === 'SUBMIT_CAMPAIGN_NARRATIVE'
+          ? this.prepareNarrative(before, candidate)
+          : this.prepareCoalitionContribution(before, candidate),
       deferStableNotification,
     }));
   }
@@ -676,6 +730,26 @@ export class M1AdjudicationEngine {
       };
     }
 
+    if (slot.actionType === 'PLAY_BOOST') {
+      const payload = slot.actionPayload;
+      if (!('cardInstanceId' in payload) || !('activationSequenceIndex' in payload)) return { error: 'INVALID_COMMAND_PAYLOAD' as const, version };
+      const card = working.cards[payload.cardInstanceId]; const campaign = working.adjudication.campaigns[payload.campaignId];
+      const linked = working.actionPlanning[participantId]?.lockedSlots.find((candidate) => candidate.sequenceIndex === payload.activationSequenceIndex);
+      if (card?.definitionId !== 'BASE_CARD_087' || card.controllerParticipantId !== participantId || card.zone !== 'HAND' ||
+          campaign?.ownerParticipantId !== participantId || linked?.actionType !== 'ACTIVATE_CAMPAIGN' ||
+          !('campaignId' in linked.actionPayload) || linked.actionPayload.campaignId !== campaign.id) return { error: 'CARD_NOT_ELIGIBLE' as const, version };
+      working.adjudication.plannedBoostsByParticipant ??= {};
+      if (working.adjudication.plannedBoostsByParticipant[participantId] !== undefined) return { error: 'INVALID_ACTION_PLAN' as const, version };
+      working.adjudication.plannedBoostsByParticipant[participantId] = { cardInstanceId: card.id, campaignId: campaign.id,
+        activationSequenceIndex: payload.activationSequenceIndex };
+      slot.terminalOutcome = 'RESOLVED'; this.advanceScheduler(working);
+      const planned = this.appendEvent(working, envelope, 'BOOST_PLANNED', { participantId, cardInstanceId: card.id,
+        campaignId: campaign.id, activationSequenceIndex: payload.activationSequenceIndex }, reveal.id);
+      const resolved = this.appendEvent(working, envelope, 'ACTION_RESOLVED', { participantId, sequenceIndex: slot.sequenceIndex, outcome: 'RESOLVED' }, planned.id);
+      return { nextState: working, resultCode: 'BOOST_PLANNED', resultPayload: { participantId, cardInstanceId: card.id,
+        campaignId: campaign.id, activationSequenceIndex: payload.activationSequenceIndex }, emittedEventRefs: [reveal.id, planned.id, resolved.id] };
+    }
+
     const activation = this.resolveActivation(working, participantId, slot, envelope, preStateHash, [reveal.id]);
     if ('error' in activation) return { error: activation.error, version };
     if (activation.kind === 'PENDING') {
@@ -686,6 +760,12 @@ export class M1AdjudicationEngine {
           resultCode: 'NARRATIVE_REQUIRED',
           resultPayload: structuredClone(activation.pending.narrativeRequest),
           emittedEventRefs: activation.eventRefs,
+        };
+      }
+      if (activation.pending.kind === 'COALITION') {
+        return {
+          nextState: working, status: 'REQUIRES_CHOICE' as const, resultCode: 'COALITION_CONTRIBUTION_REQUIRED',
+          resultPayload: structuredClone(activation.pending.request), emittedEventRefs: activation.eventRefs,
         };
       }
       return {
@@ -811,7 +891,7 @@ export class M1AdjudicationEngine {
     if (campaign.ownerParticipantId !== participantId) return { error: 'CAMPAIGN_NOT_OWNED' };
     if (state.vetoBlockedParticipantIdsThisTurn?.includes(participantId) === true) return { error: 'CAMPAIGN_ALREADY_ACTIVATED' };
     if (campaign.activationCountThisTurn > 0) return { error: 'CAMPAIGN_ALREADY_ACTIVATED' };
-    const targetPdId = payload.requestedTargetPdId;
+    const targetPdId = 'requestedTargetPdId' in payload ? payload.requestedTargetPdId : undefined;
     if (targetPdId === undefined) return { error: 'INVALID_TARGET_PD' };
     const target = targetPdId === undefined ? undefined : state.populationDemographics[targetPdId];
     if (target === undefined) return { error: 'INVALID_TARGET_PD' };
@@ -923,17 +1003,41 @@ export class M1AdjudicationEngine {
     campaign: M1CampaignState,
     narrativeContinuation: NarrativeContinuationState,
     eventRefs: string[],
+    coalition: { readonly resolved: boolean; readonly bonus: number; readonly ledgerRefs: readonly string[] } = { resolved: false, bonus: 0, ledgerRefs: [] },
   ): ActivationOutcome {
+    const hasCoalition = campaign.assignments.some(({ definitionId }) => definitionId === 'BASE_CARD_042');
+    if (hasCoalition && !coalition.resolved) {
+      const eligibleParticipantIds = state.initiative.orderParticipantIds.filter((id) => id !== participantId && state.participants[id]?.role === 'PLAYER');
+      if (eligibleParticipantIds.length > 0) {
+        const activationId = `${campaign.id}:activation:${campaign.activationCountThisTurn + 1}`;
+        const requestId = `${activationId}:coalition`;
+        const eventId = `${state.id}:event:${state.events.length + 1}`;
+        const pending: CoalitionPendingResolution = {
+          kind: 'COALITION', resolutionId: activationId, gameId: state.id, participantId, sequenceIndex: slot.sequenceIndex,
+          campaignId: campaign.id, correlationId: envelope.correlationId ?? envelope.commandId, causationId: eventId,
+          versions: structuredClone(state.versions), request: { requestId, gameId: state.id, campaignId: campaign.id,
+            sourceParticipantId: participantId, eligibleParticipantIds, respondedParticipantIds: [], status: 'OPEN' },
+          decisions: {}, continuation: structuredClone(narrativeContinuation), eventRefs: [...eventRefs, eventId], ledgerRefs: [],
+        };
+        const event = this.appendEvent(state, envelope, 'COALITION_REQUESTED', { requestId, campaignId: campaign.id,
+          sourceParticipantId: participantId, eligibleCount: eligibleParticipantIds.length,
+          pendingResolutionJson: canonicalizeJson(pending), pendingResolutionDigest: sha256CanonicalJson(pending) }, eventRefs.at(-1));
+        if (event.id !== eventId) throw new Error('Coalition request event identity drift');
+        state.adjudication.pendingResolution = pending; state.adjudication.scheduler.status = 'SUSPENDED';
+        return { kind: 'PENDING', pending, eventRefs: [...eventRefs, event.id] };
+      }
+    }
     const {
       targetPdId,
       countryId,
       baseCv,
-      effectiveCv,
+      effectiveCv: baseEffectiveCv,
       baseTier,
-      resolutionTier,
       resourceCost,
       preStateHash,
     } = narrativeContinuation;
+    const effectiveCv = baseEffectiveCv + coalition.bonus;
+    const resolutionTier = tierForCampaignValue(effectiveCv);
     const activationId = `${campaign.id}:activation:${campaign.activationCountThisTurn + 1}`;
     for (const [type, stage] of [
       ['PRE_ROLL_REACTION_OPENED', 'OPEN'],
@@ -945,7 +1049,12 @@ export class M1AdjudicationEngine {
     }
 
     const country = state.countries[countryId];
-    if (country.resources < resourceCost) return { error: 'COST_PAYMENT_FAILED' };
+    const plannedBoost = state.adjudication.plannedBoostsByParticipant?.[participantId];
+    const boostApplies = plannedBoost?.campaignId === campaign.id && plannedBoost.activationSequenceIndex === slot.sequenceIndex;
+    if (country.resources < resourceCost) {
+      if (boostApplies) delete state.adjudication.plannedBoostsByParticipant?.[participantId];
+      return { error: 'COST_PAYMENT_FAILED' };
+    }
     const resourceBefore = country.resources;
     country.resources -= resourceCost;
     const resourceLedgerId = `${state.id}:resource-ledger:${state.resourceLedger.length + 1}`;
@@ -968,6 +1077,20 @@ export class M1AdjudicationEngine {
     }, eventRefs.at(-1));
     eventRefs.push(costEvent.id);
 
+    let boostModifier = 0;
+    if (boostApplies) {
+      const boostCard = plannedBoost === undefined ? undefined : state.cards[plannedBoost.cardInstanceId];
+      const strategy = state.strategy[participantId];
+      if (boostCard?.definitionId !== 'BASE_CARD_087' || boostCard.controllerParticipantId !== participantId || boostCard.zone !== 'HAND' || strategy === undefined) {
+        return { error: 'CARD_NOT_ELIGIBLE' };
+      }
+      boostCard.zone = 'DISCARD'; strategy.handCardInstanceIds = strategy.handCardInstanceIds.filter((id) => id !== boostCard.id);
+      if (!strategy.discardCardInstanceIds.includes(boostCard.id)) strategy.discardCardInstanceIds.push(boostCard.id);
+      boostModifier = 1; delete state.adjudication.plannedBoostsByParticipant?.[participantId];
+      const boostEvent = this.appendEvent(state, envelope, 'BOOST_APPLIED', { activationId, participantId, cardInstanceId: boostCard.id,
+        modifier: boostModifier }, eventRefs.at(-1)); eventRefs.push(boostEvent.id);
+    }
+
     let rawRoll: number;
     try {
       rawRoll = this.randomInteger(1, 10);
@@ -976,7 +1099,7 @@ export class M1AdjudicationEngine {
     }
     const legitimacyBefore = state.adjudication.legitimacyByPd[targetPdId] ?? null;
     const legitimacyModifier = legitimacyBefore === participantId ? 1 : 0;
-    const normalized = normalizeErtRoll(rawRoll + legitimacyModifier);
+    const normalized = normalizeErtRoll(rawRoll + legitimacyModifier + boostModifier);
     const dieRollId = `${state.id}:die-roll:${state.adjudication.dieRolls.length + 1}`;
     const rngRequestId = `${state.id}:rng:campaign:${state.adjudication.dieRolls.length + 1}`;
     state.adjudication.dieRolls.push({
@@ -997,6 +1120,7 @@ export class M1AdjudicationEngine {
       manual: false,
       rngRequestId,
       legitimacyModifier,
+      boostModifier,
       modifiedRollRaw: normalized.modifiedRollRaw,
       ertRoll: normalized.ertRoll,
     }, eventRefs.at(-1));
@@ -1044,7 +1168,7 @@ export class M1AdjudicationEngine {
       ertResult,
       preStateHash,
       eventRefsBeforeChoice: [...eventRefs],
-      ledgerRefsBeforeChoice: [resourceLedgerId],
+        ledgerRefsBeforeChoice: [...coalition.ledgerRefs, resourceLedgerId],
     };
     if (resolution.oppositeRemoved > 0 && distinctAttributions.size > 1) {
       const choiceId = `${activationId}:choice:opposite-attribution`;
@@ -1112,7 +1236,7 @@ export class M1AdjudicationEngine {
     }
 
     const automaticSelections = this.automaticAttributionSelections(oppositeStacks, resolution.oppositeRemoved);
-    return this.completeActivation(state, slot, envelope, campaign, continuationBase, automaticSelections, eventRefs, [resourceLedgerId]);
+    return this.completeActivation(state, slot, envelope, campaign, continuationBase, automaticSelections, eventRefs, [...coalition.ledgerRefs, resourceLedgerId]);
   }
 
   private automaticAttributionSelections(stacks: readonly InfluenceStackState[], removals: number): CountryId[] {
@@ -1121,6 +1245,76 @@ export class M1AdjudicationEngine {
       for (let count = 0; count < stack.count && selections.length < removals; count += 1) selections.push(stack.attributionCountryId);
     }
     return selections;
+  }
+
+  private prepareCoalitionContribution(before: SetupGameState | undefined, envelope: InteractionEnvelope): PreparedResolution<SetupGameState> {
+    const version = before?.version ?? 0;
+    if (before === undefined) return { error: 'GAME_NOT_FOUND' as const, version };
+    if (envelope.expectedGameVersion !== before.version) return { error: 'STALE_STATE_VERSION' as const, version };
+    if (before.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const, version };
+    if (envelope.engineContractVersion !== before.versions.engineContractVersion) return { error: 'UNSUPPORTED_CONTRACT_VERSION' as const, version };
+    if (envelope.payloadSchemaVersion !== before.versions.fixtureSchemaVersion) return { error: 'UNSUPPORTED_PAYLOAD_VERSION' as const, version };
+    const payload = envelope.payload as SubmitCoalitionContributionPayload; const pending = before.adjudication.pendingResolution;
+    if (pending === undefined || pending.kind !== 'COALITION' || pending.request.requestId !== payload.requestId) return { error: 'STALE_CONTINUATION' as const, version };
+    const actor = envelope.actorContext; const participantId = actor.participantId;
+    const participant = participantId === undefined ? undefined : before.participants[participantId]; const seat = participantId === undefined ? undefined : before.seats[participantId];
+    if (actor.actorType !== 'PLAYER' || participantId === undefined || participant === undefined || participant.userId !== actor.actorId || seat === undefined ||
+        actor.playerSeatId !== seat.id || actor.countryId !== seat.countryId || !actor.permissions.includes('game:play') ||
+        !pending.request.eligibleParticipantIds.includes(participantId)) return { error: 'CHOICE_NOT_AUTHORIZED' as const, version };
+    if (pending.decisions[participantId] !== undefined) return { error: 'CHOICE_ALREADY_RESOLVED' as const, version };
+    if (payload.decision === 'CONTRIBUTE' && before.countries[seat.countryId].resources < 1) return { error: 'COST_PAYMENT_FAILED' as const, version };
+
+    const working = structuredClone(before); const current = working.adjudication.pendingResolution;
+    if (current === undefined || current.kind !== 'COALITION') return { error: 'STALE_CONTINUATION' as const, version };
+    const events: SetupGameEvent[] = []; let contributionLedgerId: string | undefined;
+    if (payload.decision === 'CONTRIBUTE') {
+      const country = working.countries[seat.countryId]; country.resources -= 1;
+      const ledgerId = `${working.id}:resource-ledger:${working.resourceLedger.length + 1}`;
+      contributionLedgerId = ledgerId;
+      working.resourceLedger.push({ id: ledgerId, participantId, countryId: seat.countryId, reason: 'COALITION_CONTRIBUTION', delta: -1,
+        balanceAfter: country.resources, gameVersion: working.version + 1 });
+      events.push(this.appendEvent(working, envelope, 'RESOURCE_CHANGED', { participantId, countryId: seat.countryId,
+        reason: 'COALITION_CONTRIBUTION', delta: -1, balanceAfter: country.resources, ledgerId }, current.causationId));
+    }
+    const decisions = { ...current.decisions, [participantId]: payload.decision };
+    const respondedParticipantIds = current.request.eligibleParticipantIds.filter((id) => decisions[id] !== undefined);
+    const complete = respondedParticipantIds.length === current.request.eligibleParticipantIds.length;
+    const responseEventId = `${working.id}:event:${working.events.length + 1}`;
+    const updated: CoalitionPendingResolution = { ...current, causationId: responseEventId, decisions,
+      request: { ...current.request, respondedParticipantIds }, eventRefs: [...current.eventRefs, ...events.map(({ id }) => id), responseEventId],
+      ledgerRefs: [...current.ledgerRefs, ...(contributionLedgerId === undefined ? [] : [contributionLedgerId])] };
+    const response = this.appendEvent(working, envelope, 'COALITION_RESPONSE_COMMITTED', { requestId: current.request.requestId, participantId,
+      decision: payload.decision, responseCount: respondedParticipantIds.length, resolved: complete,
+      pendingResolutionJson: complete ? '' : canonicalizeJson(updated), pendingResolutionDigest: complete ? '' : sha256CanonicalJson(updated) },
+    events.at(-1)?.id ?? current.causationId);
+    if (response.id !== responseEventId) throw new Error('Coalition response event identity drift'); events.push(response);
+    if (!complete) {
+      working.adjudication.pendingResolution = updated;
+      return { nextState: working, resultCode: 'COALITION_RESPONSE_COMMITTED', resultPayload: { requestId: current.request.requestId,
+        responseCount: respondedParticipantIds.length, remaining: current.request.eligibleParticipantIds.length - respondedParticipantIds.length },
+        emittedEventRefs: events.map(({ id }) => id) };
+    }
+    const slot = working.actionPlanning[current.participantId]?.lockedSlots.find(({ sequenceIndex }) => sequenceIndex === current.sequenceIndex);
+    const campaign = working.adjudication.campaigns[current.campaignId];
+    if (slot === undefined || campaign === undefined) return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
+    delete working.adjudication.pendingResolution; working.adjudication.scheduler.status = 'READY';
+    const bonus = Object.values(decisions).filter((decision) => decision === 'CONTRIBUTE').length;
+    const resolved = this.appendEvent(working, envelope, 'COALITION_RESOLVED', { requestId: current.request.requestId,
+      campaignId: current.campaignId, contributorCount: bonus }, response.id); events.push(resolved);
+    const systemEnvelope: InternalEnvelope = { ...this.internalEnvelope({ gameId: envelope.gameId, expectedGameVersion: envelope.expectedGameVersion,
+      commandId: envelope.commandId, idempotencyKey: envelope.idempotencyKey, correlationId: current.correlationId }), causationId: resolved.id };
+    const outcome = this.continueActivationAfterNarrative(working, current.participantId, slot, systemEnvelope, campaign,
+      current.continuation, [...current.eventRefs, ...events.map(({ id }) => id)], { resolved: true, bonus,
+        ledgerRefs: [...current.ledgerRefs, ...(contributionLedgerId === undefined ? [] : [contributionLedgerId])] });
+    if ('error' in outcome) return { error: outcome.error, version };
+    if (outcome.kind === 'PENDING') {
+      if (outcome.pending.kind !== 'CHOICE') return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
+      return { nextState: working, status: 'REQUIRES_CHOICE' as const, resultCode: 'CHOICE_REQUIRED',
+        resultPayload: structuredClone(outcome.pending.choice), emittedEventRefs: outcome.eventRefs };
+    }
+    if (outcome.kind !== 'COMPLETE') return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
+    return { nextState: working, resultCode: 'CAMPAIGN_ACTIVATION_COMPLETED', resultPayload: { campaignId: campaign.id,
+      coalitionContributorCount: bonus }, emittedEventRefs: outcome.eventRefs, adjudicationTraceRefs: [outcome.traceId] };
   }
 
   private prepareNarrative(before: SetupGameState | undefined, envelope: InteractionEnvelope): PreparedResolution<SetupGameState> {
@@ -1201,6 +1395,10 @@ export class M1AdjudicationEngine {
     );
     if ('error' in outcome) return { error: outcome.error, version };
     if (outcome.kind === 'PENDING') {
+      if (outcome.pending.kind === 'COALITION') return {
+        nextState: working, status: 'REQUIRES_CHOICE' as const, resultCode: 'COALITION_CONTRIBUTION_REQUIRED',
+        resultPayload: structuredClone(outcome.pending.request), emittedEventRefs: outcome.eventRefs,
+      };
       if (outcome.pending.kind !== 'CHOICE') return { error: 'OBJECT_NO_LONGER_VALID' as const, version };
       return {
         nextState: working,

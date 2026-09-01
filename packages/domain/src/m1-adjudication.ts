@@ -145,7 +145,26 @@ export interface NarrativePendingResolution extends PendingResolutionBase {
   readonly continuation: NarrativeContinuationState;
 }
 
-export type PendingResolution = ChoicePendingResolution | NarrativePendingResolution;
+export interface CoalitionContributionRequest {
+  readonly requestId: string;
+  readonly gameId: string;
+  readonly campaignId: string;
+  readonly sourceParticipantId: string;
+  readonly eligibleParticipantIds: readonly string[];
+  readonly respondedParticipantIds: readonly string[];
+  readonly status: 'OPEN';
+}
+
+export interface CoalitionPendingResolution extends PendingResolutionBase {
+  readonly kind: 'COALITION';
+  readonly request: CoalitionContributionRequest;
+  readonly decisions: Readonly<Record<string, 'CONTRIBUTE' | 'DECLINE'>>;
+  readonly continuation: NarrativeContinuationState;
+  readonly eventRefs: readonly string[];
+  readonly ledgerRefs: readonly string[];
+}
+
+export type PendingResolution = ChoicePendingResolution | NarrativePendingResolution | CoalitionPendingResolution;
 
 export interface DieRollRecord {
   readonly id: string;
@@ -244,6 +263,7 @@ export interface M1AdjudicationState {
   readonly narrativesByCampaign: Record<string, CampaignNarrativeProvenance>;
   readonly scheduler: M1SchedulerCursor;
   pendingResolution?: PendingResolution;
+  plannedBoostsByParticipant?: Record<string, { readonly cardInstanceId: string; readonly campaignId: string; readonly activationSequenceIndex: number }>;
   readonly resolvedChoiceIds: string[];
   readonly dieRolls: DieRollRecord[];
   readonly influenceLedger: InfluenceLedgerEntry[];

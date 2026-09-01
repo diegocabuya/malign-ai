@@ -163,7 +163,7 @@ export const createAuthoritativeHttpServer = (options: AuthoritativeHttpServerOp
       }
       const input = HttpCommandRequestSchema.parse(raw);
       const membership = await options.memberships.resolveMembership(session, input.gameId);
-      if (input.commandType === 'SUBMIT_CHOICE' || input.commandType === 'SUBMIT_CAMPAIGN_NARRATIVE') {
+      if (input.commandType === 'SUBMIT_CHOICE' || input.commandType === 'SUBMIT_CAMPAIGN_NARRATIVE' || input.commandType === 'SUBMIT_COALITION_CONTRIBUTION') {
         const command: SessionM1InteractionInput = {
           engineContractVersion: input.engineContractVersion,
           commandId: input.commandId,
