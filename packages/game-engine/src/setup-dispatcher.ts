@@ -607,11 +607,20 @@ export class SetupCommandDispatcher {
             .some(({ demographicTokenIds }) => demographicTokenIds.includes(targetDtId));
           if (!validTarget) return { error: 'INVALID_DT' as const, version: before.version };
         }
-        const authoritativeParameters: Readonly<Record<string, unknown>> = options.effectId === 'CARD_EFFECT_BASE_2025_E046'
-          ? { ...options.parameters, rollsByParticipant: Object.fromEntries(Object.keys(m2.participants)
+        let authoritativeParameters: Readonly<Record<string, unknown>> = options.parameters;
+        if (options.effectId === 'CARD_EFFECT_BASE_2025_E046') {
+          authoritativeParameters = { ...options.parameters, rollsByParticipant: Object.fromEntries(Object.keys(m2.participants)
             .filter((participantId) => participantId !== options.actorParticipantId).sort()
-            .map((participantId) => [participantId, this.random.integer(1, 10)])) }
-          : options.parameters;
+            .map((participantId) => [participantId, this.random.integer(1, 10)])) };
+        } else if (options.effectId === 'CARD_EFFECT_BASE_2025_E028') {
+          const targetParticipantId = typeof options.parameters.targetParticipantId === 'string' ? options.parameters.targetParticipantId : undefined;
+          if (targetParticipantId === undefined || m2.participants[targetParticipantId] === undefined) return { error: 'INVALID_EFFECT_INPUT' as const, version: before.version };
+          const pool = Object.values(m2.cards).filter(({ controllerParticipantId, zone }) => controllerParticipantId === targetParticipantId && zone === 'HAND')
+            .map(({ id }) => id).sort();
+          const selectedCardIds: string[] = [];
+          while (selectedCardIds.length < 3 && pool.length > 0) selectedCardIds.push(pool.splice(this.random.integer(0, pool.length - 1), 1)[0]!);
+          authoritativeParameters = { ...options.parameters, selectedCardIds };
+        }
         const result = new M2BEffectDispatcher('M2-4').dispatch(m2, {
           actorParticipantId: options.actorParticipantId, effectId: options.effectId,
           effectVersion: options.effectVersion,

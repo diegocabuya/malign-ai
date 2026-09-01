@@ -189,6 +189,18 @@ const handlers: Record<string, M2BEffectHandler> = {
     }
     return undefined;
   },
+  RANDOM_HAND_REVIEW: (state, context) => {
+    const targetParticipantId = stringParameter(context, 'targetParticipantId');
+    const selectedCardIds = context.parameters.selectedCardIds;
+    if (targetParticipantId === undefined || state.participants[targetParticipantId] === undefined || !Array.isArray(selectedCardIds) ||
+        !selectedCardIds.every((cardId) => typeof cardId === 'string') || new Set(selectedCardIds).size !== selectedCardIds.length) return 'INVALID_EFFECT_INPUT';
+    const eligible = Object.values(state.cards)
+      .filter((card) => card.controllerParticipantId === targetParticipantId && card.zone === 'HAND')
+      .map(({ id }) => id).sort();
+    if (selectedCardIds.length !== Math.min(3, eligible.length) || selectedCardIds.some((cardId) => !eligible.includes(cardId))) return 'INVALID_EFFECT_INPUT';
+    for (const cardId of selectedCardIds) audit(state, context, 'CARD_REVEALED', { cardId, targetParticipantId, viewerParticipantId: context.actorParticipantId });
+    return undefined;
+  },
   DOUBLE_ACTION: (state, context) => {
     const campaignId = stringParameter(context, 'campaignId');
     const campaign = campaignId === undefined ? undefined : state.campaigns[campaignId];
@@ -245,6 +257,7 @@ const definitions: readonly M2BEffectDefinition[] = [
   { effectId: 'CARD_EFFECT_BASE_2025_E019', version: '0.1', enabledBlock: 'M2-4', handler: handlers.SANCTIONS! },
   { effectId: 'CARD_EFFECT_BASE_2025_E025', version: '0.1', enabledBlock: 'M2-4', handler: handlers.DOUBLE_ACTION! },
   { effectId: 'CARD_EFFECT_BASE_2025_E026', version: '0.1', enabledBlock: 'M2-4', handler: handlers.FIXED_SPEND_1! },
+  { effectId: 'CARD_EFFECT_BASE_2025_E028', version: '0.1', enabledBlock: 'M2-4', handler: handlers.RANDOM_HAND_REVIEW! },
   { effectId: 'CARD_EFFECT_BASE_2025_E039', version: '0.1', enabledBlock: 'M2-4', handler: handlers.FIXED_SPEND_3! },
   { effectId: 'CARD_EFFECT_BASE_2025_E042', version: '0.1', enabledBlock: 'M2-4', handler: handlers.FIXED_GAIN_4! },
   { effectId: 'CARD_EFFECT_BASE_2025_E046', version: '0.1', enabledBlock: 'M2-4', handler: handlers.MULTI_ROLL_RESOURCE_TRANSFER! },

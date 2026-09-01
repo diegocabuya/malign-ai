@@ -195,7 +195,7 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(M2_EFFECT_MANIFEST).toEqual(registry.effect_definitions.map(({ effect_id, source_definition_id }) => ({
       effectId: effect_id, sourceDefinitionId: source_definition_id,
     })));
-    expect(M2_IMPLEMENTED_EFFECT_IDS).toHaveLength(41);
+    expect(M2_IMPLEMENTED_EFFECT_IDS).toHaveLength(42);
     expect(M2_EVENT_DRIVEN_EFFECT_IDS).toEqual([
       'CARD_EFFECT_BASE_2025_E033', 'CARD_EFFECT_BASE_2025_E010', 'CARD_EFFECT_BASE_2025_E012',
       'CARD_EFFECT_BASE_2025_E022', 'CARD_EFFECT_BASE_2025_E036', 'CARD_EFFECT_BASE_2025_E040',
@@ -271,6 +271,33 @@ describe('M2R-R01 canonical state integration seam', () => {
     })).toMatchObject({ status: 'REJECTED', error: { code: 'INSUFFICIENT_RESOURCES' } });
     expect(testHarness.store.snapshot(state.id)).toEqual(before);
     expect(testHarness.random.cursor).toBe(0);
+  });
+
+  it('selects E028 review cards with authoritative RNG and leaves the target hand unchanged', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    const source = state.cards['ARDEN-CARD-056']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
+    for (const cardId of ['FLUMA-CARD-001', 'FLUMA-CARD-002', 'FLUMA-CARD-003']) {
+      const card = state.cards[cardId]!; card.controllerParticipantId = 'P2'; card.zone = 'HAND';
+      state.strategy.P2.handCardInstanceIds.push(cardId);
+    }
+    const targetHandBefore = [...state.strategy.P2.handCardInstanceIds].sort();
+    expect(targetHandBefore.length).toBeGreaterThanOrEqual(3);
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2Effect({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-E028-1', idempotencyKey: 'M2-E028-K1',
+      actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E028', effectVersion: '0.1',
+      parameters: { targetParticipantId: 'P2', selectedCardIds: ['FORGED-CARD-ID'] },
+    })).toMatchObject({ status: 'RESOLVED' });
+    const committed = testHarness.store.snapshot(state.id)!;
+    expect(committed.strategy.P2.handCardInstanceIds.sort()).toEqual(targetHandBefore);
+    expect(committed.cards[source.id]?.zone).toBe('DISCARD');
+    expect(committed.m2Audit?.slice(-3).map(({ type }) => type)).toEqual(['CARD_REVEALED', 'CARD_REVEALED', 'CARD_REVEALED']);
+    expect(new Set(committed.m2Audit?.slice(-3).map(({ payload }) => payload.cardId)).size).toBe(3);
+    expect(testHarness.random.requests.slice(-3)).toEqual([
+      { minInclusive: 0, maxInclusive: targetHandBefore.length - 1 },
+      { minInclusive: 0, maxInclusive: targetHandBefore.length - 2 },
+      { minInclusive: 0, maxInclusive: targetHandBefore.length - 3 },
+    ]);
   });
 
   it('sets an approved DT through a campaign-bound registry effect', () => {
