@@ -79,6 +79,12 @@ export interface SetupGameProjection {
     readonly currentParticipantId: string | null;
     readonly options?: readonly ['PASS', 'PLAY_REACTION'];
   };
+  readonly m2EffectChoice?: {
+    readonly continuationId: string;
+    readonly effectId: string;
+    readonly chooserParticipantId: string;
+    readonly optionCardIds?: readonly string[];
+  };
   readonly outcome?: NonNullable<NonNullable<SetupGameState['endGame']>['outcome']>;
   readonly viewerPrivateState?: ViewerPrivateStateProjection;
 }
@@ -210,6 +216,16 @@ export const buildSetupGameProjection = (state: SetupGameState, viewer: ActorCon
         ...(participant.role === 'FACILITATOR' ||
           state.reactionContinuation.window.priorityParticipantIds[state.reactionContinuation.window.priorityIndex] === viewerParticipantId
           ? { options: ['PASS', 'PLAY_REACTION'] as const }
+          : {}),
+      },
+    }),
+    ...(state.m2EffectChoice === undefined ? {} : {
+      m2EffectChoice: {
+        continuationId: state.m2EffectChoice.id,
+        effectId: state.m2EffectChoice.effectId,
+        chooserParticipantId: state.m2EffectChoice.chooserParticipantId,
+        ...(participant.role === 'FACILITATOR' || state.m2EffectChoice.chooserParticipantId === viewerParticipantId
+          ? { optionCardIds: [...state.m2EffectChoice.eligibleCardIds] }
           : {}),
       },
     }),

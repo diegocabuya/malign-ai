@@ -70,6 +70,21 @@ export interface M2BEffectContext {
   readonly parameters: Readonly<Record<string, unknown>>;
 }
 
+export interface M2EffectCardChoiceContinuation {
+  readonly kind: 'M2_EFFECT_CARD_CHOICE';
+  readonly schemaVersion: 1;
+  readonly id: string;
+  readonly gameVersion: number;
+  readonly effectId: 'CARD_EFFECT_BASE_2025_E016' | 'CARD_EFFECT_BASE_2025_E047';
+  readonly actorParticipantId: string;
+  readonly chooserParticipantId: string;
+  readonly targetParticipantId: string;
+  readonly sourceCardInstanceId: string;
+  readonly eligibleCardIds: readonly string[];
+  readonly roll?: number;
+  readonly status: 'OPEN';
+}
+
 export type M2CoreOperation =
   | { readonly kind: 'APPLY_BACKLASH'; readonly actorParticipantId: string; readonly pdId: string; readonly amount: number }
   | { readonly kind: 'ESTABLISH_LEGITIMACY'; readonly actorParticipantId: string; readonly pdId: string; readonly replacePdId?: string }

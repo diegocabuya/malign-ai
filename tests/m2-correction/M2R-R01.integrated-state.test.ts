@@ -199,7 +199,7 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(M2_EVENT_DRIVEN_EFFECT_IDS).toEqual([
       'CARD_EFFECT_BASE_2025_E033', 'CARD_EFFECT_BASE_2025_E010', 'CARD_EFFECT_BASE_2025_E012',
       'CARD_EFFECT_BASE_2025_E022', 'CARD_EFFECT_BASE_2025_E036', 'CARD_EFFECT_BASE_2025_E040',
-      'CARD_EFFECT_BASE_2025_E054',
+      'CARD_EFFECT_BASE_2025_E054', 'CARD_EFFECT_BASE_2025_E016', 'CARD_EFFECT_BASE_2025_E047',
     ]);
     const manifestHarness = harness(); const manifestState = completeAndStart(manifestHarness);
     M2_PAIR_BONUS_EFFECT_IDS.forEach((effectId, index) => {
@@ -298,6 +298,58 @@ describe('M2R-R01 canonical state integration seam', () => {
       { minInclusive: 0, maxInclusive: targetHandBefore.length - 2 },
       { minInclusive: 0, maxInclusive: targetHandBefore.length - 3 },
     ]);
+  });
+
+  it('opens and resolves authenticated E016 card choice without leaking rival options', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    const source = state.cards['ARDEN-CARD-031']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
+    const selected = state.cards['FLUMA-CARD-001']!; selected.controllerParticipantId = 'P2'; selected.zone = 'HAND';
+    state.strategy.P2.handCardInstanceIds.push(selected.id);
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2Effect({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-E016-OPEN-1', idempotencyKey: 'M2-E016-OPEN-K1',
+      actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E016', effectVersion: '0.1',
+      parameters: { targetParticipantId: 'P2' },
+    })).toMatchObject({ status: 'RESOLVED', resultCode: 'M2_EFFECT_CHOICE_REQUESTED' });
+    const opened = testHarness.store.snapshot(state.id)!; const continuationId = opened.m2EffectChoice!.id;
+    const p1 = trustedBindings().find(({ participantId }) => participantId === 'P1')!.authenticatedSessionId;
+    const p3 = trustedBindings().find(({ participantId }) => participantId === 'P3')!.authenticatedSessionId;
+    expect(testHarness.app.getGameProjection(p1, state.id)).toMatchObject({ ok: true, projection: { m2EffectChoice: { optionCardIds: [selected.id] } } });
+    expect((testHarness.app.getGameProjection(p3, state.id) as { projection: { m2EffectChoice: unknown } }).projection.m2EffectChoice).not.toHaveProperty('optionCardIds');
+    expect(testHarness.app.execute(p1, command('SUBMIT_M2_EFFECT_CHOICE', state.id, opened.version, {
+      continuationId, selectedCardId: selected.id,
+    }, { commandId: 'M2-E016-RESOLVE-1', idempotencyKey: 'M2-E016-RESOLVE-K1' }))).toMatchObject({ status: 'RESOLVED' });
+    const committed = testHarness.store.snapshot(state.id)!;
+    expect(committed.m2EffectChoice).toBeUndefined();
+    expect(committed.cards[selected.id]).toMatchObject({ zone: 'HAND', controllerParticipantId: 'P1', returnToOwnerOnDiscard: true });
+    expect(committed.cards[source.id]?.zone).toBe('DISCARD');
+  });
+
+  it('uses internal E047 roll then requires the targeted player to choose the discarded action card', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    const source = state.cards['ARDEN-CARD-082']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
+    const selected = state.cards['FLUMA-CARD-001']!; selected.controllerParticipantId = 'P2'; selected.zone = 'HAND';
+    state.strategy.P2.handCardInstanceIds.push(selected.id);
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2Effect({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-E047-OPEN-1', idempotencyKey: 'M2-E047-OPEN-K1',
+      actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E047', effectVersion: '0.1',
+      parameters: { targetParticipantId: 'P2', roll: 10 },
+    })).toMatchObject({ status: 'RESOLVED', resultCode: 'M2_EFFECT_CHOICE_REQUESTED' });
+    const opened = testHarness.store.snapshot(state.id)!; const continuationId = opened.m2EffectChoice!.id;
+    expect(opened.m2EffectChoice?.roll).toBe(1);
+    const p1 = trustedBindings().find(({ participantId }) => participantId === 'P1')!.authenticatedSessionId;
+    const p2 = trustedBindings().find(({ participantId }) => participantId === 'P2')!.authenticatedSessionId;
+    expect(testHarness.app.execute(p1, command('SUBMIT_M2_EFFECT_CHOICE', state.id, opened.version, {
+      continuationId, selectedCardId: selected.id,
+    }))).toMatchObject({ status: 'REJECTED', error: { code: 'NOT_AUTHORIZED' } });
+    expect(testHarness.app.execute(p2, command('SUBMIT_M2_EFFECT_CHOICE', state.id, opened.version, {
+      continuationId, selectedCardId: selected.id,
+    }, { commandId: 'M2-E047-RESOLVE-1', idempotencyKey: 'M2-E047-RESOLVE-K1' }))).toMatchObject({ status: 'RESOLVED' });
+    const committed = testHarness.store.snapshot(state.id)!;
+    expect(committed.cards[selected.id]?.zone).toBe('DISCARD');
+    expect(committed.cards[source.id]?.zone).toBe('DISCARD');
+    expect(testHarness.random.requests.at(-1)).toEqual({ minInclusive: 1, maxInclusive: 10 });
   });
 
   it('sets an approved DT through a campaign-bound registry effect', () => {

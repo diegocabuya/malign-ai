@@ -276,6 +276,8 @@ export const M2_EVENT_DRIVEN_EFFECT_IDS = [
   'CARD_EFFECT_BASE_2025_E036',
   'CARD_EFFECT_BASE_2025_E040',
   'CARD_EFFECT_BASE_2025_E054',
+  'CARD_EFFECT_BASE_2025_E016',
+  'CARD_EFFECT_BASE_2025_E047',
 ] as const;
 
 export const BASE_2025_PAIR_BONUSES: readonly (readonly [string, string])[] = [

@@ -58,7 +58,8 @@ export type SetupCommandType =
   | 'CONSTRUCT_CAMPAIGN'
   | 'END_GAME_SCORING'
   | 'PASS_REACTION'
-  | 'PLAY_REACTION';
+  | 'PLAY_REACTION'
+  | 'SUBMIT_M2_EFFECT_CHOICE';
 
 export interface CreateGamePayload {
   readonly scenarioDefinitionId: 'BASE_2025';
@@ -114,6 +115,11 @@ export interface PlayReactionPayload {
   readonly effectId: string;
 }
 
+export interface SubmitM2EffectChoicePayload {
+  readonly continuationId: string;
+  readonly selectedCardId: string;
+}
+
 export type SetupCommandPayload =
   | CreateGamePayload
   | AssignPlayerSeatPayload
@@ -124,6 +130,7 @@ export type SetupCommandPayload =
   | PauseGamePayload
   | ResumeGamePayload
   | PlayReactionPayload
+  | SubmitM2EffectChoicePayload
   | Record<string, never>;
 
 type SetupEnvelope = CommandEnvelope<SetupCommandType, SetupCommandPayload>;
@@ -158,6 +165,7 @@ const pauseBlockedCommands = new Set<SetupCommandType>([
   'END_GAME_SCORING',
   'PASS_REACTION',
   'PLAY_REACTION',
+  'SUBMIT_M2_EFFECT_CHOICE',
 ]);
 
 const reactionDefinitionByEffect: Readonly<Record<string, string>> = {
@@ -328,6 +336,10 @@ export const validateSetupCommandPayload = (
       return hasExactKeys(payload, []) ? undefined : 'INVALID_COMMAND_PAYLOAD';
     case 'PLAY_REACTION':
       return hasExactKeys(payload, ['cardId', 'effectId']) && isNonEmptyString(payload.cardId) && isNonEmptyString(payload.effectId)
+        ? undefined
+        : 'INVALID_COMMAND_PAYLOAD';
+    case 'SUBMIT_M2_EFFECT_CHOICE':
+      return hasExactKeys(payload, ['continuationId', 'selectedCardId']) && isNonEmptyString(payload.continuationId) && isNonEmptyString(payload.selectedCardId)
         ? undefined
         : 'INVALID_COMMAND_PAYLOAD';
   }
@@ -601,6 +613,38 @@ export class SetupCommandDispatcher {
         }
         const working = structuredClone(before);
         const m2 = buildM2StateFromCanonical(working);
+        if (options.effectId === 'CARD_EFFECT_BASE_2025_E016' || options.effectId === 'CARD_EFFECT_BASE_2025_E047') {
+          if (working.m2EffectChoice !== undefined) return { error: 'SCHEDULER_SUSPENDED' as const, version: before.version };
+          const targetParticipantId = typeof options.parameters.targetParticipantId === 'string' ? options.parameters.targetParticipantId : undefined;
+          if (targetParticipantId === undefined || m2.participants[targetParticipantId] === undefined) return { error: 'INVALID_EFFECT_INPUT' as const, version: before.version };
+          let choiceRoll: number | undefined;
+          if (options.effectId === 'CARD_EFFECT_BASE_2025_E047') {
+            const roll = this.random.integer(1, 10); choiceRoll = roll;
+            m2.audit.push({ type: 'DIE_ROLLED', actorParticipantId: options.actorParticipantId,
+              payload: { rollerParticipantId: targetParticipantId, rawValue: roll, manual: false } });
+            if (roll > 6) {
+              discardWithLifecycle(m2, options.sourceCardInstanceId); applyM2StateToCanonical(working, m2);
+              const event = this.appendEvent(working, candidate, 'M2_EFFECT_EXECUTED', { effectId: options.effectId,
+                actorParticipantId: options.actorParticipantId, sourceCardInstanceId: options.sourceCardInstanceId, auditCount: 1 });
+              return { nextState: working, resultCode: 'M2_EFFECT_EXECUTED', resultPayload: { effectId: options.effectId, roll, choiceRequired: false }, emittedEventRefs: [event.id] };
+            }
+          }
+          const eligibleCardIds = Object.values(m2.cards).filter((card) => card.controllerParticipantId === targetParticipantId && card.zone === 'HAND' &&
+            card.id !== options.sourceCardInstanceId && (options.effectId !== 'CARD_EFFECT_BASE_2025_E047' || card.cardClass === 'ACTION'))
+            .map(({ id }) => id).sort();
+          if (eligibleCardIds.length === 0) return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
+          const continuationId = `${working.id}:m2-effect-choice:${working.version + 1}`;
+          working.m2EffectChoice = {
+            kind: 'M2_EFFECT_CARD_CHOICE', schemaVersion: 1, id: continuationId, gameVersion: working.version + 1,
+            effectId: options.effectId, actorParticipantId: options.actorParticipantId,
+            chooserParticipantId: options.effectId === 'CARD_EFFECT_BASE_2025_E047' ? targetParticipantId : options.actorParticipantId,
+            targetParticipantId, sourceCardInstanceId: options.sourceCardInstanceId, eligibleCardIds,
+            ...(choiceRoll === undefined ? {} : { roll: choiceRoll }), status: 'OPEN',
+          };
+          const event = this.appendEvent(working, candidate, 'CHOICE_REQUESTED', { continuationId, effectId: options.effectId,
+            chooserParticipantId: working.m2EffectChoice.chooserParticipantId, optionCount: eligibleCardIds.length }, 'OWNER_AND_FACILITATOR');
+          return { nextState: working, resultCode: 'M2_EFFECT_CHOICE_REQUESTED', resultPayload: { continuationId, chooserParticipantId: working.m2EffectChoice.chooserParticipantId }, emittedEventRefs: [event.id] };
+        }
         if (targetDtEffect) {
           const targetDtId = options.parameters.targetDtId;
           const validTarget = typeof targetDtId === 'string' && Object.values(working.populationDemographics)
@@ -1072,6 +1116,7 @@ export class SetupCommandDispatcher {
         return { error: 'ILLEGAL_STATE_TRANSITION' };
       case 'PASS_REACTION': return this.passReaction(state, envelope);
       case 'PLAY_REACTION': return this.playReaction(state, envelope);
+      case 'SUBMIT_M2_EFFECT_CHOICE': return this.submitM2EffectChoice(state, envelope);
       case 'CREATE_GAME': return { error: 'GAME_ALREADY_EXISTS' };
     }
   }
@@ -1117,6 +1162,39 @@ export class SetupCommandDispatcher {
     })];
     if (active.window.status === 'CLOSED') events.push(this.appendEvent(state, envelope, 'REACTION_WINDOW_CLOSED', { windowId: active.window.id }));
     return { resultCode: 'REACTION_PLAYED', resultPayload: { windowId: active.window.id, status: active.window.status, negated: result.negated ?? false }, events };
+  }
+
+  private submitM2EffectChoice(state: SetupGameState, envelope: SetupEnvelope) {
+    if (state.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const };
+    const participantId = envelope.actorContext.participantId;
+    const payload = envelope.payload as SubmitM2EffectChoicePayload;
+    const continuation = state.m2EffectChoice;
+    if (participantId === undefined) return { error: 'INVALID_ACTOR_CONTEXT' as const };
+    if (continuation === undefined || continuation.id !== payload.continuationId) return { error: 'STALE_CONTINUATION' as const };
+    if (continuation.chooserParticipantId !== participantId) return { error: 'NOT_AUTHORIZED' as const };
+    if (!continuation.eligibleCardIds.includes(payload.selectedCardId)) return { error: 'INVALID_EFFECT_INPUT' as const };
+    const m2 = buildM2StateFromCanonical(state);
+    const selected = m2.cards[payload.selectedCardId];
+    const source = m2.cards[continuation.sourceCardInstanceId];
+    if (selected?.zone !== 'HAND' || selected.controllerParticipantId !== continuation.targetParticipantId ||
+        source?.zone !== 'HAND' || source.controllerParticipantId !== continuation.actorParticipantId) return { error: 'STALE_CONTINUATION' as const };
+    if (continuation.effectId === 'CARD_EFFECT_BASE_2025_E016') {
+      selected.controllerParticipantId = continuation.actorParticipantId;
+      selected.returnToOwnerOnDiscard = selected.ownerParticipantId !== continuation.actorParticipantId;
+    } else {
+      const error = discardWithLifecycle(m2, selected.id); if (error !== undefined) return { error };
+    }
+    discardWithLifecycle(m2, source.id);
+    m2.audit.push({ type: 'M2_EFFECT_CHOICE_RESOLVED', actorParticipantId: participantId,
+      payload: { effectId: continuation.effectId, selectedCardId: selected.id, targetParticipantId: continuation.targetParticipantId } });
+    applyM2StateToCanonical(state, m2);
+    delete state.m2EffectChoice;
+    const events = [
+      this.appendEvent(state, envelope, 'CHOICE_RESOLVED', { continuationId: continuation.id, effectId: continuation.effectId }, 'OWNER_AND_FACILITATOR'),
+      this.appendEvent(state, envelope, 'M2_EFFECT_EXECUTED', { effectId: continuation.effectId, actorParticipantId: continuation.actorParticipantId,
+        sourceCardInstanceId: continuation.sourceCardInstanceId, auditCount: 1 }),
+    ];
+    return { resultCode: 'M2_EFFECT_CHOICE_RESOLVED', resultPayload: { effectId: continuation.effectId, selectedCardId: selected.id }, events };
   }
 
   private join(state: SetupGameState, envelope: SetupEnvelope) {
