@@ -149,6 +149,11 @@ const canonicalPayloadKeys: Readonly<Record<SetupGameEventType, readonly string[
   REACTION_PRIORITY_PASSED: ['windowId', 'participantId'],
   REACTION_PLAYED: ['windowId', 'participantId', 'cardId', 'effectId', 'negated'],
   REACTION_WINDOW_CLOSED: ['windowId'],
+  VETO_STARTED: ['vetoCaseId', 'campaignId', 'initiatorParticipantId', 'offendingParticipantId'],
+  VETO_DEFENSE_SUBMITTED: ['vetoCaseId', 'participantId'],
+  VETO_VOTE_CAST: ['vetoCaseId', 'participantId'],
+  VETO_RESOLVED: ['vetoCaseId', 'campaignId', 'rejectedCampaign', 'unacceptable', 'activePlayers'],
+  VETO_ABUSE_REVIEWED: ['windowId', 'participantId', 'decision'],
   M2_EFFECT_EXECUTED: ['effectId', 'actorParticipantId', 'sourceCardInstanceId', 'auditCount'],
   M2_CORE_OPERATION_EXECUTED: ['operation', 'actorParticipantId', 'subjectId'],
 };

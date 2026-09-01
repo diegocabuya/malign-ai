@@ -809,6 +809,7 @@ export class M1AdjudicationEngine {
     const campaign = state.adjudication.campaigns[payload.campaignId];
     if (campaign === undefined) return { error: 'CAMPAIGN_NOT_FOUND' };
     if (campaign.ownerParticipantId !== participantId) return { error: 'CAMPAIGN_NOT_OWNED' };
+    if (state.vetoBlockedParticipantIdsThisTurn?.includes(participantId) === true) return { error: 'CAMPAIGN_ALREADY_ACTIVATED' };
     if (campaign.activationCountThisTurn > 0) return { error: 'CAMPAIGN_ALREADY_ACTIVATED' };
     const targetPdId = payload.requestedTargetPdId;
     if (targetPdId === undefined) return { error: 'INVALID_TARGET_PD' };

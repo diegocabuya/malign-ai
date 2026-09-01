@@ -33,6 +33,22 @@ export interface ReactionContinuation {
   readonly parent?: ReactionContinuation;
 }
 
+export interface M2VetoContinuation {
+  readonly kind: 'M2_VETO';
+  readonly schemaVersion: 1;
+  readonly id: string;
+  readonly gameVersion: number;
+  readonly campaignId: string;
+  readonly vetoCardInstanceId: string;
+  readonly initiatorParticipantId: string;
+  readonly offendingParticipantId: string;
+  readonly reasonText: string;
+  defenseText?: string;
+  readonly electorateParticipantIds: readonly string[];
+  readonly votes: Record<string, 'ACCEPTABLE' | 'UNACCEPTABLE'>;
+  status: 'AWAITING_DEFENSE' | 'VOTING';
+}
+
 export interface NarrativeResolution {
   readonly accepted: boolean;
   readonly blocked: boolean;

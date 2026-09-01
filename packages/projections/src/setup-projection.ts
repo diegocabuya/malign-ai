@@ -79,6 +79,18 @@ export interface SetupGameProjection {
     readonly currentParticipantId: string | null;
     readonly options?: readonly ['PASS', 'PLAY_REACTION'];
   };
+  readonly veto?: {
+    readonly vetoCaseId: string;
+    readonly campaignId: string;
+    readonly initiatorParticipantId: string;
+    readonly offendingParticipantId: string;
+    readonly reasonText: string;
+    readonly defenseText?: string;
+    readonly status: 'AWAITING_DEFENSE' | 'VOTING';
+    readonly votesCast: number;
+    readonly maySubmitDefense: boolean;
+    readonly mayVote: boolean;
+  };
   readonly m2EffectChoice?: {
     readonly continuationId: string;
     readonly effectId: string;
@@ -218,6 +230,16 @@ export const buildSetupGameProjection = (state: SetupGameState, viewer: ActorCon
           state.reactionContinuation.window.priorityParticipantIds[state.reactionContinuation.window.priorityIndex] === viewerParticipantId
           ? { options: ['PASS', 'PLAY_REACTION'] as const }
           : {}),
+      },
+    }),
+    ...(state.m2Veto === undefined ? {} : {
+      veto: {
+        vetoCaseId: state.m2Veto.id, campaignId: state.m2Veto.campaignId,
+        initiatorParticipantId: state.m2Veto.initiatorParticipantId, offendingParticipantId: state.m2Veto.offendingParticipantId,
+        reasonText: state.m2Veto.reasonText, ...(state.m2Veto.defenseText === undefined ? {} : { defenseText: state.m2Veto.defenseText }),
+        status: state.m2Veto.status, votesCast: Object.keys(state.m2Veto.votes).length,
+        maySubmitDefense: state.m2Veto.status === 'AWAITING_DEFENSE' && state.m2Veto.offendingParticipantId === viewerParticipantId,
+        mayVote: state.m2Veto.status === 'VOTING' && state.m2Veto.electorateParticipantIds.includes(viewerParticipantId) && state.m2Veto.votes[viewerParticipantId] === undefined,
       },
     }),
     ...(state.m2EffectChoice === undefined ? {} : {

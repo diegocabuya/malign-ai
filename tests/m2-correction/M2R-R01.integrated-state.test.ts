@@ -105,6 +105,73 @@ describe('M2R-R01 canonical state integration seam', () => {
     }))).toMatchObject({ status: 'REJECTED', error: { code: 'STALE_STATE_VERSION' } });
   });
 
+  it('resolves E048 through authenticated defense and a frozen strict-majority electorate', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    state.initiative.orderParticipantIds.splice(0, state.initiative.orderParticipantIds.length, 'P1', 'P2', 'P3', 'P4', 'P5');
+    const campaignCard = state.cards['ARDEN-CARD-001']!; campaignCard.controllerParticipantId = 'P1'; campaignCard.zone = 'CAMPAIGN';
+    const vetoCard = state.cards['FLUMA-CARD-085']!; vetoCard.controllerParticipantId = 'P2'; vetoCard.zone = 'HAND';
+    state.strategy.P2.handCardInstanceIds = [vetoCard.id];
+    state.adjudication.campaigns.CAMPAIGN_E048 = {
+      id: 'CAMPAIGN_E048', ownerParticipantId: 'P1', row: 'I', alignment: 'MALIGN', targetDtId: 'RELIGION:NONE',
+      assignments: [{ slot: 'INTENT', cardInstanceId: campaignCard.id, definitionId: campaignCard.definitionId, influenceValue: 1 }], activationCountThisTurn: 0,
+    };
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    expect(testHarness.dispatcher.openM2Reaction({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-E048-OPEN-1', idempotencyKey: 'M2-E048-OPEN-K1',
+      trigger: 'NARRATIVE', triggeringParticipantId: 'P1', triggeringCampaignId: 'CAMPAIGN_E048',
+    })).toMatchObject({ status: 'RESOLVED' });
+    const sessions = Object.fromEntries(trustedBindings().map((binding) => [binding.participantId, binding.authenticatedSessionId]));
+    let current = testHarness.store.snapshot(state.id)!;
+    expect(testHarness.app.execute(sessions.P2!, command('PLAY_REACTION', state.id, current.version, {
+      cardId: vetoCard.id, effectId: 'CARD_EFFECT_BASE_2025_E048', reasonText: 'La narrativa no justifica la campaña.',
+    }, { commandId: 'M2-E048-PLAY-1', idempotencyKey: 'M2-E048-PLAY-K1' }))).toMatchObject({ status: 'RESOLVED' });
+    current = testHarness.store.snapshot(state.id)!;
+    expect(current.cards[vetoCard.id]?.zone).toBe('HAND');
+    expect(testHarness.app.getGameProjection(sessions.P1!, state.id)).toMatchObject({ ok: true, projection: { veto: { maySubmitDefense: true, votesCast: 0 } } });
+    expect(testHarness.app.execute(sessions.P1!, command('SUBMIT_VETO_DEFENSE', state.id, current.version, {
+      vetoCaseId: current.m2Veto!.id, defenseText: 'La campaña sí se sostiene en las cartas declaradas.',
+    }, { commandId: 'M2-E048-DEFENSE-1', idempotencyKey: 'M2-E048-DEFENSE-K1' }))).toMatchObject({ status: 'RESOLVED' });
+    current = testHarness.store.snapshot(state.id)!;
+    const votes = { P1: 'UNACCEPTABLE', P2: 'UNACCEPTABLE', P3: 'UNACCEPTABLE', P4: 'ACCEPTABLE', P5: 'ACCEPTABLE' } as const;
+    for (const [index, participantId] of Object.keys(votes).entries()) {
+      const result = testHarness.app.execute(sessions[participantId]!, command('CAST_VETO_VOTE', state.id, current.version, {
+        vetoCaseId: current.m2Veto!.id, vote: votes[participantId as keyof typeof votes],
+      }, { commandId: `M2-E048-VOTE-${index + 1}`, idempotencyKey: `M2-E048-VOTE-K${index + 1}` }));
+      expect(result).toMatchObject({ status: 'RESOLVED', resultCode: index === 4 ? 'VETO_RESOLVED' : 'VETO_VOTE_CAST' });
+      current = testHarness.store.snapshot(state.id)!;
+    }
+    expect(current.m2Veto).toBeUndefined(); expect(current.adjudication.campaigns.CAMPAIGN_E048).toBeUndefined();
+    expect(current.cards[vetoCard.id]?.zone).toBe('REMOVED_FROM_GAME'); expect(current.cards[campaignCard.id]?.zone).toBe('DISCARD');
+    expect(current.vetoBlockedParticipantIdsThisTurn).toEqual(['P1']);
+    expect(current.events.filter(({ type }) => type === 'VETO_VOTE_CAST').map(({ payload }) => payload)).toHaveLength(5);
+  });
+
+  it('rejects an E048 abuse determination before mutating the veto card', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    state.initiative.orderParticipantIds.splice(0, state.initiative.orderParticipantIds.length, 'P1', 'P2', 'P3', 'P4', 'P5');
+    const campaignCard = state.cards['ARDEN-CARD-001']!; campaignCard.controllerParticipantId = 'P1'; campaignCard.zone = 'CAMPAIGN';
+    const vetoCard = state.cards['FLUMA-CARD-085']!; vetoCard.controllerParticipantId = 'P2'; vetoCard.zone = 'HAND';
+    state.adjudication.campaigns.CAMPAIGN_E048_ABUSE = {
+      id: 'CAMPAIGN_E048_ABUSE', ownerParticipantId: 'P1', row: 'I', alignment: 'MALIGN', targetDtId: 'RELIGION:NONE',
+      assignments: [{ slot: 'INTENT', cardInstanceId: campaignCard.id, definitionId: campaignCard.definitionId, influenceValue: 1 }], activationCountThisTurn: 0,
+    };
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    expect(testHarness.dispatcher.openM2Reaction({ gameId: state.id, expectedGameVersion: state.version,
+      commandId: 'M2-E048-ABUSE-OPEN-1', idempotencyKey: 'M2-E048-ABUSE-OPEN-K1', trigger: 'NARRATIVE',
+      triggeringParticipantId: 'P1', triggeringCampaignId: 'CAMPAIGN_E048_ABUSE' })).toMatchObject({ status: 'RESOLVED' });
+    const sessions = Object.fromEntries(trustedBindings().map((binding) => [binding.participantId, binding.authenticatedSessionId]));
+    let current = testHarness.store.snapshot(state.id)!;
+    expect(testHarness.app.execute(sessions.F1!, command('RESOLVE_VETO_ABUSE', state.id, current.version, {
+      reactionWindowId: current.reactionContinuation!.window.id, initiatorParticipantId: 'P2', decision: 'REJECT',
+    }, { commandId: 'M2-E048-ABUSE-REVIEW-1', idempotencyKey: 'M2-E048-ABUSE-REVIEW-K1' }))).toMatchObject({ status: 'RESOLVED' });
+    current = testHarness.store.snapshot(state.id)!;
+    const before = structuredClone(current);
+    expect(testHarness.app.execute(sessions.P2!, command('PLAY_REACTION', state.id, current.version, {
+      cardId: vetoCard.id, effectId: 'CARD_EFFECT_BASE_2025_E048', reasonText: 'Intento marcado como abuso.',
+    }, { commandId: 'M2-E048-ABUSE-PLAY-1', idempotencyKey: 'M2-E048-ABUSE-PLAY-K1' }))).toMatchObject({ status: 'REJECTED', error: { code: 'VETO_ABUSE' } });
+    expect(testHarness.store.snapshot(state.id)).toEqual(before);
+  });
+
   it('binds E040 to the triggering campaign and discards it only after a successful internal roll', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     state.initiative.orderParticipantIds.splice(0, state.initiative.orderParticipantIds.length, 'P1', 'P2', 'P3', 'P4', 'P5');
@@ -205,6 +272,7 @@ describe('M2R-R01 canonical state integration seam', () => {
       'CARD_EFFECT_BASE_2025_E045',
       'CARD_EFFECT_BASE_2025_E035',
       'CARD_EFFECT_BASE_2025_E053',
+      'CARD_EFFECT_BASE_2025_E048',
     ]);
     const manifestHarness = harness(); const manifestState = completeAndStart(manifestHarness);
     M2_PAIR_BONUS_EFFECT_IDS.forEach((effectId, index) => {

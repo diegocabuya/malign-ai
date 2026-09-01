@@ -25,7 +25,7 @@ import { dispatchAtomicCommand, InMemoryAtomicStateStore } from './atomic-dispat
 import { applyM2StateToCanonical, buildM2StateFromCanonical } from './m2-integrated-state.js';
 import { cleanupCampaignAging, resetTurnFlags } from './m2b-lifecycle.js';
 import { finalizeGame } from './m2b-endgame.js';
-import { makeReactionContinuation, openReactionWindow, passReactionPriority, playReaction } from './m2b-reaction.js';
+import { makeReactionContinuation, openReactionWindow, passReactionPriority, playReaction, resolveVeto } from './m2b-reaction.js';
 import {
   applyBacklash,
   discardCampaign,
@@ -59,6 +59,9 @@ export type SetupCommandType =
   | 'END_GAME_SCORING'
   | 'PASS_REACTION'
   | 'PLAY_REACTION'
+  | 'SUBMIT_VETO_DEFENSE'
+  | 'CAST_VETO_VOTE'
+  | 'RESOLVE_VETO_ABUSE'
   | 'SUBMIT_M2_EFFECT_CHOICE';
 
 export interface CreateGamePayload {
@@ -113,7 +116,12 @@ export interface ResumeGamePayload {
 export interface PlayReactionPayload {
   readonly cardId: string;
   readonly effectId: string;
+  readonly reasonText?: string;
 }
+
+export interface SubmitVetoDefensePayload { readonly vetoCaseId: string; readonly defenseText: string }
+export interface CastVetoVotePayload { readonly vetoCaseId: string; readonly vote: 'ACCEPTABLE' | 'UNACCEPTABLE' }
+export interface ResolveVetoAbusePayload { readonly reactionWindowId: string; readonly initiatorParticipantId: string; readonly decision: 'ALLOW' | 'REJECT' }
 
 export type SubmitM2EffectChoicePayload =
   | { readonly continuationId: string; readonly selectedCardId: string }
@@ -129,6 +137,9 @@ export type SetupCommandPayload =
   | PauseGamePayload
   | ResumeGamePayload
   | PlayReactionPayload
+  | SubmitVetoDefensePayload
+  | CastVetoVotePayload
+  | ResolveVetoAbusePayload
   | SubmitM2EffectChoicePayload
   | Record<string, never>;
 
@@ -150,6 +161,7 @@ const facilitatorCommands = new Set<SetupCommandType>([
   'START_GAME',
   'PAUSE_GAME',
   'RESUME_GAME',
+  'RESOLVE_VETO_ABUSE',
 ]);
 const pauseBlockedCommands = new Set<SetupCommandType>([
   'START_GAME',
@@ -164,6 +176,9 @@ const pauseBlockedCommands = new Set<SetupCommandType>([
   'END_GAME_SCORING',
   'PASS_REACTION',
   'PLAY_REACTION',
+  'SUBMIT_VETO_DEFENSE',
+  'CAST_VETO_VOTE',
+  'RESOLVE_VETO_ABUSE',
   'SUBMIT_M2_EFFECT_CHOICE',
 ]);
 
@@ -334,9 +349,18 @@ export const validateSetupCommandPayload = (
     case 'PASS_REACTION':
       return hasExactKeys(payload, []) ? undefined : 'INVALID_COMMAND_PAYLOAD';
     case 'PLAY_REACTION':
-      return hasExactKeys(payload, ['cardId', 'effectId']) && isNonEmptyString(payload.cardId) && isNonEmptyString(payload.effectId)
-        ? undefined
-        : 'INVALID_COMMAND_PAYLOAD';
+      return hasExactKeys(payload, ['cardId', 'effectId'], ['reasonText']) && isNonEmptyString(payload.cardId) && isNonEmptyString(payload.effectId) &&
+        (payload.effectId !== 'CARD_EFFECT_BASE_2025_E048' || isNonEmptyString(payload.reasonText)) ? undefined : 'INVALID_COMMAND_PAYLOAD';
+    case 'SUBMIT_VETO_DEFENSE':
+      return hasExactKeys(payload, ['vetoCaseId', 'defenseText']) && isNonEmptyString(payload.vetoCaseId) && isNonEmptyString(payload.defenseText)
+        ? undefined : 'INVALID_COMMAND_PAYLOAD';
+    case 'CAST_VETO_VOTE':
+      return hasExactKeys(payload, ['vetoCaseId', 'vote']) && isNonEmptyString(payload.vetoCaseId) &&
+        (payload.vote === 'ACCEPTABLE' || payload.vote === 'UNACCEPTABLE') ? undefined : 'INVALID_COMMAND_PAYLOAD';
+    case 'RESOLVE_VETO_ABUSE':
+      return hasExactKeys(payload, ['reactionWindowId', 'initiatorParticipantId', 'decision']) && isNonEmptyString(payload.reactionWindowId) &&
+        isNonEmptyString(payload.initiatorParticipantId) && (payload.decision === 'ALLOW' || payload.decision === 'REJECT')
+        ? undefined : 'INVALID_COMMAND_PAYLOAD';
     case 'SUBMIT_M2_EFFECT_CHOICE': {
       if (!isRecord(payload) || !isNonEmptyString(payload.continuationId)) return 'INVALID_COMMAND_PAYLOAD';
       const choiceKeys = Object.keys(payload).sort().join('|');
@@ -495,6 +519,8 @@ export class SetupCommandDispatcher {
         events.push(this.appendEvent(working, candidate, 'CLEANUP_STARTED', {}));
         const cleanup = cleanupCampaignAging(buildM2StateFromCanonical(working));
         resetTurnFlags(cleanup.state); applyM2StateToCanonical(working, cleanup.state);
+        delete working.vetoBlockedParticipantIdsThisTurn;
+        delete working.vetoAbuseReviewByWindowParticipant;
         for (const campaignId of cleanup.discardedCampaignIds) events.push(this.appendEvent(working, candidate, 'CAMPAIGN_DISCARDED', { campaignId }));
         for (const campaignId of cleanup.agedCampaignIds) events.push(this.appendEvent(working, candidate, 'CAMPAIGN_AGED', { campaignId, row: 'II' }));
         events.push(this.appendEvent(working, candidate, 'TURN_FLAGS_RESET', {}));
@@ -543,7 +569,7 @@ export class SetupCommandDispatcher {
             return { error: 'INVALID_REACTION_INPUT' as const, version: before.version };
           }
         }
-        if (options.trigger === 'PRE_ROLL') {
+        if (options.trigger === 'PRE_ROLL' || options.trigger === 'NARRATIVE') {
           const campaign = options.triggeringCampaignId === undefined ? undefined : before.adjudication.campaigns[options.triggeringCampaignId];
           if (campaign?.ownerParticipantId !== options.triggeringParticipantId) return { error: 'INVALID_REACTION_INPUT' as const, version: before.version };
         }
@@ -1227,6 +1253,9 @@ export class SetupCommandDispatcher {
         return { error: 'ILLEGAL_STATE_TRANSITION' };
       case 'PASS_REACTION': return this.passReaction(state, envelope);
       case 'PLAY_REACTION': return this.playReaction(state, envelope);
+      case 'SUBMIT_VETO_DEFENSE': return this.submitVetoDefense(state, envelope);
+      case 'CAST_VETO_VOTE': return this.castVetoVote(state, envelope);
+      case 'RESOLVE_VETO_ABUSE': return this.resolveVetoAbuse(state, envelope);
       case 'SUBMIT_M2_EFFECT_CHOICE': return this.submitM2EffectChoice(state, envelope);
       case 'CREATE_GAME': return { error: 'GAME_ALREADY_EXISTS' };
     }
@@ -1256,6 +1285,8 @@ export class SetupCommandDispatcher {
     const payload = envelope.payload as PlayReactionPayload;
     const card = state.cards[payload.cardId];
     if (card === undefined || card.definitionId !== reactionDefinitionByEffect[payload.effectId]) return { error: 'REACTION_NOT_ELIGIBLE' as const };
+    if (payload.effectId === 'CARD_EFFECT_BASE_2025_E048' &&
+        state.vetoAbuseReviewByWindowParticipant?.[`${continuation.window.id}:${participantId}`] === 'REJECT') return { error: 'VETO_ABUSE' as const };
     const m2 = buildM2StateFromCanonical(state);
     const needsRoll = payload.effectId === 'CARD_EFFECT_BASE_2025_E036' || payload.effectId === 'CARD_EFFECT_BASE_2025_E040';
     const result = playReaction(m2, continuation.window, {
@@ -1264,6 +1295,19 @@ export class SetupCommandDispatcher {
     });
     if (result.error !== undefined) return { error: result.error };
     applyM2StateToCanonical(state, m2);
+    if (payload.effectId === 'CARD_EFFECT_BASE_2025_E048') {
+      const campaignId = continuation.window.triggeringCampaignId;
+      if (campaignId === undefined || state.adjudication.campaigns[campaignId] === undefined || state.m2Veto !== undefined) {
+        return { error: 'INVALID_REACTION_INPUT' as const };
+      }
+      const electorateParticipantIds = state.initiative.orderParticipantIds.filter((id) => state.participants[id]?.role === 'PLAYER');
+      state.m2Veto = {
+        kind: 'M2_VETO', schemaVersion: 1, id: `${continuation.window.id}:veto`, gameVersion: state.version + 1,
+        campaignId, vetoCardInstanceId: payload.cardId, initiatorParticipantId: participantId,
+        offendingParticipantId: continuation.window.triggeringParticipantId, reasonText: payload.reasonText!,
+        electorateParticipantIds, votes: {}, status: 'AWAITING_DEFENSE',
+      };
+    }
     if (result.child !== undefined) {
       state.reactionContinuation = makeReactionContinuation(`${result.child.id}:continuation`, state.version + 1, result.child, continuation);
     }
@@ -1271,8 +1315,74 @@ export class SetupCommandDispatcher {
     const events = [this.appendEvent(state, envelope, 'REACTION_PLAYED', {
       windowId: continuation.window.id, participantId, cardId: payload.cardId, effectId: payload.effectId, negated: result.negated ?? false,
     })];
+    if (state.m2Veto !== undefined && payload.effectId === 'CARD_EFFECT_BASE_2025_E048') events.push(this.appendEvent(state, envelope, 'VETO_STARTED', {
+      vetoCaseId: state.m2Veto.id, campaignId: state.m2Veto.campaignId, initiatorParticipantId: participantId,
+      offendingParticipantId: state.m2Veto.offendingParticipantId,
+    }));
     if (active.window.status === 'CLOSED') events.push(this.appendEvent(state, envelope, 'REACTION_WINDOW_CLOSED', { windowId: active.window.id }));
     return { resultCode: 'REACTION_PLAYED', resultPayload: { windowId: active.window.id, status: active.window.status, negated: result.negated ?? false }, events };
+  }
+
+  private submitVetoDefense(state: SetupGameState, envelope: SetupEnvelope) {
+    if (state.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const };
+    const participantId = envelope.actorContext.participantId; const payload = envelope.payload as SubmitVetoDefensePayload;
+    const veto = state.m2Veto;
+    if (participantId === undefined) return { error: 'INVALID_ACTOR_CONTEXT' as const };
+    if (veto === undefined || veto.id !== payload.vetoCaseId) return { error: 'STALE_CONTINUATION' as const };
+    if (veto.status !== 'AWAITING_DEFENSE' || veto.offendingParticipantId !== participantId) return { error: 'NOT_AUTHORIZED' as const };
+    veto.defenseText = payload.defenseText; veto.status = 'VOTING';
+    const event = this.appendEvent(state, envelope, 'VETO_DEFENSE_SUBMITTED', { vetoCaseId: veto.id, participantId });
+    return { resultCode: 'VETO_DEFENSE_SUBMITTED', resultPayload: { vetoCaseId: veto.id, status: veto.status }, events: [event] };
+  }
+
+  private resolveVetoAbuse(state: SetupGameState, envelope: SetupEnvelope) {
+    if (state.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const };
+    const payload = envelope.payload as ResolveVetoAbusePayload; const continuation = state.reactionContinuation;
+    if (continuation === undefined || continuation.window.id !== payload.reactionWindowId || continuation.window.trigger !== 'NARRATIVE' ||
+        continuation.window.priorityParticipantIds[continuation.window.priorityIndex] !== payload.initiatorParticipantId) return { error: 'STALE_CONTINUATION' as const };
+    state.vetoAbuseReviewByWindowParticipant ??= {};
+    state.vetoAbuseReviewByWindowParticipant[`${payload.reactionWindowId}:${payload.initiatorParticipantId}`] = payload.decision;
+    const event = this.appendEvent(state, envelope, 'VETO_ABUSE_REVIEWED', { windowId: payload.reactionWindowId,
+      participantId: payload.initiatorParticipantId, decision: payload.decision });
+    return { resultCode: 'VETO_ABUSE_REVIEWED', resultPayload: { reactionWindowId: payload.reactionWindowId, decision: payload.decision }, events: [event] };
+  }
+
+  private castVetoVote(state: SetupGameState, envelope: SetupEnvelope) {
+    if (state.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const };
+    const participantId = envelope.actorContext.participantId; const payload = envelope.payload as CastVetoVotePayload;
+    const veto = state.m2Veto;
+    if (participantId === undefined) return { error: 'INVALID_ACTOR_CONTEXT' as const };
+    if (veto === undefined || veto.id !== payload.vetoCaseId) return { error: 'STALE_CONTINUATION' as const };
+    if (veto.status !== 'VOTING' || !veto.electorateParticipantIds.includes(participantId) || veto.votes[participantId] !== undefined) {
+      return { error: 'INVALID_REACTION_INPUT' as const };
+    }
+    veto.votes[participantId] = payload.vote;
+    const events = [this.appendEvent(state, envelope, 'VETO_VOTE_CAST', { vetoCaseId: veto.id, participantId, vote: payload.vote })];
+    if (Object.keys(veto.votes).length < veto.electorateParticipantIds.length) {
+      return { resultCode: 'VETO_VOTE_CAST', resultPayload: { vetoCaseId: veto.id, votesCast: Object.keys(veto.votes).length }, events };
+    }
+    const result = resolveVeto(veto.votes);
+    const m2 = buildM2StateFromCanonical(state);
+    const vetoCard = m2.cards[veto.vetoCardInstanceId];
+    if (vetoCard?.zone !== 'HAND') return { error: 'REACTION_NOT_ELIGIBLE' as const };
+    discardWithLifecycle(m2, veto.vetoCardInstanceId); vetoCard.zone = 'REMOVED_FROM_GAME';
+    if (result.rejectedCampaign) {
+      const error = discardCampaign(m2, veto.campaignId); if (error !== undefined) return { error };
+      state.vetoBlockedParticipantIdsThisTurn ??= [];
+      if (!state.vetoBlockedParticipantIdsThisTurn.includes(veto.offendingParticipantId)) state.vetoBlockedParticipantIdsThisTurn.push(veto.offendingParticipantId);
+    }
+    applyM2StateToCanonical(state, m2);
+    const resolvedId = veto.id; const campaignId = veto.campaignId; const offendingParticipantId = veto.offendingParticipantId;
+    delete state.m2Veto;
+    if (result.rejectedCampaign) delete state.reactionContinuation;
+    else {
+      const window = openReactionWindow(`${state.id}:reaction:${state.version + 1}:post-veto`, 'NARRATIVE', offendingParticipantId,
+        state.initiative.orderParticipantIds, undefined, { triggeringCampaignId: campaignId });
+      state.reactionContinuation = makeReactionContinuation(`${window.id}:continuation`, state.version + 1, window);
+    }
+    events.push(this.appendEvent(state, envelope, 'VETO_RESOLVED', { vetoCaseId: resolvedId, campaignId,
+      rejectedCampaign: result.rejectedCampaign, unacceptable: result.unacceptable, activePlayers: result.activePlayers }));
+    return { resultCode: 'VETO_RESOLVED', resultPayload: { vetoCaseId: resolvedId, ...result }, events };
   }
 
   private submitM2EffectChoice(state: SetupGameState, envelope: SetupEnvelope) {

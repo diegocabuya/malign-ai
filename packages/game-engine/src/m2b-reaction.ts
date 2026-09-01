@@ -77,7 +77,7 @@ export const playReaction = (
       return { error: 'INVALID_REACTION_INPUT' };
     }
   }
-  discardWithLifecycle(state, input.cardId);
+  if (input.effectId !== 'CARD_EFFECT_BASE_2025_E048') discardWithLifecycle(state, input.cardId);
   const success = input.effectId === 'CARD_EFFECT_BASE_2025_E036' || input.effectId === 'CARD_EFFECT_BASE_2025_E040' ? rolled! <= 4 : true;
   if (input.effectId === 'CARD_EFFECT_BASE_2025_E040' && success && window.triggeringCampaignId !== undefined) {
     const error = discardCampaign(state, window.triggeringCampaignId);

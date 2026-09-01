@@ -12,7 +12,7 @@ export type SetupGameOverlay = 'ACTIVE' | 'PAUSED';
 export type DiceMode = 'DIGITAL' | 'MANUAL_DIE_INPUT';
 import type { M1AdjudicationState } from './m1-adjudication.js';
 import type { EndGameState } from './m2b-endgame.js';
-import type { ReactionContinuation } from './m2b-reaction.js';
+import type { M2VetoContinuation, ReactionContinuation } from './m2b-reaction.js';
 import type { M2BAuditRecord, M2CoreSchedulerContinuation, M2EffectChoiceContinuation } from './m2b.js';
 
 export type SetupCardZone = 'STARTER_POOL' | 'OPERATIONS_POOL' | 'OPERATIONS_DECK' | 'HAND' | 'DISCARD' | 'CAMPAIGN' | 'REMOVED_FROM_GAME';
@@ -233,6 +233,11 @@ export type SetupGameEventType =
   | 'REACTION_PRIORITY_PASSED'
   | 'REACTION_PLAYED'
   | 'REACTION_WINDOW_CLOSED'
+  | 'VETO_STARTED'
+  | 'VETO_DEFENSE_SUBMITTED'
+  | 'VETO_VOTE_CAST'
+  | 'VETO_RESOLVED'
+  | 'VETO_ABUSE_REVIEWED'
   | 'M2_EFFECT_EXECUTED'
   | 'M2_CORE_OPERATION_EXECUTED';
 
@@ -289,6 +294,9 @@ export interface SetupGameState {
   readonly adjudication: M1AdjudicationState;
   endGame?: EndGameState;
   reactionContinuation?: ReactionContinuation;
+  m2Veto?: M2VetoContinuation;
+  vetoBlockedParticipantIdsThisTurn?: string[];
+  vetoAbuseReviewByWindowParticipant?: Record<string, 'ALLOW' | 'REJECT'>;
   m2Audit?: M2BAuditRecord[];
   m2CoreScheduler?: M2CoreSchedulerContinuation;
   m2EffectChoice?: M2EffectChoiceContinuation;
