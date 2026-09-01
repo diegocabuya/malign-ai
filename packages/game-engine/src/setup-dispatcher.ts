@@ -671,10 +671,8 @@ export class SetupCommandDispatcher {
         if (regimeCountry !== undefined && before.seats[options.actorParticipantId]?.countryId !== regimeCountry) {
           return { error: 'NOT_AUTHORIZED' as const, version: before.version };
         }
-        const continuingFluma = options.effectId === 'REGIME_EFFECT_FLUMA' &&
-          before.flumaRegimeByParticipant?.[options.actorParticipantId]?.active === true;
-        if (regimeCountry !== undefined && !continuingFluma)
-          return { error: 'NOT_AUTHORIZED' as const, version: before.version };
+        const continuingFluma = false;
+        if (regimeCountry !== undefined) return { error: 'NOT_AUTHORIZED' as const, version: before.version };
         const regimeSlot = before.actionPlanning[options.actorParticipantId]?.lockedSlots.find(({ sequenceIndex, actionType, terminalOutcome }) =>
           sequenceIndex === before.currentRevealedAction?.sequenceIndex && actionType === 'USE_REGIME_ABILITY' && terminalOutcome === undefined);
         if (regimeCountry !== undefined && !continuingFluma && (before.currentRevealedAction?.participantId !== options.actorParticipantId ||
@@ -1517,15 +1515,21 @@ export class SetupCommandDispatcher {
           balanceAfter: changed.resources, gameVersion: state.version + 1 });
       }
       const sequenceIndex = continuation.regimeSequenceIndex;
-      const slot = state.actionPlanning[participantId]?.lockedSlots.find((candidate) => candidate.sequenceIndex === sequenceIndex);
-      if (sequenceIndex === undefined || slot?.actionType !== 'USE_REGIME_ABILITY' || slot.terminalOutcome !== undefined)
-        return { error: 'STALE_CONTINUATION' as const };
-      slot.terminalOutcome = 'RESOLVED'; delete state.m2EffectChoice; delete state.currentRevealedAction;
-      state.adjudication.scheduler.status = 'READY'; state.adjudication.scheduler.slotIndex += 1;
-      const slots = state.actionPlanning[participantId]?.lockedSlots ?? [];
-      if (state.adjudication.scheduler.slotIndex >= slots.length) { state.adjudication.scheduler.participantIndex += 1; state.adjudication.scheduler.slotIndex = 0; }
-      if (state.adjudication.scheduler.participantIndex >= state.initiative.orderParticipantIds.length) {
-        state.adjudication.scheduler.status = 'COMPLETE';
+      if(sequenceIndex===undefined) {
+        if(continuation.effectId!=='REGIME_EFFECT_FLUMA'||state.flumaRegimeByParticipant?.[participantId]?.active!==true)
+          return {error:'STALE_CONTINUATION' as const};
+        delete state.m2EffectChoice;
+        state.adjudication.scheduler.status=state.adjudication.scheduler.participantIndex>=state.initiative.orderParticipantIds.length
+          ?'COMPLETE':'READY';
+      } else {
+        const slot = state.actionPlanning[participantId]?.lockedSlots.find((candidate) => candidate.sequenceIndex === sequenceIndex);
+        if (slot?.actionType !== 'USE_REGIME_ABILITY' || slot.terminalOutcome !== undefined)
+          return { error: 'STALE_CONTINUATION' as const };
+        slot.terminalOutcome = 'RESOLVED'; delete state.m2EffectChoice; delete state.currentRevealedAction;
+        state.adjudication.scheduler.status = 'READY'; state.adjudication.scheduler.slotIndex += 1;
+        const slots = state.actionPlanning[participantId]?.lockedSlots ?? [];
+        if (state.adjudication.scheduler.slotIndex >= slots.length) { state.adjudication.scheduler.participantIndex += 1; state.adjudication.scheduler.slotIndex = 0; }
+        if (state.adjudication.scheduler.participantIndex >= state.initiative.orderParticipantIds.length) state.adjudication.scheduler.status = 'COMPLETE';
       }
       const events = [
         this.appendEvent(state, envelope, 'CHOICE_RESOLVED', { continuationId: continuation.id, effectId: continuation.effectId }, 'OWNER_AND_FACILITATOR'),
@@ -1535,7 +1539,7 @@ export class SetupCommandDispatcher {
             resourceLedger: state.resourceLedger, m2Audit: state.m2Audit ?? [] }),
           m2CanonicalAfterImageDigest: sha256CanonicalJson({ m2State: buildM2StateFromCanonical(state),
             resourceLedger: state.resourceLedger, m2Audit: state.m2Audit ?? [] }) }),
-        this.appendEvent(state, envelope, 'ACTION_RESOLVED', { participantId, sequenceIndex, outcome: 'RESOLVED' }),
+        ...(sequenceIndex===undefined?[]:[this.appendEvent(state, envelope, 'ACTION_RESOLVED', { participantId, sequenceIndex, outcome: 'RESOLVED' })]),
       ];
       return { resultCode: 'M2_EFFECT_CHOICE_RESOLVED', resultPayload: { effectId: continuation.effectId }, events };
     }

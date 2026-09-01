@@ -368,6 +368,40 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(canonicalizeJson(replayed)).toBe(canonicalizeJson(resolved));
   });
 
+  it('opens each later Fluma spend trigger from the internal scheduler and resolves it only through Fluma authentication', () => {
+    const testHarness=adjudicationHarness(); const state=testHarness.store.snapshot(GAME_ID)!;
+    state.regimeAbilityUsedByParticipant??={}; state.regimeAbilityUsedByParticipant.P2=true;
+    state.flumaRegimeByParticipant??={}; state.flumaRegimeByParticipant.P2={active:true,processedSpendIds:[]};
+    state.m2TurnResourceLedgerStartIndex=state.resourceLedger.length;
+    state.resourceLedger.push({id:'FLUMA-FORWARD-SPEND-1',participantId:'P1',countryId:'ARDEN',reason:'CARD_COST',delta:-2,
+      balanceAfter:state.countries.ARDEN.resources-2,gameVersion:state.version});
+    state.countries.ARDEN.resources-=2;
+    state.adjudication.scheduler.participantIndex=state.initiative.orderParticipantIds.length;
+    state.adjudication.scheduler.slotIndex=0; state.adjudication.scheduler.status='COMPLETE';
+    expect(testHarness.store.commitState(state.id,state.version,state)).toBe(true);
+    expect(testHarness.engine.runNext({gameId:state.id,expectedGameVersion:state.version,commandId:'FLUMA-FORWARD-1',
+      idempotencyKey:'FLUMA-FORWARD-K1'})).toMatchObject({status:'REQUIRES_CHOICE',resultCode:'M2_EFFECT_CHOICE_REQUESTED'});
+    const choosing=testHarness.store.snapshot(state.id)!; const continuation=choosing.m2EffectChoice;
+    if(continuation?.kind!=='M2_EFFECT_GROUPED_CHOICE')throw new Error('Fluma forward continuation missing');
+    expect(continuation.groups.map(({groupId})=>groupId)).toEqual(['SPEND|FLUMA-FORWARD-SPEND-1|1','SPEND|FLUMA-FORWARD-SPEND-1|2']);
+    const selections=Object.fromEntries(continuation.groups.map(({groupId})=>[groupId,['ARDEN_PD_1']]));
+    expect(testHarness.app.execute('session-p1',command('SUBMIT_M2_EFFECT_CHOICE',state.id,choosing.version,
+      {continuationId:continuation.id,selections},{commandId:'FLUMA-FORWARD-FORGED',idempotencyKey:'FLUMA-FORWARD-FORGED-K'})))
+      .toMatchObject({status:'REJECTED',error:{code:'NOT_AUTHORIZED'}});
+    expect(testHarness.app.execute('session-p2',command('SUBMIT_M2_EFFECT_CHOICE',state.id,choosing.version,
+      {continuationId:continuation.id,selections},{commandId:'FLUMA-FORWARD-CHOICE',idempotencyKey:'FLUMA-FORWARD-CHOICE-K'})))
+      .toMatchObject({status:'RESOLVED',resultCode:'M2_EFFECT_CHOICE_RESOLVED'});
+    const resolved=testHarness.store.snapshot(state.id)!;
+    expect(resolved.flumaRegimeByParticipant?.P2).toEqual({active:true,processedSpendIds:['FLUMA-FORWARD-SPEND-1']});
+    expect(resolved.adjudication.influenceStacks.find(({pdId,type,attributionCountryId})=>pdId==='ARDEN_PD_1'&&type==='MALIGN'&&
+      attributionCountryId==='FLUMA')?.count??0).toBe(0);
+    expect(resolved.adjudication.influenceStacks.find(({pdId,type})=>pdId==='ARDEN_PD_1'&&type==='RESILIENCY')?.count).toBe(0);
+    expect(resolved.m2Audit?.filter(({type})=>type==='FLUMA_SPEND_TRIGGER_RESOLVED')).toHaveLength(2);
+    expect(resolved.adjudication.scheduler.status).toBe('COMPLETE');
+    expect(testHarness.engine.runNext({gameId:state.id,expectedGameVersion:resolved.version,commandId:'FLUMA-FORWARD-2',
+      idempotencyKey:'FLUMA-FORWARD-K2'})).toMatchObject({status:'REJECTED',error:{code:'SCHEDULER_COMPLETE'}});
+  });
+
   it('inventories exactly 59 registry effects and fails closed for known unimplemented handlers', () => {
     expect(M2_EFFECT_MANIFEST).toHaveLength(59);
     expect(new Set(M2_EFFECT_MANIFEST.map(({ effectId }) => effectId)).size).toBe(59);

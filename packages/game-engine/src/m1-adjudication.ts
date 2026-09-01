@@ -747,6 +747,32 @@ export class M1AdjudicationEngine {
     if (before.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const, version };
     if (before.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const, version };
     if (before.adjudication.pendingResolution !== undefined) return { error: 'SCHEDULER_SUSPENDED' as const, version };
+    if (before.m2EffectChoice !== undefined) return { error: 'SCHEDULER_SUSPENDED' as const, version };
+    const flumaParticipantId=Object.values(before.seats).find(({countryId})=>countryId==='FLUMA')?.participantId;
+    const flumaState=flumaParticipantId===undefined?undefined:before.flumaRegimeByParticipant?.[flumaParticipantId];
+    if(flumaParticipantId!==undefined&&flumaState?.active===true) {
+      const qualifying=before.resourceLedger.slice(before.m2TurnResourceLedgerStartIndex??before.resourceLedger.length)
+        .filter(({id,participantId,delta,reason})=>participantId!==null&&participantId!==flumaParticipantId&&delta<0&&
+          !flumaState.processedSpendIds.includes(id)&&['CAMPAIGN_ACTIVATION_COST','COALITION_CONTRIBUTION','CARD_COST'].includes(reason));
+      if(qualifying.length>0) {
+        const working=structuredClone(before); const continuationId=`${working.id}:regime:${flumaParticipantId}:spends:${working.version+1}`;
+        const ardenPdIds=Object.keys(working.populationDemographics).filter((pdId)=>pdId.startsWith('ARDEN_PD_')).sort();
+        const groups=qualifying.flatMap(({id,delta})=>Array.from({length:-delta},(_,index)=>({
+          groupId:`SPEND|${id}|${index+1}`,minSelections:1,maxSelections:1,eligibleCardIds:ardenPdIds,
+        })));
+        working.m2EffectChoice={kind:'M2_EFFECT_GROUPED_CHOICE',schemaVersion:1,id:continuationId,
+          gameVersion:working.version+1,effectId:'REGIME_EFFECT_FLUMA',actorParticipantId:flumaParticipantId,
+          chooserParticipantId:flumaParticipantId,targetParticipantId:flumaParticipantId,sourceCardInstanceId:'',groups,
+          resourceCost:0,status:'OPEN'};
+        working.adjudication.scheduler.status='SUSPENDED';
+        const requested=this.appendEvent(working,envelope,'CHOICE_REQUESTED',{continuationId,effectId:'REGIME_EFFECT_FLUMA',
+          chooserParticipantId:flumaParticipantId,optionCount:groups.reduce((total,group)=>total+group.eligibleCardIds.length,0),
+          m2EffectChoiceJson:canonicalizeJson(working.m2EffectChoice),m2EffectChoiceDigest:sha256CanonicalJson(working.m2EffectChoice)},
+        'OWNER_AND_FACILITATOR');
+        return {nextState:working,status:'REQUIRES_CHOICE' as const,resultCode:'M2_EFFECT_CHOICE_REQUESTED',
+          resultPayload:{continuationId,chooserParticipantId:flumaParticipantId},emittedEventRefs:[requested.id]};
+      }
+    }
     if (before.adjudication.scheduler.status === 'COMPLETE') return { error: 'SCHEDULER_COMPLETE' as const, version };
 
     const working = structuredClone(before);
