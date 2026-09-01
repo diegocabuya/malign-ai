@@ -155,6 +155,14 @@ const handlers: Record<string, M2BEffectHandler> = {
     const payment = pay(state, context, cost); if (payment !== undefined) return payment;
     return handlers.DIRECT_INFLUENCE?.(state, context);
   },
+  PAY_AND_DISCARD_CAMPAIGN: (state, context) => {
+    const campaignId = stringParameter(context, 'campaignId');
+    if (campaignId === undefined || state.campaigns[campaignId] === undefined) return 'INVALID_EFFECT_INPUT';
+    const payment = pay(state, context, 1); if (payment !== undefined) return payment;
+    const discarded = discardCampaign(state, campaignId); if (discarded !== undefined) return discarded;
+    audit(state, context, 'CAMPAIGN_DISCARDED', { campaignId });
+    return undefined;
+  },
   DOUBLE_ACTION: (state, context) => {
     const campaignId = stringParameter(context, 'campaignId');
     const campaign = campaignId === undefined ? undefined : state.campaigns[campaignId];
@@ -207,6 +215,7 @@ const definitions: readonly M2BEffectDefinition[] = [
   { effectId: 'CARD_EFFECT_BASE_2025_E001', version: '0.1', enabledBlock: 'M2-4', handler: handlers.TRADE_AGREEMENTS! },
   { effectId: 'CARD_EFFECT_BASE_2025_E014', version: '0.1', enabledBlock: 'M2-4', handler: handlers.DIRECT_INFLUENCE! },
   { effectId: 'CARD_EFFECT_BASE_2025_E015', version: '0.1', enabledBlock: 'M2-4', handler: handlers.PAY_AND_DIRECT_INFLUENCE! },
+  { effectId: 'CARD_EFFECT_BASE_2025_E017', version: '0.1', enabledBlock: 'M2-4', handler: handlers.PAY_AND_DISCARD_CAMPAIGN! },
   { effectId: 'CARD_EFFECT_BASE_2025_E019', version: '0.1', enabledBlock: 'M2-4', handler: handlers.SANCTIONS! },
   { effectId: 'CARD_EFFECT_BASE_2025_E025', version: '0.1', enabledBlock: 'M2-4', handler: handlers.DOUBLE_ACTION! },
   { effectId: 'CARD_EFFECT_BASE_2025_E026', version: '0.1', enabledBlock: 'M2-4', handler: handlers.FIXED_SPEND_1! },

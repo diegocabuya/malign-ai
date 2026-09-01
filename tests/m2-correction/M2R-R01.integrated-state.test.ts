@@ -130,7 +130,7 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(M2_EFFECT_MANIFEST).toEqual(registry.effect_definitions.map(({ effect_id, source_definition_id }) => ({
       effectId: effect_id, sourceDefinitionId: source_definition_id,
     })));
-    expect(M2_IMPLEMENTED_EFFECT_IDS).toHaveLength(39);
+    expect(M2_IMPLEMENTED_EFFECT_IDS).toHaveLength(40);
     const manifestHarness = harness(); const manifestState = completeAndStart(manifestHarness);
     M2_PAIR_BONUS_EFFECT_IDS.forEach((effectId, index) => {
       const pair = BASE_2025_PAIR_BONUSES[index]!;
@@ -181,6 +181,49 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(testHarness.dispatcher.executeM2Effect(options)).toMatchObject({ status: 'RESOLVED' });
     expect(testHarness.store.snapshot(state.id)?.adjudication.campaigns.CAMPAIGN_TARGET).toMatchObject({ targetDtId: 'RELIGION:CHRISTIAN' });
     expect(testHarness.store.snapshot(state.id)?.cards[source.id]).toMatchObject({ zone: 'CAMPAIGN' });
+  });
+
+  it('pays exactly one resource and discards a selected campaign through E017 atomically', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    const source = state.cards['ARDEN-CARD-032']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
+    const target = state.cards['FLUMA-CARD-001']!; target.controllerParticipantId = 'P2'; target.zone = 'CAMPAIGN';
+    state.adjudication.campaigns.CAMPAIGN_E017_TARGET = {
+      id: 'CAMPAIGN_E017_TARGET', ownerParticipantId: 'P2', row: 'I', alignment: 'MALIGN', targetDtId: 'RELIGION:NONE',
+      assignments: [{ slot: 'INTENT', cardInstanceId: target.id, definitionId: target.definitionId, influenceValue: 1 }], activationCountThisTurn: 0,
+    };
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const resourcesBefore = state.countries.ARDEN.resources;
+    const result = testHarness.dispatcher.executeM2Effect({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-EFFECT-E017-1', idempotencyKey: 'M2-EFFECT-E017-K1',
+      actorParticipantId: 'P1', sourceCardInstanceId: source.id, effectId: 'CARD_EFFECT_BASE_2025_E017', effectVersion: '0.1',
+      parameters: { campaignId: 'CAMPAIGN_E017_TARGET' },
+    });
+    expect(result).toMatchObject({ status: 'RESOLVED', resultCode: 'M2_EFFECT_EXECUTED' });
+    const committed = testHarness.store.snapshot(state.id)!;
+    expect(committed.countries.ARDEN.resources).toBe(resourcesBefore - 1);
+    expect(committed.adjudication.campaigns.CAMPAIGN_E017_TARGET).toBeUndefined();
+    expect(committed.cards[target.id]).toMatchObject({ zone: 'DISCARD', controllerParticipantId: 'P2' });
+    expect(committed.cards[source.id]).toMatchObject({ zone: 'DISCARD', controllerParticipantId: 'P1' });
+    expect(committed.m2Audit?.slice(-2).map(({ type }) => type)).toEqual(['RESOURCE_SPENT', 'CAMPAIGN_DISCARDED']);
+  });
+
+  it('returns a borrowed campaign card to its printed owner when the campaign is discarded', () => {
+    const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    const borrowed = state.cards['FLUMA-CARD-061']!;
+    borrowed.controllerParticipantId = 'P1'; borrowed.returnToOwnerOnDiscard = true; borrowed.zone = 'CAMPAIGN';
+    state.adjudication.campaigns.CAMPAIGN_BORROWED = {
+      id: 'CAMPAIGN_BORROWED', ownerParticipantId: 'P1', row: 'I', alignment: 'MALIGN', targetDtId: 'RELIGION:NONE',
+      assignments: [{ slot: 'INTENT', cardInstanceId: borrowed.id, definitionId: borrowed.definitionId, influenceValue: 1 }], activationCountThisTurn: 0,
+    };
+    expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2CoreOperation({
+      gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-CORE-BORROWED-1', idempotencyKey: 'M2-CORE-BORROWED-K1',
+      operation: { kind: 'DISCARD_CAMPAIGN', actorParticipantId: 'P1', campaignId: 'CAMPAIGN_BORROWED' },
+    })).toMatchObject({ status: 'RESOLVED' });
+    const committed = testHarness.store.snapshot(state.id)!;
+    expect(committed.cards[borrowed.id]).toMatchObject({ zone: 'HAND', controllerParticipantId: 'P2', returnToOwnerOnDiscard: false });
+    expect(committed.strategy.P2.handCardInstanceIds).toContain(borrowed.id);
+    expect(committed.strategy.P1.handCardInstanceIds).not.toContain(borrowed.id);
   });
 
   it('executes core legitimacy and backlash operations through canonical atomic state', () => {
