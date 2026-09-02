@@ -12,7 +12,7 @@ import { m2bState } from './test-fixtures.js';
 
 // These owners execute their full authenticated/canonical scenarios in
 // M2R-R01.integrated-state.test.ts rather than duplicating a shallow fixture mutation here.
-const integratedActionOwners = new Set(['GE-ACT-002','GE-ACT-003','GE-ACT-004','GE-ACT-005','GE-ACT-018','GE-ACT-019','GE-ACT-020','GE-ACT-021','GE-ACT-022','GE-ACT-023','GE-ACT-027']);
+const integratedActionOwners = new Set(['GE-ACT-001','GE-ACT-002','GE-ACT-003','GE-ACT-004','GE-ACT-005','GE-ACT-006','GE-ACT-007','GE-ACT-008','GE-ACT-009','GE-ACT-013','GE-ACT-014','GE-ACT-015','GE-ACT-018','GE-ACT-019','GE-ACT-020','GE-ACT-021','GE-ACT-022','GE-ACT-023','GE-ACT-024','GE-ACT-025','GE-ACT-026','GE-ACT-027','GE-ACT-029','GE-ACT-030']);
 const actionOwners = Array.from({ length: 30 }, (_, index) => `GE-ACT-${String(index + 1).padStart(3, '0')}`)
   .filter((id)=>!integratedActionOwners.has(id));
 const regimeOwners = Array.from({ length: 15 }, (_, index) => `GE-REG-${String(index + 1).padStart(3, '0')}`);

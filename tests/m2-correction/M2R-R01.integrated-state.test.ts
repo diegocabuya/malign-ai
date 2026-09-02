@@ -235,7 +235,7 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(testHarness.store.snapshot(state.id)).toEqual(before);
   });
 
-  it('executes a registry-bound M2 effect atomically and persists lifecycle plus audit', () => {
+  it('GE-ACT-001 — executes Trade Agreements atomically and persists both gains plus lifecycle', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     const source = state.cards['ARDEN-CARD-001']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
     expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
@@ -253,6 +253,78 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(committed.cards[source.id]?.zone).toBe('DISCARD');
     expect(committed.m2Audit?.at(-1)).toMatchObject({ type: 'RESOURCE_GAINED', actorParticipantId: 'P1' });
     expect(testHarness.dispatcher.executeM2Effect(options)).toEqual(first);
+  });
+
+  it.each([
+    ['GE-ACT-013',5,2],['GE-ACT-014',1,1],['GE-ACT-015',0,0],
+  ] as const)('%s — Economic Sanctions transfers only the available amount up to two',(_id,targetBalance,transferred)=>{
+    const testHarness=harness();const state=completeAndStart(testHarness);state.phase='RESOLUTION_STAGE';
+    const source=state.cards['ARDEN-CARD-037']!;source.controllerParticipantId='P1';source.zone='HAND';
+    state.countries.FLUMA.resources=targetBalance;
+    const actorBefore=state.countries.ARDEN.resources;
+    expect(testHarness.store.commitState(state.id,state.version,state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2Effect({gameId:state.id,expectedGameVersion:state.version,
+      commandId:`M2-E019-${targetBalance}`,idempotencyKey:`M2-E019-K${targetBalance}`,actorParticipantId:'P1',
+      sourceCardInstanceId:source.id,effectId:'CARD_EFFECT_BASE_2025_E019',effectVersion:'0.1',parameters:{targetParticipantId:'P2'},
+    })).toMatchObject({status:'RESOLVED'});
+    const committed=testHarness.store.snapshot(state.id)!;
+    expect(committed.countries.FLUMA.resources).toBe(targetBalance-transferred);
+    expect(committed.countries.ARDEN.resources).toBe(actorBefore+transferred);
+    expect(committed.cards[source.id]?.zone).toBe('DISCARD');
+  });
+
+  it.each([
+    ['GE-ACT-006',0,3,0,3],['GE-ACT-007',1,1,0,3],
+  ] as const)('%s — Leaks applies exactly three direct MALIGN with canonical 2:1',(_id,resiliencyBefore,malignAfter,resiliencyAfter,forgedAmount)=>{
+    const testHarness=harness();const state=completeAndStart(testHarness);state.phase='RESOLUTION_STAGE';
+    const source=state.cards['ARDEN-CARD-026']!;source.controllerParticipantId='P1';source.zone='HAND';
+    state.adjudication.influenceStacks=state.adjudication.influenceStacks.filter(({pdId})=>pdId!=='PRESQUE_PD_1');
+    if(resiliencyBefore>0)state.adjudication.influenceStacks.push({pdId:'PRESQUE_PD_1',type:'RESILIENCY',attributionCountryId:'FLUMA',count:resiliencyBefore});
+    const vpBefore=state.adjudication.vpByParticipant.P1;const legitimacyBefore=state.adjudication.legitimacyByPd.PRESQUE_PD_1;
+    expect(testHarness.store.commitState(state.id,state.version,state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2Effect({gameId:state.id,expectedGameVersion:state.version,
+      commandId:`M2-E014-${resiliencyBefore}`,idempotencyKey:`M2-E014-K${resiliencyBefore}`,actorParticipantId:'P1',
+      sourceCardInstanceId:source.id,effectId:'CARD_EFFECT_BASE_2025_E014',effectVersion:'0.1',
+      parameters:{pdId:'PRESQUE_PD_1',type:'RESILIENCY',amount:forgedAmount+20},
+    })).toMatchObject({status:'RESOLVED'});
+    const committed=testHarness.store.snapshot(state.id)!;
+    expect(committed.adjudication.influenceStacks.find(({pdId,type,attributionCountryId})=>
+      pdId==='PRESQUE_PD_1'&&type==='MALIGN'&&attributionCountryId==='ARDEN')?.count??0).toBe(malignAfter);
+    expect(committed.adjudication.influenceStacks.find(({pdId,type})=>pdId==='PRESQUE_PD_1'&&type==='RESILIENCY')?.count??0).toBe(resiliencyAfter);
+    expect(committed.adjudication.vpByParticipant.P1).toBe(vpBefore);expect(committed.adjudication.legitimacyByPd.PRESQUE_PD_1).toBe(legitimacyBefore);
+  });
+
+  it('GE-ACT-008 — Crisis Management pays and places the exact fixed direct-resiliency values',()=>{
+    const testHarness=harness();const state=completeAndStart(testHarness);state.phase='RESOLUTION_STAGE';
+    const source=state.cards['ARDEN-CARD-028']!;source.controllerParticipantId='P1';source.zone='HAND';
+    state.countries.ARDEN.resources=3;state.adjudication.influenceStacks=state.adjudication.influenceStacks.filter(({pdId})=>pdId!=='PRESQUE_PD_1');
+    expect(testHarness.store.commitState(state.id,state.version,state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2Effect({gameId:state.id,expectedGameVersion:state.version,
+      commandId:'M2-E015-1',idempotencyKey:'M2-E015-K1',actorParticipantId:'P1',sourceCardInstanceId:source.id,
+      effectId:'CARD_EFFECT_BASE_2025_E015',effectVersion:'0.1',parameters:{pdId:'PRESQUE_PD_1',type:'MALIGN',amount:99,cost:0},
+    })).toMatchObject({status:'RESOLVED'});
+    const committed=testHarness.store.snapshot(state.id)!;
+    expect(committed.countries.ARDEN.resources).toBe(0);
+    expect(committed.adjudication.influenceStacks.find(({pdId,type,attributionCountryId})=>
+      pdId==='PRESQUE_PD_1'&&type==='RESILIENCY'&&attributionCountryId==='ARDEN')?.count).toBe(3);
+    expect(committed.cards[source.id]?.zone).toBe('DISCARD');
+  });
+
+  it.each([
+    ['GE-ACT-029',5,3],['GE-ACT-030',1,0],
+  ] as const)('%s — Corruption applies two VP with floor zero through the atomic boundary',(_id,targetVp,expectedVp)=>{
+    const testHarness=harness();const state=completeAndStart(testHarness);state.phase='RESOLUTION_STAGE';
+    const source=state.cards['ARDEN-CARD-088']!;source.controllerParticipantId='P1';source.zone='HAND';
+    state.adjudication.vpByParticipant.P2=targetVp;
+    expect(testHarness.store.commitState(state.id,state.version,state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2Effect({gameId:state.id,expectedGameVersion:state.version,
+      commandId:`M2-E051-${targetVp}`,idempotencyKey:`M2-E051-K${targetVp}`,actorParticipantId:'P1',
+      sourceCardInstanceId:source.id,effectId:'CARD_EFFECT_BASE_2025_E051',effectVersion:'0.1',parameters:{targetParticipantId:'P2'},
+    })).toMatchObject({status:'RESOLVED'});
+    const committed=testHarness.store.snapshot(state.id)!;
+    expect(committed.adjudication.vpByParticipant.P2).toBe(expectedVp);
+    expect(committed.cards[source.id]?.zone).toBe('DISCARD');
+    expect(committed.m2Audit?.at(-1)).toMatchObject({type:'VP_CHANGED',payload:{targetParticipantId:'P2'}});
   });
 
   it('reveals a committed regime slot before the internal effect port may resolve it', () => {
@@ -597,7 +669,7 @@ describe('M2R-R01 canonical state integration seam', () => {
     ]);
   });
 
-  it('opens and resolves authenticated E016 card choice without leaking rival options', () => {
+  it('GE-ACT-009 — resolves E016 by hidden hand position without leaking card identities', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     const source = state.cards['ARDEN-CARD-031']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
     const selected = state.cards['FLUMA-CARD-001']!; selected.controllerParticipantId = 'P2'; selected.zone = 'HAND';
@@ -611,10 +683,11 @@ describe('M2R-R01 canonical state integration seam', () => {
     const opened = testHarness.store.snapshot(state.id)!; const continuationId = opened.m2EffectChoice!.id;
     const p1 = trustedBindings().find(({ participantId }) => participantId === 'P1')!.authenticatedSessionId;
     const p3 = trustedBindings().find(({ participantId }) => participantId === 'P3')!.authenticatedSessionId;
-    expect(testHarness.app.getGameProjection(p1, state.id)).toMatchObject({ ok: true, projection: { m2EffectChoice: { optionCardIds: [selected.id] } } });
+    expect(testHarness.app.getGameProjection(p1, state.id)).toMatchObject({ ok: true, projection: { m2EffectChoice: { optionCount: 1 } } });
+    expect((testHarness.app.getGameProjection(p1,state.id) as {projection:{m2EffectChoice:unknown}}).projection.m2EffectChoice).not.toHaveProperty('optionCardIds');
     expect((testHarness.app.getGameProjection(p3, state.id) as { projection: { m2EffectChoice: unknown } }).projection.m2EffectChoice).not.toHaveProperty('optionCardIds');
     expect(testHarness.app.execute(p1, command('SUBMIT_M2_EFFECT_CHOICE', state.id, opened.version, {
-      continuationId, selectedCardId: selected.id,
+      continuationId, selectedPosition: 1,
     }, { commandId: 'M2-E016-RESOLVE-1', idempotencyKey: 'M2-E016-RESOLVE-K1' }))).toMatchObject({ status: 'RESOLVED' });
     const committed = testHarness.store.snapshot(state.id)!;
     expect(committed.m2EffectChoice).toBeUndefined();
@@ -622,7 +695,7 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(committed.cards[source.id]?.zone).toBe('DISCARD');
   });
 
-  it('uses internal E047 roll then requires the targeted player to choose the discarded action card', () => {
+  it('GE-ACT-024 — uses internal E047 roll then requires the targeted player to choose the discarded action card', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     const source = state.cards['ARDEN-CARD-082']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
     const selected = state.cards['FLUMA-CARD-001']!; selected.controllerParticipantId = 'P2'; selected.zone = 'HAND';
@@ -647,6 +720,36 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(committed.cards[selected.id]?.zone).toBe('DISCARD');
     expect(committed.cards[source.id]?.zone).toBe('DISCARD');
     expect(testHarness.random.requests.at(-1)).toEqual({ minInclusive: 1, maxInclusive: 10 });
+  });
+
+  it('GE-ACT-025 — E047 succeeds without a choice when the target has no Action card', () => {
+    const testHarness=harness();testHarness.random.enqueue(6);testHarness.random.requireScript();
+    const state=completeAndStart(testHarness);state.phase='RESOLUTION_STAGE';
+    const source=state.cards['ARDEN-CARD-082']!;source.controllerParticipantId='P1';source.zone='HAND';
+    for(const card of Object.values(state.cards).filter(({controllerParticipantId,zone})=>controllerParticipantId==='P2'&&zone==='HAND'))
+      card.cardClass='STARTER';
+    expect(testHarness.store.commitState(state.id,state.version,state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2Effect({gameId:state.id,expectedGameVersion:state.version,
+      commandId:'M2-E047-NO-ACTION-1',idempotencyKey:'M2-E047-NO-ACTION-K1',actorParticipantId:'P1',
+      sourceCardInstanceId:source.id,effectId:'CARD_EFFECT_BASE_2025_E047',effectVersion:'0.1',parameters:{targetParticipantId:'P2'},
+    })).toMatchObject({status:'RESOLVED',resultCode:'M2_EFFECT_EXECUTED',resultPayload:{roll:6,choiceRequired:false}});
+    const committed=testHarness.store.snapshot(state.id)!;
+    expect(committed.m2EffectChoice).toBeUndefined();expect(committed.cards[source.id]?.zone).toBe('DISCARD');
+    expect(committed.m2Audit?.at(-1)).toMatchObject({type:'DIE_ROLLED',payload:{rawValue:6}});
+  });
+
+  it('GE-ACT-026 — E047 failure consumes the source and never opens a choice', () => {
+    const testHarness=harness();testHarness.random.enqueue(7);testHarness.random.requireScript();
+    const state=completeAndStart(testHarness);state.phase='RESOLUTION_STAGE';
+    const source=state.cards['ARDEN-CARD-082']!;source.controllerParticipantId='P1';source.zone='HAND';
+    expect(testHarness.store.commitState(state.id,state.version,state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2Effect({gameId:state.id,expectedGameVersion:state.version,
+      commandId:'M2-E047-FAIL-1',idempotencyKey:'M2-E047-FAIL-K1',actorParticipantId:'P1',
+      sourceCardInstanceId:source.id,effectId:'CARD_EFFECT_BASE_2025_E047',effectVersion:'0.1',parameters:{targetParticipantId:'P2'},
+    })).toMatchObject({status:'RESOLVED',resultCode:'M2_EFFECT_EXECUTED',resultPayload:{roll:7,choiceRequired:false}});
+    const committed=testHarness.store.snapshot(state.id)!;
+    expect(committed.m2EffectChoice).toBeUndefined();expect(committed.cards[source.id]?.zone).toBe('DISCARD');
+    expect(committed.m2Audit?.at(-1)).toMatchObject({type:'DIE_ROLLED',payload:{rawValue:7}});
   });
 
   it('GE-ACT-002 — resolves E006 grouped choice with exact five-card discard and atomic resource payment', () => {
