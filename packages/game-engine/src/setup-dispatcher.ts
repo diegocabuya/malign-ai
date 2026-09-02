@@ -23,7 +23,7 @@ import {
 import { canonicalizeJson, sha256CanonicalJson } from '@malign-ai/shared';
 import { dispatchAtomicCommand, InMemoryAtomicStateStore } from './atomic-dispatch.js';
 import { applyM2StateToCanonical, buildM2StateFromCanonical } from './m2-integrated-state.js';
-import { cleanupCampaignAging, resetTurnFlags } from './m2b-lifecycle.js';
+import { cleanupCampaignAging, makeCleanupContinuation, resetTurnFlags, resolveViralOrigin, snapshotViralOrigins } from './m2b-lifecycle.js';
 import { finalizeGame } from './m2b-endgame.js';
 import { makeReactionContinuation, openReactionWindow, passReactionPriority, playReaction, resolveVeto } from './m2b-reaction.js';
 import {
@@ -62,7 +62,8 @@ export type SetupCommandType =
   | 'SUBMIT_VETO_DEFENSE'
   | 'CAST_VETO_VOTE'
   | 'RESOLVE_VETO_ABUSE'
-  | 'SUBMIT_M2_EFFECT_CHOICE';
+  | 'SUBMIT_M2_EFFECT_CHOICE'
+  | 'SUBMIT_VIRAL_CHOICE';
 
 export interface CreateGamePayload {
   readonly scenarioDefinitionId: 'BASE_2025';
@@ -84,7 +85,8 @@ export interface AssignPlayerSeatPayload {
 
 export type ConfigureGameOptionPayload =
   | { readonly optionId: 'TURN_LIMIT'; readonly value: number }
-  | { readonly optionId: 'DICE_MODE'; readonly value: DiceMode };
+  | { readonly optionId: 'DICE_MODE'; readonly value: DiceMode }
+  | { readonly optionId: 'VIRAL_VARIANT'; readonly value: 'BASELINE' | 'SHORT' };
 
 export interface SubmitOperationsDeckPayload {
   readonly cardInstanceIds: readonly string[];
@@ -127,6 +129,7 @@ export type SubmitM2EffectChoicePayload =
   | { readonly continuationId: string; readonly selectedCardId: string }
   | { readonly continuationId: string; readonly selectedPosition: number }
   | { readonly continuationId: string; readonly selections: Readonly<Record<string, readonly string[]>> };
+export interface SubmitViralChoicePayload { readonly continuationId:string; readonly selection:string }
 
 export type SetupCommandPayload =
   | CreateGamePayload
@@ -142,6 +145,7 @@ export type SetupCommandPayload =
   | CastVetoVotePayload
   | ResolveVetoAbusePayload
   | SubmitM2EffectChoicePayload
+  | SubmitViralChoicePayload
   | Record<string, never>;
 
 type SetupEnvelope = CommandEnvelope<SetupCommandType, SetupCommandPayload>;
@@ -181,6 +185,7 @@ const pauseBlockedCommands = new Set<SetupCommandType>([
   'CAST_VETO_VOTE',
   'RESOLVE_VETO_ABUSE',
   'SUBMIT_M2_EFFECT_CHOICE',
+  'SUBMIT_VIRAL_CHOICE',
 ]);
 
 const reactionDefinitionByEffect: Readonly<Record<string, string>> = {
@@ -321,6 +326,7 @@ export const validateSetupCommandPayload = (
       if (!hasExactKeys(payload, ['optionId', 'value'])) return 'INVALID_COMMAND_PAYLOAD';
       if (payload.optionId === 'TURN_LIMIT') return isPositiveInteger(payload.value) ? undefined : 'INVALID_COMMAND_PAYLOAD';
       if (payload.optionId === 'DICE_MODE') return isDiceMode(payload.value) ? undefined : 'INVALID_COMMAND_PAYLOAD';
+      if(payload.optionId==='VIRAL_VARIANT')return payload.value==='BASELINE'||payload.value==='SHORT'?undefined:'INVALID_COMMAND_PAYLOAD';
       return 'INVALID_COMMAND_PAYLOAD';
     case 'PAUSE_GAME':
       return hasExactKeys(payload, ['reasonCode'], ['reasonText']) &&
@@ -383,6 +389,9 @@ export const validateSetupCommandPayload = (
       return Object.values(payload.selections).every((selection) => Array.isArray(selection) && selection.every((id) => isNonEmptyString(id)))
         ? undefined : 'INVALID_COMMAND_PAYLOAD';
     }
+    case 'SUBMIT_VIRAL_CHOICE':
+      return hasExactKeys(payload,['continuationId','selection'])&&isNonEmptyString(payload.continuationId)&&isNonEmptyString(payload.selection)
+        ?undefined:'INVALID_COMMAND_PAYLOAD';
   }
   return 'INVALID_COMMAND_PAYLOAD';
 };
@@ -532,18 +541,96 @@ export class SetupCommandDispatcher {
         const working = structuredClone(before); const events: SetupGameEvent[] = [];
         events.push(this.appendEvent(working, candidate, 'CLEANUP_STARTED', {}));
         const cleanup = cleanupCampaignAging(buildM2StateFromCanonical(working));
-        resetTurnFlags(cleanup.state); applyM2StateToCanonical(working, cleanup.state);
-        delete working.vetoBlockedParticipantIdsThisTurn;
-        delete working.vetoAbuseReviewByWindowParticipant;
-        delete working.adjudication.plannedBoostsByParticipant;
+        applyM2StateToCanonical(working, cleanup.state);
         for (const campaignId of cleanup.discardedCampaignIds) events.push(this.appendEvent(working, candidate, 'CAMPAIGN_DISCARDED', { campaignId }));
         for (const campaignId of cleanup.agedCampaignIds) events.push(this.appendEvent(working, candidate, 'CAMPAIGN_AGED', { campaignId, row: 'II' }));
-        events.push(this.appendEvent(working, candidate, 'TURN_FLAGS_RESET', {}));
-        working.phase = 'INITIATIVE_STAGE';
-        events.push(this.appendEvent(working, candidate, 'CLEANUP_COMPLETED', { nextPhase: working.phase }));
-        return { nextState: working, resultCode: 'M2_CLEANUP_COMPLETED', resultPayload: { agedCampaignIds: cleanup.agedCampaignIds, discardedCampaignIds: cleanup.discardedCampaignIds, nextPhase: working.phase }, emittedEventRefs: events.map(({ id }) => id) };
+        working.cleanupContinuation={...makeCleanupContinuation(`${working.id}:cleanup:${working.version+1}`,working.version+1,'VIRAL_SNAPSHOT'),
+          variant:working.viralVariant??'BASELINE',tieChoices:{}};
+        const advanced=this.advanceViralCleanup(working,candidate,events);
+        return {nextState:working,...advanced,resultPayload:{...advanced.resultPayload,agedCampaignIds:cleanup.agedCampaignIds,
+          discardedCampaignIds:cleanup.discardedCampaignIds},emittedEventRefs:events.map(({id})=>id)};
       },
     });
+  }
+
+  private viralTraits(state:SetupGameState):Readonly<Record<string,readonly string[]>>{
+    return Object.fromEntries(Object.values(state.populationDemographics).map(pd=>[pd.id,[...pd.demographicTokenIds].sort()]));
+  }
+
+  private unresolvedViralTies(state:SetupGameState):readonly {readonly pdId:string;readonly ownerParticipantId:string}[]{
+    const m2=buildM2StateFromCanonical(state);const continuation=state.cleanupContinuation;
+    const threshold=(continuation?.variant??state.viralVariant??'BASELINE')==='SHORT'?6:8;
+    const traits=this.viralTraits(state);const choices=continuation?.tieChoices??{};
+    const initiative=state.initiative.orderParticipantIds;
+    return Object.entries(m2.legitimacyByPd).flatMap(([pdId,ownerParticipantId])=>{
+      if(ownerParticipantId===null||choices[pdId]!==undefined)return [];
+      const malign=m2.influence.filter(stack=>stack.pdId===pdId&&stack.type==='MALIGN').reduce((sum,stack)=>sum+stack.count,0);
+      const resiliency=m2.influence.filter(stack=>stack.pdId===pdId&&stack.type==='RESILIENCY').reduce((sum,stack)=>sum+stack.count,0);
+      const country=m2.participants[ownerParticipantId]?.countryId;const sourceTraits=traits[pdId]??[];
+      const hasDestination=Object.entries(traits).some(([candidate,candidateTraits])=>candidate!==pdId&&sourceTraits.some(trait=>candidateTraits.includes(trait)));
+      const ownsBoth=country!==undefined&&(['MALIGN','RESILIENCY'] as const).every(type=>m2.influence.some(stack=>
+        stack.pdId===pdId&&stack.type===type&&stack.attributionCountryId===country&&stack.count>0));
+      return malign===resiliency&&malign>threshold&&ownsBoth&&hasDestination?[{pdId,ownerParticipantId}]:[];
+    }).sort((left,right)=>(initiative.indexOf(left.ownerParticipantId)-initiative.indexOf(right.ownerParticipantId))||left.pdId.localeCompare(right.pdId));
+  }
+
+  private automaticViralTieChoices(state:SetupGameState):Readonly<Record<string,'MALIGN'|'RESILIENCY'>>{
+    const m2=buildM2StateFromCanonical(state);const continuation=state.cleanupContinuation;
+    const threshold=(continuation?.variant??state.viralVariant??'BASELINE')==='SHORT'?6:8;
+    const existing=continuation?.tieChoices??{};const choices:Record<string,'MALIGN'|'RESILIENCY'>={};
+    for(const [pdId,ownerParticipantId] of Object.entries(m2.legitimacyByPd)){
+      if(ownerParticipantId===null||existing[pdId]!==undefined)continue;
+      const malign=m2.influence.filter(stack=>stack.pdId===pdId&&stack.type==='MALIGN').reduce((sum,stack)=>sum+stack.count,0);
+      const resiliency=m2.influence.filter(stack=>stack.pdId===pdId&&stack.type==='RESILIENCY').reduce((sum,stack)=>sum+stack.count,0);
+      if(malign!==resiliency||malign<=threshold)continue;
+      const country=m2.participants[ownerParticipantId]?.countryId;
+      const eligible=(['MALIGN','RESILIENCY'] as const).filter(type=>country!==undefined&&m2.influence.some(stack=>
+        stack.pdId===pdId&&stack.type===type&&stack.attributionCountryId===country&&stack.count>0));
+      if(eligible.length===1)choices[pdId]=eligible[0]!;
+    }
+    return choices;
+  }
+
+  private advanceViralCleanup(state:SetupGameState,envelope:CommandEnvelope<string,unknown>,events:SetupGameEvent[]):{
+    readonly status?:'REQUIRES_CHOICE';readonly resultCode:string;readonly resultPayload:Readonly<Record<string,unknown>>;
+  }{
+    const continuation=state.cleanupContinuation;
+    if(continuation===undefined)throw new Error('Viral cleanup continuation missing');
+    if(continuation.step==='VIRAL_SNAPSHOT'){
+      const automaticChoices=this.automaticViralTieChoices(state);
+      if(Object.keys(automaticChoices).length>0)state.cleanupContinuation={...continuation,tieChoices:{...(continuation.tieChoices??{}),...automaticChoices}};
+      const tie=this.unresolvedViralTies(state)[0];
+      if(tie!==undefined){
+        state.viralChoice={kind:'VIRAL_CHOICE',schemaVersion:1,id:`${continuation.id}:type:${tie.pdId}`,
+          gameVersion:state.version+1,choiceType:'INFLUENCE_TYPE',chooserParticipantId:tie.ownerParticipantId,
+          originPdId:tie.pdId,options:['MALIGN','RESILIENCY'],status:'OPEN'};
+        events.push(this.appendEvent(state,envelope,'CHOICE_REQUESTED',{continuationId:state.viralChoice.id,
+          choiceType:'INFLUENCE_TYPE',chooserParticipantId:tie.ownerParticipantId,optionCount:2},'OWNER_AND_FACILITATOR'));
+        return {status:'REQUIRES_CHOICE',resultCode:'VIRAL_CHOICE_REQUIRED',resultPayload:{continuationId:state.viralChoice.id,
+          chooserParticipantId:tie.ownerParticipantId,choiceType:'INFLUENCE_TYPE'}};
+      }
+      const snapshotContinuation=state.cleanupContinuation!;
+      const m2=buildM2StateFromCanonical(state);const origins=snapshotViralOrigins(m2,state.initiative.orderParticipantIds,
+        this.viralTraits(state),snapshotContinuation.variant??'BASELINE',snapshotContinuation.tieChoices??{});
+      state.cleanupContinuation={...snapshotContinuation,expectedGameVersion:state.version+1,step:'VIRAL_RESOLUTION',viralOrigins:origins,nextOriginIndex:0};
+      events.push(this.appendEvent(state,envelope,'VIRAL_SNAPSHOT_CREATED',{originCount:origins.length,variant:snapshotContinuation.variant??'BASELINE'}));
+    }
+    const current=state.cleanupContinuation!;const origin=current.viralOrigins[current.nextOriginIndex];
+    if(origin!==undefined){
+      state.viralChoice={kind:'VIRAL_CHOICE',schemaVersion:1,id:`${current.id}:destination:${current.nextOriginIndex}:${origin.pdId}`,
+        gameVersion:state.version+1,choiceType:'DESTINATION_PD',chooserParticipantId:origin.ownerParticipantId,
+        originPdId:origin.pdId,options:[...origin.validDestinationPdIds],status:'OPEN'};
+      events.push(this.appendEvent(state,envelope,'CHOICE_REQUESTED',{continuationId:state.viralChoice.id,
+        choiceType:'DESTINATION_PD',chooserParticipantId:origin.ownerParticipantId,optionCount:origin.validDestinationPdIds.length},'OWNER_AND_FACILITATOR'));
+      return {status:'REQUIRES_CHOICE',resultCode:'VIRAL_CHOICE_REQUIRED',resultPayload:{continuationId:state.viralChoice.id,
+        chooserParticipantId:origin.ownerParticipantId,choiceType:'DESTINATION_PD'}};
+    }
+    const m2=buildM2StateFromCanonical(state);resetTurnFlags(m2);applyM2StateToCanonical(state,m2);
+    delete state.vetoBlockedParticipantIdsThisTurn;delete state.vetoAbuseReviewByWindowParticipant;
+    delete state.adjudication.plannedBoostsByParticipant;delete state.viralChoice;delete state.cleanupContinuation;
+    events.push(this.appendEvent(state,envelope,'TURN_FLAGS_RESET',{}));state.phase='INITIATIVE_STAGE';
+    events.push(this.appendEvent(state,envelope,'CLEANUP_COMPLETED',{nextPhase:state.phase}));
+    return {resultCode:'M2_CLEANUP_COMPLETED',resultPayload:{nextPhase:state.phase}};
   }
 
   openM2Reaction(options: {
@@ -1260,6 +1347,7 @@ export class SetupCommandDispatcher {
       facilitatorParticipantId: participantId,
       turnLimit: payload.turnLimit,
       diceMode: payload.preferredDiceMode,
+      viralVariant:'BASELINE',
       baseApPerTurn: 3,
       strategyDeckSize: 30,
       starterCardsPerPlayer: 5,
@@ -1356,8 +1444,84 @@ export class SetupCommandDispatcher {
       case 'CAST_VETO_VOTE': return this.castVetoVote(state, envelope);
       case 'RESOLVE_VETO_ABUSE': return this.resolveVetoAbuse(state, envelope);
       case 'SUBMIT_M2_EFFECT_CHOICE': return this.submitM2EffectChoice(state, envelope);
+      case 'SUBMIT_VIRAL_CHOICE': return this.submitViralChoice(state, envelope);
       case 'CREATE_GAME': return { error: 'GAME_ALREADY_EXISTS' };
     }
+  }
+
+  private submitViralChoice(state: SetupGameState, envelope: SetupEnvelope) {
+    if (state.phase !== 'RESOLUTION_STAGE') return { error: 'WRONG_PHASE' as const };
+    const participantId = envelope.actorContext.participantId;
+    const payload = envelope.payload as SubmitViralChoicePayload;
+    const choice = state.viralChoice;
+    const continuation = state.cleanupContinuation;
+    if (choice === undefined || continuation === undefined || choice.id !== payload.continuationId) {
+      return { error: 'STALE_CONTINUATION' as const };
+    }
+    if (choice.gameVersion !== state.version || continuation.expectedGameVersion !== state.version) {
+      return { error: 'STALE_CONTINUATION' as const };
+    }
+    if (participantId !== choice.chooserParticipantId) return { error: 'CHOICE_NOT_AUTHORIZED' as const };
+    if (!choice.options.includes(payload.selection)) return { error: 'INVALID_CHOICE_OPTION' as const };
+
+    const events: SetupGameEvent[] = [this.appendEvent(state, envelope, 'CHOICE_RESOLVED', {
+      continuationId: choice.id, choiceType: choice.choiceType, chooserParticipantId: participantId,
+    }, 'OWNER_AND_FACILITATOR')];
+    delete state.viralChoice;
+
+    if (choice.choiceType === 'INFLUENCE_TYPE') {
+      const type = payload.selection as 'MALIGN' | 'RESILIENCY';
+      state.cleanupContinuation = {
+        ...continuation,
+        expectedGameVersion: state.version + 1,
+        tieChoices: { ...(continuation.tieChoices ?? {}), [choice.originPdId]: type },
+      };
+      const advanced = this.advanceViralCleanup(state, envelope, events);
+      return {
+        resultCode: 'VIRAL_CHOICE_RESOLVED',
+        resultPayload: { resolvedContinuationId: choice.id, selection: type, ...advanced.resultPayload },
+        events,
+      };
+    }
+
+    const origin = continuation.viralOrigins[continuation.nextOriginIndex];
+    if (continuation.step !== 'VIRAL_RESOLUTION' || origin === undefined || origin.pdId !== choice.originPdId) {
+      return { error: 'STALE_CONTINUATION' as const };
+    }
+    const firstRoll = this.random.integer(1, 10);
+    const rolls = firstRoll >= 6 && (continuation.variant ?? 'BASELINE') === 'BASELINE'
+      ? [firstRoll, this.random.integer(1, 10)]
+      : [firstRoll];
+    const m2 = buildM2StateFromCanonical(state);
+    const resolution = resolveViralOrigin(m2, origin, payload.selection, rolls, continuation.variant ?? 'BASELINE');
+    if (typeof resolution === 'string') return { error: resolution as AnyEngineErrorCode };
+    applyM2StateToCanonical(state, m2);
+    for (const [index, roll] of rolls.entries()) events.push(this.appendEvent(state, envelope, 'DIE_ROLLED', {
+      purpose: 'VIRALIZATION', originPdId: origin.pdId, rollOrdinal: index + 1, roll,
+    }));
+    events.push(this.appendEvent(state, envelope, 'VIRAL_ATTEMPTED', {
+      originPdId: origin.pdId, destinationPdId: payload.selection, influenceType: origin.type,
+      ownerParticipantId: origin.ownerParticipantId, variant: continuation.variant ?? 'BASELINE', rollsConsumed: resolution.rollsConsumed,
+    }, 'OWNER_AND_FACILITATOR'));
+    events.push(this.appendEvent(state, envelope, 'VIRAL_RESOLVED', {
+      originPdId: origin.pdId, destinationPdId: payload.selection, influenceType: origin.type,
+      success: resolution.success, generated: resolution.generated, placed: resolution.placed, removed: resolution.removed,
+    }));
+    if (resolution.generated > 0) events.push(this.appendEvent(state, envelope, 'INFLUENCE_MUTATED', {
+      pdId: payload.selection, influenceType: origin.type, attributionCountryId: m2.participants[origin.ownerParticipantId]?.countryId ?? '',
+      placed: resolution.placed, removed: resolution.removed, reason: 'VIRALIZATION',
+    }));
+    state.cleanupContinuation = {
+      ...continuation,
+      expectedGameVersion: state.version + 1,
+      nextOriginIndex: continuation.nextOriginIndex + 1,
+    };
+    const advanced = this.advanceViralCleanup(state, envelope, events);
+    return {
+      resultCode: 'VIRAL_CHOICE_RESOLVED',
+      resultPayload: { resolvedContinuationId: choice.id, resolution, ...advanced.resultPayload },
+      events,
+    };
   }
 
   private passReaction(state: SetupGameState, envelope: SetupEnvelope) {
@@ -1755,11 +1919,14 @@ export class SetupCommandDispatcher {
     if (payload.optionId === 'TURN_LIMIT') {
       if (!isPositiveInteger(payload.value)) return { error: 'INVALID_TURN_LIMIT' as const };
       state.turnLimit = payload.value;
-    } else {
+    } else if(payload.optionId==='DICE_MODE') {
       if (!isDiceMode(payload.value)) return { error: 'INVALID_DICE_MODE' as const };
       state.diceMode = payload.value;
+    } else {
+      if(payload.value!=='BASELINE'&&payload.value!=='SHORT')return {error:'INVALID_COMMAND_PAYLOAD' as const};
+      state.viralVariant=payload.value;
     }
-    const appliedValue = payload.optionId === 'TURN_LIMIT' ? state.turnLimit : state.diceMode;
+    const appliedValue = payload.optionId === 'TURN_LIMIT' ? state.turnLimit : payload.optionId==='DICE_MODE'?state.diceMode:state.viralVariant!;
     const event = this.appendEvent(state, envelope, 'GAME_OPTION_CONFIGURED', { optionId: payload.optionId, value: appliedValue });
     return { resultCode: 'GAME_OPTION_CONFIGURED', events: [event] };
   }

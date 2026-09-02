@@ -16,6 +16,20 @@ export interface CleanupContinuation {
   readonly step: 'AGING' | 'VIRAL_SNAPSHOT' | 'VIRAL_RESOLUTION' | 'RESET' | 'END_TURN' | 'COMPLETE';
   readonly viralOrigins: readonly ViralOrigin[];
   readonly nextOriginIndex: number;
+  readonly variant?: 'BASELINE' | 'SHORT';
+  readonly tieChoices?: Readonly<Record<string, InfluenceType>>;
+}
+
+export interface ViralChoiceContinuation {
+  readonly kind: 'VIRAL_CHOICE';
+  readonly schemaVersion: 1;
+  readonly id: string;
+  readonly gameVersion: number;
+  readonly choiceType: 'INFLUENCE_TYPE' | 'DESTINATION_PD';
+  readonly chooserParticipantId: string;
+  readonly originPdId: string;
+  readonly options: readonly string[];
+  readonly status: 'OPEN';
 }
 
 export interface ViralResolution {

@@ -14,6 +14,7 @@ import type { InfluenceType, M1AdjudicationState } from './m1-adjudication.js';
 import type { EndGameState } from './m2b-endgame.js';
 import type { M2VetoContinuation, ReactionContinuation } from './m2b-reaction.js';
 import type { M2BAuditRecord, M2CoreSchedulerContinuation, M2EffectChoiceContinuation } from './m2b.js';
+import type { CleanupContinuation, ViralChoiceContinuation } from './m2b-lifecycle.js';
 
 export type SetupCardZone = 'STARTER_POOL' | 'OPERATIONS_POOL' | 'OPERATIONS_DECK' | 'HAND' | 'DISCARD' | 'CAMPAIGN' | 'REMOVED_FROM_GAME';
 
@@ -245,6 +246,9 @@ export type SetupGameEventType =
   | 'VP_CHANGED'
   | 'CAMPAIGN_ACTIVATION_COMPLETED'
   | 'CLEANUP_STARTED'
+  | 'VIRAL_SNAPSHOT_CREATED'
+  | 'VIRAL_ATTEMPTED'
+  | 'VIRAL_RESOLVED'
   | 'CAMPAIGN_AGED'
   | 'CAMPAIGN_DISCARDED'
   | 'TURN_FLAGS_RESET'
@@ -297,6 +301,7 @@ export interface SetupGameState {
   facilitatorParticipantId?: string;
   turnLimit: number;
   diceMode: DiceMode;
+  viralVariant?: 'BASELINE' | 'SHORT';
   readonly baseApPerTurn: 3;
   readonly strategyDeckSize: 30;
   readonly starterCardsPerPlayer: 5;
@@ -325,6 +330,8 @@ export interface SetupGameState {
   m2TurnResourceLedgerStartIndex?: number;
   m2CoreScheduler?: M2CoreSchedulerContinuation;
   m2EffectChoice?: M2EffectChoiceContinuation;
+  cleanupContinuation?: CleanupContinuation;
+  viralChoice?: ViralChoiceContinuation;
   currentRevealedAction?: RevealedActionState;
   readonly events: SetupGameEvent[];
 }

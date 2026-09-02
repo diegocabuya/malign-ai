@@ -40,7 +40,7 @@ describe('M2R-R01 canonical state integration seam', () => {
       scheduler:{participantIndex:0,slotIndex:0,status:'READY'}}});
     expect(committed.adjudication.campaigns.CLEANUP_ROW_II).toBeUndefined();
     expect(committed.cards[rowTwoCard.id]?.zone).toBe('DISCARD');expect(committed.regimeAbilityUsedByParticipant?.P1).toBe(false);
-    expect(committed.events.slice(-5).map(({type})=>type)).toEqual(['CLEANUP_STARTED','CAMPAIGN_DISCARDED','CAMPAIGN_AGED','TURN_FLAGS_RESET','CLEANUP_COMPLETED']);
+    expect(committed.events.slice(-6).map(({type})=>type)).toEqual(['CLEANUP_STARTED','CAMPAIGN_DISCARDED','CAMPAIGN_AGED','VIRAL_SNAPSHOT_CREATED','TURN_FLAGS_RESET','CLEANUP_COMPLETED']);
     expect(testHarness.dispatcher.runM2Cleanup(options)).toEqual(first);
     const stale = testHarness.dispatcher.runM2Cleanup({ ...options, commandId: 'M2-CLEANUP-2', idempotencyKey: 'M2-CLEANUP-K2' });
     expect(stale).toMatchObject({ status: 'REJECTED', error: { code: 'STALE_STATE_VERSION' } });

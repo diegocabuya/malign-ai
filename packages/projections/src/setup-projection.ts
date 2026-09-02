@@ -99,6 +99,13 @@ export interface SetupGameProjection {
     readonly optionCount?: number;
     readonly groups?: readonly { readonly groupId: string; readonly minSelections: number; readonly maxSelections: number; readonly optionCardIds: readonly string[] }[];
   };
+  readonly viralChoice?: {
+    readonly continuationId:string;
+    readonly choiceType:'INFLUENCE_TYPE'|'DESTINATION_PD';
+    readonly chooserParticipantId:string;
+    readonly optionCount:number;
+    readonly options?:readonly string[];
+  };
   readonly outcome?: NonNullable<NonNullable<SetupGameState['endGame']>['outcome']>;
   readonly viewerPrivateState?: ViewerPrivateStateProjection;
 }
@@ -258,6 +265,11 @@ export const buildSetupGameProjection = (state: SetupGameState, viewer: ActorCon
           : {}),
       },
     }),
+    ...(state.viralChoice===undefined?{}:{viralChoice:{continuationId:state.viralChoice.id,
+      choiceType:state.viralChoice.choiceType,chooserParticipantId:state.viralChoice.chooserParticipantId,
+      optionCount:state.viralChoice.options.length,
+      ...(participant.role==='FACILITATOR'||state.viralChoice.chooserParticipantId===viewerParticipantId
+        ?{options:[...state.viralChoice.options]}:{})}}),
     ...(state.endGame?.outcome === undefined ? {} : { outcome: structuredClone(state.endGame.outcome) }),
     ...(viewerPrivateState === undefined ? {} : { viewerPrivateState }),
   };
