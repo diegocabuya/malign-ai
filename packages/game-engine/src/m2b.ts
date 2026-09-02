@@ -490,6 +490,10 @@ export const runM2BScheduler = <T>(
 export const playStarter = (state: M2BState, cardId: string, actorParticipantId: string): M2BEffectError | undefined => {
   const card = state.cards[cardId]; const participant = state.participants[actorParticipantId];
   if (card === undefined || participant === undefined || card.cardClass !== 'STARTER' || card.zone !== 'HAND') return 'CARD_NOT_ELIGIBLE';
+  if(card.definitionId==='BASE_CARD_075'||card.definitionId==='CARD_DEF_BASE_2025_D075'){
+    participant.resources+=4;
+    audit(state,{actorParticipantId,effectId:'CARD_EFFECT_BASE_2025_E042',effectVersion:'0.1',parameters:{}},'RESOURCE_GAINED',{amount:4});
+  }
   card.zone = 'REMOVED_FROM_GAME'; return undefined;
 };
 

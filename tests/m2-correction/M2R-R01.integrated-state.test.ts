@@ -695,6 +695,68 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(committed.cards[source.id]?.zone).toBe('DISCARD');
   });
 
+  it('GE-ACT-010 — a stolen Starter resolves for its controller and is removed from the game',()=>{
+    const testHarness=harness();const state=completeAndStart(testHarness);state.phase='RESOLUTION_STAGE';
+    const source=state.cards['ARDEN-CARD-031']!;source.controllerParticipantId='P1';source.zone='HAND';
+    const starter=Object.values(state.cards).find(card=>card.definitionId==='BASE_CARD_075'&&card.countryOwnerId!=='ARDEN');
+    if(starter===undefined)throw new Error('Increased Budget Starter fixture missing');
+    const targetParticipantId=state.countries[starter.countryOwnerId].controllerParticipantId!;
+    for(const card of Object.values(state.cards).filter(({controllerParticipantId,zone,id})=>controllerParticipantId===targetParticipantId&&zone==='HAND'&&id!==starter.id))card.zone='OPERATIONS_DECK';
+    starter.controllerParticipantId=targetParticipantId;starter.zone='HAND';state.strategy[targetParticipantId]!.handCardInstanceIds=[starter.id];
+    expect(testHarness.store.commitState(state.id,state.version,state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2Effect({gameId:state.id,expectedGameVersion:state.version,
+      commandId:'M2-E016-STARTER-OPEN-1',idempotencyKey:'M2-E016-STARTER-OPEN-K1',actorParticipantId:'P1',
+      sourceCardInstanceId:source.id,effectId:'CARD_EFFECT_BASE_2025_E016',effectVersion:'0.1',parameters:{targetParticipantId},
+    })).toMatchObject({status:'RESOLVED',resultCode:'M2_EFFECT_CHOICE_REQUESTED'});
+    let current=testHarness.store.snapshot(state.id)!;const p1=trustedBindings().find(({participantId})=>participantId==='P1')!.authenticatedSessionId;
+    expect(testHarness.app.execute(p1,command('SUBMIT_M2_EFFECT_CHOICE',state.id,current.version,{
+      continuationId:current.m2EffectChoice!.id,selectedPosition:1,
+    },{commandId:'M2-E016-STARTER-STEAL-1',idempotencyKey:'M2-E016-STARTER-STEAL-K1'}))).toMatchObject({status:'RESOLVED'});
+    current=testHarness.store.snapshot(state.id)!;const resourcesBefore=current.countries.ARDEN.resources;
+    expect(testHarness.dispatcher.executeM2CoreOperation({gameId:state.id,expectedGameVersion:current.version,
+      commandId:'M2-STARTER-PLAY-1',idempotencyKey:'M2-STARTER-PLAY-K1',operation:{kind:'PLAY_STARTER',actorParticipantId:'P1',cardId:starter.id},
+    })).toMatchObject({status:'RESOLVED'});
+    const committed=testHarness.store.snapshot(state.id)!;
+    expect(committed.countries.ARDEN.resources).toBe(resourcesBefore+4);
+    expect(committed.cards[starter.id]).toMatchObject({zone:'REMOVED_FROM_GAME',controllerParticipantId:'P1'});
+  });
+
+  it('GE-ACT-011 — discarding a stolen Starter returns it to its owner instead of removing it',()=>{
+    const testHarness=harness();const state=completeAndStart(testHarness);state.phase='RESOLUTION_STAGE';
+    const thief=state.cards['ARDEN-CARD-031']!;thief.controllerParticipantId='P1';thief.zone='HAND';
+    const discardAction=state.cards['ARDEN-CARD-023']!;discardAction.controllerParticipantId='P1';discardAction.zone='HAND';
+    const ownDiscard=state.cards['ARDEN-CARD-001']!;ownDiscard.controllerParticipantId='P1';ownDiscard.zone='HAND';
+    const starter=Object.values(state.cards).find(card=>card.definitionId==='BASE_CARD_075'&&card.countryOwnerId!=='ARDEN');
+    if(starter===undefined)throw new Error('Increased Budget Starter fixture missing');
+    const targetParticipantId=state.countries[starter.countryOwnerId].controllerParticipantId!;
+    for(const card of Object.values(state.cards).filter(({controllerParticipantId,zone,id})=>controllerParticipantId===targetParticipantId&&zone==='HAND'&&id!==starter.id))card.zone='OPERATIONS_DECK';
+    starter.controllerParticipantId=targetParticipantId;starter.zone='HAND';state.strategy[targetParticipantId]!.handCardInstanceIds=[starter.id];
+    state.strategy.P1.handCardInstanceIds=[thief.id,discardAction.id,ownDiscard.id];
+    expect(testHarness.store.commitState(state.id,state.version,state)).toBe(true);
+    expect(testHarness.dispatcher.executeM2Effect({gameId:state.id,expectedGameVersion:state.version,
+      commandId:'M2-E016-RETURN-OPEN-1',idempotencyKey:'M2-E016-RETURN-OPEN-K1',actorParticipantId:'P1',
+      sourceCardInstanceId:thief.id,effectId:'CARD_EFFECT_BASE_2025_E016',effectVersion:'0.1',parameters:{targetParticipantId},
+    })).toMatchObject({status:'RESOLVED'});
+    let current=testHarness.store.snapshot(state.id)!;const p1=trustedBindings().find(({participantId})=>participantId==='P1')!.authenticatedSessionId;
+    expect(testHarness.app.execute(p1,command('SUBMIT_M2_EFFECT_CHOICE',state.id,current.version,{
+      continuationId:current.m2EffectChoice!.id,selectedPosition:1,
+    },{commandId:'M2-E016-RETURN-STEAL-1',idempotencyKey:'M2-E016-RETURN-STEAL-K1'}))).toMatchObject({status:'RESOLVED'});
+    current=testHarness.store.snapshot(state.id)!;
+    expect(testHarness.dispatcher.executeM2Effect({gameId:state.id,expectedGameVersion:current.version,
+      commandId:'M2-E013-RETURN-OPEN-1',idempotencyKey:'M2-E013-RETURN-OPEN-K1',actorParticipantId:'P1',
+      sourceCardInstanceId:discardAction.id,effectId:'CARD_EFFECT_BASE_2025_E013',effectVersion:'0.1',parameters:{},
+    })).toMatchObject({status:'RESOLVED',resultCode:'M2_EFFECT_CHOICE_REQUESTED'});
+    current=testHarness.store.snapshot(state.id)!;
+    expect(testHarness.app.execute(p1,command('SUBMIT_M2_EFFECT_CHOICE',state.id,current.version,{
+      continuationId:current.m2EffectChoice!.id,
+      selections:{DISCARD_FROM_HAND:[starter.id,ownDiscard.id],RETRIEVE_FROM_DISCARD:[thief.id]},
+    },{commandId:'M2-E013-RETURN-RESOLVE-1',idempotencyKey:'M2-E013-RETURN-RESOLVE-K1'}))).toMatchObject({status:'RESOLVED'});
+    const committed=testHarness.store.snapshot(state.id)!;
+    expect(committed.cards[starter.id]).toMatchObject({zone:'HAND',controllerParticipantId:targetParticipantId,returnToOwnerOnDiscard:false});
+    expect(committed.strategy[targetParticipantId]?.handCardInstanceIds).toContain(starter.id);
+    expect(committed.cards[thief.id]).toMatchObject({zone:'HAND',controllerParticipantId:'P1'});
+  });
+
   it('GE-ACT-024 — uses internal E047 roll then requires the targeted player to choose the discarded action card', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     const source = state.cards['ARDEN-CARD-082']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
@@ -990,7 +1052,7 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(testHarness.store.snapshot(state.id)?.cards[source.id]).toMatchObject({ zone: 'CAMPAIGN' });
   });
 
-  it('pays exactly one resource and discards a selected campaign through E017 atomically', () => {
+  it('GE-ACT-012 — pays exactly one resource and discards any selected campaign through E017 atomically', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     const source = state.cards['ARDEN-CARD-032']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
     const target = state.cards['FLUMA-CARD-001']!; target.controllerParticipantId = 'P2'; target.zone = 'CAMPAIGN';
