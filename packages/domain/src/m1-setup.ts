@@ -118,7 +118,7 @@ export interface InitiativeState {
   readonly maintenance: Record<string, InitiativeMaintenanceState>;
 }
 
-export type M1ActionType = 'CONSTRUCT_CAMPAIGN' | 'ACTIVATE_CAMPAIGN' | 'PLAY_BOOST' | 'USE_REGIME_ABILITY';
+export type M1ActionType = 'CONSTRUCT_CAMPAIGN' | 'ACTIVATE_CAMPAIGN' | 'PLAY_BOOST' | 'PLAY_DOUBLE_ACTION' | 'USE_REGIME_ABILITY';
 
 export interface ConstructCampaignPlanPayload {
   readonly row: 'I';
@@ -139,9 +139,15 @@ export interface PlayBoostPlanPayload {
   readonly activationSequenceIndex: number;
 }
 
+export interface PlayDoubleActionPlanPayload {
+  readonly cardInstanceId: string;
+  readonly campaignId: string;
+  readonly requestedTargetPdId: string;
+}
+
 export type UseRegimeAbilityPlanPayload = Readonly<Record<never, never>>;
 
-export type M1ActionPayload = ConstructCampaignPlanPayload | ActivateCampaignPlanPayload | PlayBoostPlanPayload | UseRegimeAbilityPlanPayload;
+export type M1ActionPayload = ConstructCampaignPlanPayload | ActivateCampaignPlanPayload | PlayBoostPlanPayload | PlayDoubleActionPlanPayload | UseRegimeAbilityPlanPayload;
 
 export interface M1ActionPlanSlot {
   readonly sequenceIndex: number;

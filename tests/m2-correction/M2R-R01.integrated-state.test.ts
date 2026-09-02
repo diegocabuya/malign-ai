@@ -583,6 +583,61 @@ describe('M2R-R01 canonical state integration seam', () => {
     )))).toBe(canonicalizeJson(committed));
   });
 
+  it('GE-ACT-028 — a negated linked activation consumes Boost without roll, modifier or refund',()=>{
+    const testHarness=adjudicationHarness({boost:true,die:10});runConstruct(testHarness);
+    expect(runActivation(testHarness)).toMatchObject({status:'RESOLVED',resultCode:'BOOST_PLANNED'});
+    const planned=testHarness.store.snapshot(GAME_ID)!;planned.vetoBlockedParticipantIdsThisTurn=['P1'];
+    const diceBefore=planned.adjudication.dieRolls.length;const resourcesBefore=planned.countries.ARDEN.resources;
+    expect(testHarness.store.commitState(planned.id,planned.version,planned)).toBe(true);
+    expect(runActivation(testHarness)).toMatchObject({status:'RESOLVED',resultCode:'CAMPAIGN_ACTIVATION_NEGATED',
+      resultPayload:{boostCardInstanceId:'ARDEN-CARD-087',boostApplied:false}});
+    const committed=testHarness.store.snapshot(GAME_ID)!;
+    expect(committed.cards['ARDEN-CARD-087']?.zone).toBe('DISCARD');
+    expect(committed.adjudication.plannedBoostsByParticipant?.P1).toBeUndefined();
+    expect(committed.adjudication.dieRolls).toHaveLength(diceBefore);expect(committed.countries.ARDEN.resources).toBe(resourcesBefore);
+    expect(committed.adjudication.campaigns[FULL_CAMPAIGN.campaign_id]?.activationCountThisTurn).toBe(0);
+    expect(committed.events.some(({type})=>type==='BOOST_APPLIED')).toBe(false);
+    expect(committed.actionPlanning.P1?.lockedSlots.find(({sequenceIndex})=>sequenceIndex===3)?.terminalOutcome).toBe('NOT_EXECUTED');
+  });
+
+  it('GE-ACT-016 — Double Action consumes its card cost and performs a second real campaign activation',()=>{
+    const testHarness=adjudicationHarness({die:6,resources:10});const state=testHarness.store.snapshot(GAME_ID)!;
+    const card=state.cards['ARDEN-CARD-051']!;card.controllerParticipantId='P1';card.zone='HAND';state.strategy.P1.handCardInstanceIds.push(card.id);
+    state.actionPlanning.P1!.lockedSlots.push({sequenceIndex:3,actionType:'PLAY_DOUBLE_ACTION',actionPayload:{
+      cardInstanceId:card.id,campaignId:FULL_CAMPAIGN.campaign_id,requestedTargetPdId:FULL_CAMPAIGN.target_pd,
+    },apCost:1,revealed:false});
+    expect(testHarness.store.commitState(state.id,state.version,state)).toBe(true);testHarness.random.enqueue(6);
+    expect(runConstruct(testHarness)).toMatchObject({status:'RESOLVED'});expect(runActivation(testHarness)).toMatchObject({status:'RESOLVED'});
+    const beforeExtra=testHarness.store.snapshot(GAME_ID)!;const resourcesBefore=beforeExtra.countries.ARDEN.resources;
+    expect(beforeExtra.adjudication.campaigns[FULL_CAMPAIGN.campaign_id]?.activationCountThisTurn).toBe(1);
+    expect(runActivation(testHarness)).toMatchObject({status:'RESOLVED',resultCode:'CAMPAIGN_ACTIVATION_COMPLETED',
+      resultPayload:{cardConsumed:true,extraActivation:true}});
+    const committed=testHarness.store.snapshot(GAME_ID)!;
+    expect(committed.adjudication.campaigns[FULL_CAMPAIGN.campaign_id]?.activationCountThisTurn).toBe(2);
+    expect(committed.countries.ARDEN.resources).toBeLessThan(resourcesBefore-1);
+    expect(committed.cards[card.id]?.zone).toBe('DISCARD');
+    expect(committed.resourceLedger.find(({reason,id})=>reason==='CARD_COST'&&id.includes('resource-ledger'))).toBeDefined();
+    expect(committed.adjudication.traces.at(-1)?.activationId).toMatch(/:activation:2$/u);
+  });
+
+  it('GE-ACT-017 — Double Action with no card-cost resources fails after consuming the card and never activates again',()=>{
+    const testHarness=adjudicationHarness({die:6,resources:10});const state=testHarness.store.snapshot(GAME_ID)!;
+    const card=state.cards['ARDEN-CARD-051']!;card.controllerParticipantId='P1';card.zone='HAND';state.strategy.P1.handCardInstanceIds.push(card.id);
+    state.actionPlanning.P1!.lockedSlots.push({sequenceIndex:3,actionType:'PLAY_DOUBLE_ACTION',actionPayload:{
+      cardInstanceId:card.id,campaignId:FULL_CAMPAIGN.campaign_id,requestedTargetPdId:FULL_CAMPAIGN.target_pd,
+    },apCost:1,revealed:false});
+    expect(testHarness.store.commitState(state.id,state.version,state)).toBe(true);
+    expect(runConstruct(testHarness)).toMatchObject({status:'RESOLVED'});expect(runActivation(testHarness)).toMatchObject({status:'RESOLVED'});
+    const beforeExtra=testHarness.store.snapshot(GAME_ID)!;beforeExtra.countries.ARDEN.resources=0;
+    expect(testHarness.store.commitState(beforeExtra.id,beforeExtra.version,beforeExtra)).toBe(true);
+    expect(runActivation(testHarness)).toMatchObject({status:'RESOLVED',resultCode:'COST_PAYMENT_FAILED',
+      resultPayload:{cardConsumed:true,extraActivation:false}});
+    const committed=testHarness.store.snapshot(GAME_ID)!;
+    expect(committed.cards[card.id]?.zone).toBe('DISCARD');
+    expect(committed.adjudication.campaigns[FULL_CAMPAIGN.campaign_id]?.activationCountThisTurn).toBe(1);
+    expect(committed.actionPlanning.P1?.lockedSlots[2]?.terminalOutcome).toBe('FAILED_COST');
+  });
+
   it('executes fixed registry resource effects and honors remove-from-game lifecycle', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     const source = state.cards['ARDEN-CARD-075']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';

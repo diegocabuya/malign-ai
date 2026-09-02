@@ -249,6 +249,10 @@ const isPlayBoostPlanPayload = (value: unknown): boolean =>
   hasExactKeys(value, ['cardInstanceId', 'campaignId', 'activationSequenceIndex']) && isNonEmptyString(value.cardInstanceId) &&
   isNonEmptyString(value.campaignId) && isPositiveInteger(value.activationSequenceIndex);
 
+const isPlayDoubleActionPlanPayload=(value:unknown):boolean=>
+  hasExactKeys(value,['cardInstanceId','campaignId','requestedTargetPdId'])&&isNonEmptyString(value.cardInstanceId)&&
+  isNonEmptyString(value.campaignId)&&isNonEmptyString(value.requestedTargetPdId);
+
 const isActionPlanSlotPayload = (value: unknown): value is Record<string, unknown> => {
   if (
     !hasExactKeys(value, ['sequenceIndex', 'actionType', 'actionPayload']) ||
@@ -257,6 +261,7 @@ const isActionPlanSlotPayload = (value: unknown): value is Record<string, unknow
   if (value.actionType === 'CONSTRUCT_CAMPAIGN') return isConstructPlanPayload(value.actionPayload);
   if (value.actionType === 'ACTIVATE_CAMPAIGN') return isActivatePlanPayload(value.actionPayload);
   if (value.actionType === 'PLAY_BOOST') return isPlayBoostPlanPayload(value.actionPayload);
+  if(value.actionType==='PLAY_DOUBLE_ACTION')return isPlayDoubleActionPlanPayload(value.actionPayload);
   if (value.actionType === 'USE_REGIME_ABILITY') return hasExactKeys(value.actionPayload, []);
   return false;
 };
@@ -2356,6 +2361,16 @@ export class SetupCommandDispatcher {
         const activation = slots.find((candidate) => candidate.sequenceIndex === payload.activationSequenceIndex && candidate.actionType === 'ACTIVATE_CAMPAIGN');
         if (activation === undefined || activation.sequenceIndex <= slot.sequenceIndex ||
             (activation.actionPayload as unknown as { readonly campaignId: string }).campaignId !== payload.campaignId) return 'INVALID_ACTION_PLAN';
+      } else if(slot.actionType==='PLAY_DOUBLE_ACTION'){
+        const payload=slot.actionPayload as unknown as {readonly cardInstanceId:string;readonly campaignId:string;readonly requestedTargetPdId:string};
+        const card=state.cards[payload.cardInstanceId];
+        if(card===undefined||card.controllerParticipantId!==participantId)return 'CARD_NOT_CONTROLLED';
+        if(card.zone!=='HAND'||card.definitionId!=='BASE_CARD_051')return 'CARD_NOT_ELIGIBLE';
+        if(state.populationDemographics[payload.requestedTargetPdId]===undefined)return 'INVALID_TARGET_PD';
+        allCommittedCardIds.push(card.id);
+        const priorActivation=slots.find(candidate=>candidate.sequenceIndex<slot.sequenceIndex&&candidate.actionType==='ACTIVATE_CAMPAIGN'&&
+          (candidate.actionPayload as unknown as {readonly campaignId:string}).campaignId===payload.campaignId);
+        if(priorActivation===undefined)return 'INVALID_ACTION_PLAN';
       }
     }
     if (new Set(allCommittedCardIds).size !== allCommittedCardIds.length)

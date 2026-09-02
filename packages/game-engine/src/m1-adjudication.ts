@@ -826,6 +826,47 @@ export class M1AdjudicationEngine {
         campaignId: campaign.id, activationSequenceIndex: payload.activationSequenceIndex }, emittedEventRefs: [reveal.id, planned.id, resolved.id] };
     }
 
+    if(slot.actionType==='PLAY_DOUBLE_ACTION'){
+      const payload=slot.actionPayload;
+      if(!('cardInstanceId' in payload)||!('campaignId' in payload)||!('requestedTargetPdId' in payload))
+        return {error:'INVALID_COMMAND_PAYLOAD' as const,version};
+      const card=working.cards[payload.cardInstanceId];const campaign=working.adjudication.campaigns[payload.campaignId];
+      const strategy=working.strategy[participantId];const countryId=countryForParticipant(working,participantId);
+      if(card?.definitionId!=='BASE_CARD_051'||card.controllerParticipantId!==participantId||card.zone!=='HAND'||
+          campaign?.ownerParticipantId!==participantId||campaign.activationCountThisTurn<1||strategy===undefined||countryId===undefined)
+        return {error:'CARD_NOT_ELIGIBLE' as const,version};
+      card.zone='DISCARD';strategy.handCardInstanceIds=strategy.handCardInstanceIds.filter(id=>id!==card.id);
+      if(!strategy.discardCardInstanceIds.includes(card.id))strategy.discardCardInstanceIds.push(card.id);
+      const country=working.countries[countryId];
+      if(country.resources<1){
+        slot.terminalOutcome='FAILED_COST';this.advanceScheduler(working);
+        const failed=this.appendEvent(working,envelope,'ACTION_RESOLVED',{participantId,sequenceIndex:slot.sequenceIndex,
+          outcome:'FAILED_COST',errorCode:'COST_PAYMENT_FAILED'},reveal.id);
+        return {nextState:working,resultCode:'COST_PAYMENT_FAILED',resultPayload:{participantId,cardInstanceId:card.id,
+          cardConsumed:true,extraActivation:false},emittedEventRefs:[reveal.id,failed.id]};
+      }
+      country.resources-=1;
+      const ledgerId=`${working.id}:resource-ledger:${working.resourceLedger.length+1}`;
+      working.resourceLedger.push({id:ledgerId,participantId,countryId,reason:'CARD_COST',delta:-1,
+        balanceAfter:country.resources,gameVersion:working.version+1});
+      const paid=this.appendEvent(working,envelope,'RESOURCE_CHANGED',{participantId,countryId,amount:-1,
+        balanceAfter:country.resources,reason:'CARD_COST',ledgerId},reveal.id);
+      const moved=this.appendEvent(working,envelope,'CARD_MOVED',{cardInstanceId:card.id,from:'HAND',to:'DISCARD'},paid.id);
+      const activation=this.resolveActivation(working,participantId,slot,envelope,preStateHash,[reveal.id,paid.id,moved.id],true);
+      if('error' in activation)return {error:activation.error,version};
+      if(activation.kind==='PENDING'){
+        const pending=activation.pending;
+        const resultCode=pending.kind==='NARRATIVE'?'NARRATIVE_REQUIRED':pending.kind==='COALITION'?'COALITION_CONTRIBUTION_REQUIRED':
+          pending.kind==='MANUAL_DIE'?'MANUAL_DIE_REQUIRED':'CHOICE_REQUIRED';
+        const payloadResult=pending.kind==='NARRATIVE'?pending.narrativeRequest:pending.kind==='COALITION'?pending.request:
+          pending.kind==='MANUAL_DIE'?pending.request:pending.kind==='CHOICE'?pending.choice:pending.request;
+        return {nextState:working,status:'REQUIRES_CHOICE' as const,resultCode,resultPayload:structuredClone(payloadResult),emittedEventRefs:activation.eventRefs};
+      }
+      return {nextState:working,resultCode:activation.kind==='FAILED_COST'?'COST_PAYMENT_FAILED':'CAMPAIGN_ACTIVATION_COMPLETED',
+        resultPayload:{participantId,cardInstanceId:card.id,cardConsumed:true,extraActivation:activation.kind==='COMPLETE'},
+        emittedEventRefs:activation.eventRefs,...(activation.kind==='COMPLETE'?{adjudicationTraceRefs:[activation.traceId]}:{})};
+    }
+
     if (slot.actionType === 'USE_REGIME_ABILITY') {
       if (working.regimeAbilityUsedByParticipant?.[participantId] === true) return { error: 'REGIME_ABILITY_ALREADY_USED' as const, version };
       const countryId = working.seats[participantId]?.countryId;
@@ -916,6 +957,24 @@ export class M1AdjudicationEngine {
         resultPayload: { continuationId, chooserParticipantId: participantId }, emittedEventRefs: [reveal.id, requested.id] };
     }
 
+    if(slot.actionType==='ACTIVATE_CAMPAIGN'&&'campaignId' in slot.actionPayload&&
+        working.vetoBlockedParticipantIdsThisTurn?.includes(participantId)===true){
+      const plannedBoost=working.adjudication.plannedBoostsByParticipant?.[participantId];
+      const boostApplies=plannedBoost?.campaignId===slot.actionPayload.campaignId&&plannedBoost.activationSequenceIndex===slot.sequenceIndex;
+      if(boostApplies&&plannedBoost!==undefined){
+        const boostCard=working.cards[plannedBoost.cardInstanceId];const strategy=working.strategy[participantId];
+        if(boostCard?.zone!=='HAND'||boostCard.controllerParticipantId!==participantId||strategy===undefined)
+          return {error:'CARD_NOT_ELIGIBLE' as const,version};
+        boostCard.zone='DISCARD';strategy.handCardInstanceIds=strategy.handCardInstanceIds.filter(id=>id!==boostCard.id);
+        if(!strategy.discardCardInstanceIds.includes(boostCard.id))strategy.discardCardInstanceIds.push(boostCard.id);
+        delete working.adjudication.plannedBoostsByParticipant?.[participantId];slot.terminalOutcome='NOT_EXECUTED';this.advanceScheduler(working);
+        const moved=this.appendEvent(working,envelope,'CARD_MOVED',{cardInstanceId:boostCard.id,from:'HAND',to:'DISCARD',reason:'LINKED_ACTIVATION_NEGATED'},reveal.id);
+        const resolved=this.appendEvent(working,envelope,'ACTION_RESOLVED',{participantId,sequenceIndex:slot.sequenceIndex,
+          outcome:'NOT_EXECUTED',errorCode:'CAMPAIGN_ALREADY_ACTIVATED'},moved.id);
+        return {nextState:working,resultCode:'CAMPAIGN_ACTIVATION_NEGATED',resultPayload:{participantId,campaignId:slot.actionPayload.campaignId,
+          boostCardInstanceId:boostCard.id,boostApplied:false},emittedEventRefs:[reveal.id,moved.id,resolved.id]};
+      }
+    }
     const activation = this.resolveActivation(working, participantId, slot, envelope, preStateHash, [reveal.id]);
     if ('error' in activation) return { error: activation.error, version };
     if (activation.kind === 'PENDING') {
@@ -1053,6 +1112,7 @@ export class M1AdjudicationEngine {
     envelope: InternalEnvelope,
     preStateHash: string,
     eventRefs: string[],
+    allowRepeat = false,
   ): ActivationOutcome {
     const payload = slot.actionPayload;
     if (!('campaignId' in payload)) return { error: 'INVALID_COMMAND_PAYLOAD' };
@@ -1060,7 +1120,7 @@ export class M1AdjudicationEngine {
     if (campaign === undefined) return { error: 'CAMPAIGN_NOT_FOUND' };
     if (campaign.ownerParticipantId !== participantId) return { error: 'CAMPAIGN_NOT_OWNED' };
     if (state.vetoBlockedParticipantIdsThisTurn?.includes(participantId) === true) return { error: 'CAMPAIGN_ALREADY_ACTIVATED' };
-    if (campaign.activationCountThisTurn > 0) return { error: 'CAMPAIGN_ALREADY_ACTIVATED' };
+    if (!allowRepeat&&campaign.activationCountThisTurn > 0) return { error: 'CAMPAIGN_ALREADY_ACTIVATED' };
     const targetPdId = 'requestedTargetPdId' in payload ? payload.requestedTargetPdId : undefined;
     if (targetPdId === undefined) return { error: 'INVALID_TARGET_PD' };
     const target = targetPdId === undefined ? undefined : state.populationDemographics[targetPdId];
