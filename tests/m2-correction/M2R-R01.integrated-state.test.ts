@@ -22,13 +22,25 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(state.adjudication.scheduler.status).toBe('COMPLETE');
   });
 
-  it('runs Cleanup through atomic dispatcher with phase, CAS and idempotency enforcement', () => {
+  it('GE-CORE-007/GE-CAM-011/GE-CAM-012/GE-CLN-001/GE-CLN-002 — runs simultaneous Cleanup atomically', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
+    const rowOneCard=state.cards['ARDEN-CARD-001']!;rowOneCard.controllerParticipantId='P1';rowOneCard.zone='CAMPAIGN';
+    const rowTwoCard=state.cards['FLUMA-CARD-001']!;rowTwoCard.controllerParticipantId='P2';rowTwoCard.zone='CAMPAIGN';
+    state.adjudication.campaigns.CLEANUP_ROW_I={id:'CLEANUP_ROW_I',ownerParticipantId:'P1',row:'I',alignment:'MALIGN',targetDtId:'RELIGION:NONE',
+      assignments:[{slot:'INTENT',cardInstanceId:rowOneCard.id,definitionId:rowOneCard.definitionId,influenceValue:1}],activationCountThisTurn:1};
+    state.adjudication.campaigns.CLEANUP_ROW_II={id:'CLEANUP_ROW_II',ownerParticipantId:'P2',row:'II',alignment:'MALIGN',targetDtId:'RELIGION:NONE',
+      assignments:[{slot:'INTENT',cardInstanceId:rowTwoCard.id,definitionId:rowTwoCard.definitionId,influenceValue:1}],activationCountThisTurn:1};
+    state.regimeAbilityUsedByParticipant={P1:true};state.adjudication.scheduler={participantIndex:3,slotIndex:2,status:'COMPLETE'};
     expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
     const options = { gameId: state.id, expectedGameVersion: state.version, commandId: 'M2-CLEANUP-1', idempotencyKey: 'M2-CLEANUP-K1' };
     const first = testHarness.dispatcher.runM2Cleanup(options);
     expect(first).toMatchObject({ status: 'RESOLVED', resultCode: 'M2_CLEANUP_COMPLETED', gameVersionAfter: state.version + 1 });
-    expect(testHarness.store.snapshot(state.id)).toMatchObject({ phase: 'INITIATIVE_STAGE' });
+    const committed=testHarness.store.snapshot(state.id)!;
+    expect(committed).toMatchObject({phase:'INITIATIVE_STAGE',adjudication:{campaigns:{CLEANUP_ROW_I:{row:'II',activationCountThisTurn:0}},
+      scheduler:{participantIndex:0,slotIndex:0,status:'READY'}}});
+    expect(committed.adjudication.campaigns.CLEANUP_ROW_II).toBeUndefined();
+    expect(committed.cards[rowTwoCard.id]?.zone).toBe('DISCARD');expect(committed.regimeAbilityUsedByParticipant?.P1).toBe(false);
+    expect(committed.events.slice(-5).map(({type})=>type)).toEqual(['CLEANUP_STARTED','CAMPAIGN_DISCARDED','CAMPAIGN_AGED','TURN_FLAGS_RESET','CLEANUP_COMPLETED']);
     expect(testHarness.dispatcher.runM2Cleanup(options)).toEqual(first);
     const stale = testHarness.dispatcher.runM2Cleanup({ ...options, commandId: 'M2-CLEANUP-2', idempotencyKey: 'M2-CLEANUP-K2' });
     expect(stale).toMatchObject({ status: 'REJECTED', error: { code: 'STALE_STATE_VERSION' } });

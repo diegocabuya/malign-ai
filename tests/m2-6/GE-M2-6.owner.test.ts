@@ -9,7 +9,7 @@ import {
 } from '../../packages/game-engine/src/index.js';
 import { m2bState } from '../m2-b/test-fixtures.js';
 
-const owners = ['GE-CORE-007', 'GE-CAM-011', 'GE-CAM-012', 'GE-CLN-001', 'GE-CLN-002', ...Array.from({ length: 12 }, (_, index) => `GE-VIR-${String(index + 1).padStart(3, '0')}`), 'GE-M2-LC-001'] as const;
+const owners = [...Array.from({ length: 12 }, (_, index) => `GE-VIR-${String(index + 1).padStart(3, '0')}`), 'GE-M2-LC-001'] as const;
 const traits = { ARDEN_PD_1: ['MEDIA'], ARDEN_PD_2: ['ELITE'], FLUMA_PD_1: ['MEDIA'], PRESQUE_PD_1: ['RELIGION'] } as const;
 
 const viralState = () => {
