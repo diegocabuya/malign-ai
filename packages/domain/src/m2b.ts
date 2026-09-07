@@ -125,7 +125,7 @@ export type M2EffectChoiceContinuation = M2EffectCardChoiceContinuation | M2Effe
 
 export type M2CoreOperation =
   | { readonly kind: 'APPLY_BACKLASH'; readonly actorParticipantId: string; readonly pdId: string; readonly amount: number }
-  | { readonly kind: 'ESTABLISH_LEGITIMACY'; readonly actorParticipantId: string; readonly pdId: string; readonly replacePdId?: string }
+  | { readonly kind: 'ESTABLISH_LEGITIMACY'; readonly actorParticipantId: string; readonly pdId: string; readonly replacePdId?: string; readonly renounce?: boolean }
   | { readonly kind: 'MODIFY_CAMPAIGN'; readonly actorParticipantId: string; readonly campaignId: string; readonly oldCardId: string; readonly replacementCardId: string }
   | { readonly kind: 'DISCARD_CAMPAIGN'; readonly actorParticipantId: string; readonly campaignId: string }
   | { readonly kind: 'PLAY_STARTER'; readonly actorParticipantId: string; readonly cardId: string }

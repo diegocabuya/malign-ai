@@ -1,8 +1,9 @@
 import type { M2BCard, M2BState, SetupGameState } from '@malign-ai/domain';
 
 const cardClass = (state: SetupGameState, cardId: string): M2BCard['cardClass'] => {
-  if (Object.values(state.adjudication.campaigns).some(({ assignments }) => assignments.some(({ cardInstanceId }) => cardInstanceId === cardId))) return 'CAMPAIGN';
-  return state.cardDefinitions[state.cards[cardId]?.definitionId ?? '']?.starter === true ? 'STARTER' : 'ACTION';
+  if (state.cardDefinitions[state.cards[cardId]?.definitionId ?? '']?.starter === true) return 'STARTER';
+  return Object.values(state.adjudication.campaigns).some(({ assignments }) => assignments.some(({ cardInstanceId }) => cardInstanceId === cardId))
+    ? 'CAMPAIGN' : 'ACTION';
 };
 
 export const buildM2StateFromCanonical = (state: SetupGameState): M2BState => ({
@@ -77,6 +78,17 @@ export const applyM2StateToCanonical = (target: SetupGameState, source: M2BState
       (canonical as { row: 'I' | 'II' }).row = campaign.row;
       canonical.activationCountThisTurn = campaign.activationCountThisTurn;
       if (campaign.targetDtId !== undefined) (canonical as { targetDtId: string }).targetDtId = campaign.targetDtId;
+      if (campaign.cardIds.some((cardId, index) => canonical.assignments[index]?.cardInstanceId !== cardId)) {
+        const assignments = campaign.cardIds.map((cardId, index) => {
+          const previous = canonical.assignments[index];
+          if (previous === undefined) throw new Error(`Campaign ${campaign.id} assignment cardinality changed`);
+          const card = target.cards[cardId]; const rule = target.adjudication.campaignCardRules[card?.definitionId ?? ''];
+          const influenceValue = rule?.influenceValueBySlot[previous.slot];
+          if (card === undefined || influenceValue === undefined) throw new Error(`Campaign ${campaign.id} received an incompatible ${previous.slot}`);
+          return { slot: previous.slot, cardInstanceId: card.id, definitionId: card.definitionId, influenceValue };
+        });
+        (canonical as unknown as { assignments: typeof assignments }).assignments = assignments;
+      }
     }
   }
   target.adjudication.influenceStacks.splice(0, target.adjudication.influenceStacks.length, ...structuredClone(source.influence));

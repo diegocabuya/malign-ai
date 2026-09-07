@@ -1080,13 +1080,25 @@ export class SetupCommandDispatcher {
           if (working.populationDemographics[operation.pdId] === undefined || !Number.isInteger(operation.amount) || operation.amount < 0) error = 'INVALID_EFFECT_INPUT';
           else { const placed = applyBacklash(m2, operation.actorParticipantId, operation.pdId, operation.amount); subjectId = operation.pdId; detail = { placed }; }
         } else if (operation.kind === 'ESTABLISH_LEGITIMACY') {
-          if (working.populationDemographics[operation.pdId] === undefined || (operation.replacePdId !== undefined && working.populationDemographics[operation.replacePdId] === undefined)) error = 'INVALID_EFFECT_INPUT';
-          else if (!establishLegitimacy(m2, operation.actorParticipantId, operation.pdId, operation.replacePdId)) error = 'INVALID_EFFECT_INPUT';
-          else subjectId = operation.pdId;
+          if (working.populationDemographics[operation.pdId] === undefined ||
+              (operation.replacePdId !== undefined && working.populationDemographics[operation.replacePdId] === undefined) ||
+              (operation.renounce === true && operation.replacePdId !== undefined)) error = 'INVALID_EFFECT_INPUT';
+          else if (operation.renounce === true) {
+            subjectId = operation.pdId; detail = { established: false, renounced: true };
+          } else if (!establishLegitimacy(m2, operation.actorParticipantId, operation.pdId, operation.replacePdId)) error = 'INVALID_EFFECT_INPUT';
+          else {
+            m2.participants[operation.actorParticipantId]!.victoryPoints += 1;
+            subjectId = operation.pdId; detail = { established: true, renounced: false,
+              ...(operation.replacePdId === undefined ? {} : { replacedPdId: operation.replacePdId }) };
+          }
         } else if (operation.kind === 'MODIFY_CAMPAIGN') {
           const campaign = m2.campaigns[operation.campaignId]; const replacement = m2.cards[operation.replacementCardId];
+          const canonicalCampaign = working.adjudication.campaigns[operation.campaignId];
+          const replacedAssignment = canonicalCampaign?.assignments.find(({ cardInstanceId }) => cardInstanceId === operation.oldCardId);
+          const replacementRule = working.adjudication.campaignCardRules[working.cards[operation.replacementCardId]?.definitionId ?? ''];
           if (campaign?.ownerParticipantId !== operation.actorParticipantId) error = 'CAMPAIGN_NOT_OWNED';
           else if (replacement?.controllerParticipantId !== operation.actorParticipantId) error = 'CARD_NOT_CONTROLLED';
+          else if (replacedAssignment === undefined || replacementRule?.influenceValueBySlot[replacedAssignment.slot] === undefined) error = 'CARD_NOT_ELIGIBLE';
           else { error = modifyCampaignCard(m2, operation.campaignId, operation.oldCardId, operation.replacementCardId); subjectId = operation.campaignId; }
         } else if (operation.kind === 'DISCARD_CAMPAIGN') {
           if (m2.campaigns[operation.campaignId]?.ownerParticipantId !== operation.actorParticipantId) error = 'CAMPAIGN_NOT_OWNED';
@@ -2246,18 +2258,28 @@ export class SetupCommandDispatcher {
         !strategy.handCardInstanceIds.includes(cardId)
       )
         return { error: "INVALID_MAINTENANCE_SELECTION" as const };
-      strategy.handCardInstanceIds = strategy.handCardInstanceIds.filter(
-        (id) => id !== cardId,
-      );
-      strategy.discardCardInstanceIds.push(cardId);
-      card.zone = "DISCARD";
+    }
+    for (const cardId of maintenance.discardCardInstanceIds) {
+      const card = state.cards[cardId]!;
+      strategy.handCardInstanceIds = strategy.handCardInstanceIds.filter((id) => id !== cardId);
+      const printedOwnerParticipantId = state.countries[card.countryOwnerId].controllerParticipantId;
+      let destination: SetupCardInstance['zone']; let returnedToParticipantId: string | undefined;
+      if (card.returnToOwnerOnDiscard === true && printedOwnerParticipantId !== undefined && printedOwnerParticipantId !== participantId) {
+        card.controllerParticipantId = printedOwnerParticipantId; card.returnToOwnerOnDiscard = false; card.zone = 'HAND';
+        const ownerStrategy = state.strategy[printedOwnerParticipantId];
+        if (ownerStrategy !== undefined && !ownerStrategy.handCardInstanceIds.includes(cardId)) ownerStrategy.handCardInstanceIds.push(cardId);
+        destination = 'HAND'; returnedToParticipantId = printedOwnerParticipantId;
+      } else {
+        card.zone = 'DISCARD'; strategy.discardCardInstanceIds.push(cardId); destination = 'DISCARD';
+      }
       delete card.zonePosition;
       events.push(
         this.appendEvent(state, envelope, "CARD_MOVED", {
           participantId,
           cardInstanceId: cardId,
           fromZone: "HAND",
-          toZone: "DISCARD",
+          toZone: destination,
+          ...(returnedToParticipantId === undefined ? {} : { returnedToParticipantId }),
         }),
       );
     }
