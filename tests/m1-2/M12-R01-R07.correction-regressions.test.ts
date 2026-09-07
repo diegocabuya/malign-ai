@@ -365,7 +365,7 @@ describe('M12-R06 — manual die continuation', () => {
     correlationId: 'm1-2-full-campaign',
   });
 
-  it('suspends for a private manual D10 request without consuming RNG, then resumes exactly once', () => {
+  it('GE-DIE-003 — suspends for a private manual D10 request without consuming RNG, then persists the audited submitter and resumes exactly once', () => {
     const testHarness = adjudicationHarness({ diceMode: 'MANUAL_DIE_INPUT' });
     const initial = testHarness.store.snapshot(GAME_ID)!;
     const initialEventCount = initial.events.length;
@@ -396,7 +396,7 @@ describe('M12-R06 — manual die continuation', () => {
     expect(testHarness.random.cursor).toBe(cursorBefore);
   });
 
-  it.each([0, 1.5, 11, Number.POSITIVE_INFINITY])('rejects invalid manual value %s atomically', (value) => {
+  it.each([0, 1.5, 11, Number.POSITIVE_INFINITY])('GE-DIE-002 — rejects invalid manual value %s atomically', (value) => {
     const testHarness = adjudicationHarness({ diceMode: 'MANUAL_DIE_INPUT' });
     runConstruct(testHarness); runActivation(testHarness);
     const before = testHarness.store.snapshot(GAME_ID)!;

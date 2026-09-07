@@ -709,7 +709,7 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(testHarness.random.cursor).toBe(4);
   });
 
-  it('GE-ACT-018 — selects E028 review cards with authoritative RNG and leaves the target hand unchanged', () => {
+  it('GE-ACT-018/GE-SEC-005 — scopes E028 temporary reveal to its actor and facilitator, then closes it', () => {
     const testHarness = harness(); const state = completeAndStart(testHarness); state.phase = 'RESOLUTION_STAGE';
     const source = state.cards['ARDEN-CARD-056']!; source.controllerParticipantId = 'P1'; source.zone = 'HAND';
     for (const cardId of ['FLUMA-CARD-001', 'FLUMA-CARD-002', 'FLUMA-CARD-003']) {
@@ -729,6 +729,17 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(committed.cards[source.id]?.zone).toBe('DISCARD');
     expect(committed.m2Audit?.slice(-3).map(({ type }) => type)).toEqual(['CARD_REVEALED', 'CARD_REVEALED', 'CARD_REVEALED']);
     expect(new Set(committed.m2Audit?.slice(-3).map(({ payload }) => payload.cardId)).size).toBe(3);
+    const revealedIds=committed.temporaryReveal?.cardInstanceIds??[];
+    const p1=trustedBindings().find(({participantId})=>participantId==='P1')!.authenticatedSessionId;
+    const p3=trustedBindings().find(({participantId})=>participantId==='P3')!.authenticatedSessionId;
+    const f1=trustedBindings().find(({participantId})=>participantId==='F1')!.authenticatedSessionId;
+    expect(testHarness.app.getGameProjection(p1,state.id)).toMatchObject({ok:true,projection:{temporaryReveal:{cardInstanceIds:revealedIds}}});
+    expect(testHarness.app.getGameProjection(f1,state.id)).toMatchObject({ok:true,projection:{temporaryReveal:{cardInstanceIds:revealedIds}}});
+    expect((testHarness.app.getGameProjection(p3,state.id) as {projection:{temporaryReveal:unknown}}).projection.temporaryReveal).not.toHaveProperty('cardInstanceIds');
+    expect(testHarness.app.execute(p1,command('ACKNOWLEDGE_TEMPORARY_REVEAL',state.id,committed.version,{revealId:committed.temporaryReveal!.id},
+      {commandId:'M2-E028-CLOSE-1',idempotencyKey:'M2-E028-CLOSE-K1'}))).toMatchObject({status:'RESOLVED',resultCode:'TEMPORARY_REVEAL_CLOSED'});
+    const closedProjection=testHarness.app.getGameProjection(p1,state.id) as {ok:true;projection:{temporaryReveal?:unknown}};
+    expect(closedProjection.projection.temporaryReveal).toBeUndefined();
     expect(testHarness.random.requests.slice(-3)).toEqual([
       { minInclusive: 0, maxInclusive: targetHandBefore.length - 1 },
       { minInclusive: 0, maxInclusive: targetHandBefore.length - 2 },

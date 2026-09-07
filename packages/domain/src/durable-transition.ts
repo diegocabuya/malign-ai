@@ -155,6 +155,7 @@ const familyImage = (state: SetupGameState | null, family: DurableNormalizedFami
       m2EffectChoice: state.m2EffectChoice ?? null,
       cleanupContinuation:state.cleanupContinuation??null,
       viralChoice:state.viralChoice??null,
+      temporaryReveal:state.temporaryReveal??null,
     };
     case 'EVENTS_TRACES': return { events: state.events, traces: state.adjudication.traces, m2Audit: state.m2Audit ?? [] };
   }

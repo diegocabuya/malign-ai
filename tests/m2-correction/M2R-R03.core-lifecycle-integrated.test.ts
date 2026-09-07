@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { M1CampaignSlot, SetupGameState } from '../../packages/domain/src/index.js';
-import { completeAndStart, harness } from '../m1-0/test-fixtures.js';
+import { command, completeAndStart, harness } from '../m1-0/test-fixtures.js';
 import { lockMaintenance, reachInitiative, requestInitiative, setMaintenance } from '../m1-1/test-fixtures.js';
 
 const canonical = (): { readonly testHarness: ReturnType<typeof harness>; readonly state: SetupGameState } => {
@@ -153,5 +153,13 @@ describe('M2 integrated core/lifecycle owner gate', () => {
     const committed = testHarness.store.snapshot(state.id)!;
     expect(committed.cards[stolen.id]).toMatchObject({ zone: 'HAND', controllerParticipantId: 'P2', countryOwnerId: 'FLUMA', returnToOwnerOnDiscard: false });
     expect(committed.strategy.P2!.handCardInstanceIds).toContain(stolen.id); expect(committed.strategy.P1!.discardCardInstanceIds).not.toContain(stolen.id);
+  });
+
+  it('GE-SEC-006 — an unbound AI session cannot mutate authoritative state', () => {
+    const { testHarness, state } = canonical(); expect(testHarness.store.commitState(state.id, state.version, state)).toBe(true);
+    const before = testHarness.store.snapshot(state.id)!;
+    expect(testHarness.app.execute('ai-session-p3', command('PASS_REACTION', state.id, state.version, {})))
+      .toMatchObject({ status: 'REJECTED', error: { code: 'INVALID_ACTOR_CONTEXT' } });
+    expect(testHarness.store.snapshot(state.id)).toEqual(before);
   });
 });

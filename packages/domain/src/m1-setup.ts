@@ -249,6 +249,8 @@ export type SetupGameEventType =
   | 'VIRAL_SNAPSHOT_CREATED'
   | 'VIRAL_ATTEMPTED'
   | 'VIRAL_RESOLVED'
+  | 'TEMPORARY_REVEAL_OPENED'
+  | 'TEMPORARY_REVEAL_CLOSED'
   | 'CAMPAIGN_AGED'
   | 'CAMPAIGN_DISCARDED'
   | 'TURN_FLAGS_RESET'
@@ -332,6 +334,14 @@ export interface SetupGameState {
   m2EffectChoice?: M2EffectChoiceContinuation;
   cleanupContinuation?: CleanupContinuation;
   viralChoice?: ViralChoiceContinuation;
+  temporaryReveal?: {
+    readonly id: string;
+    readonly viewerParticipantId: string;
+    readonly targetParticipantId: string;
+    readonly cardInstanceIds: readonly string[];
+    readonly gameVersion: number;
+    readonly status: 'OPEN';
+  };
   currentRevealedAction?: RevealedActionState;
   readonly events: SetupGameEvent[];
 }

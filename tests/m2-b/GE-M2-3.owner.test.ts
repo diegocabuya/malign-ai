@@ -7,7 +7,6 @@ import {
   establishLegitimacy,
   modifyCampaignCard,
   runM2BScheduler,
-  validateManualDie,
 } from '../../packages/game-engine/src/index.js';
 import { m2bState } from './test-fixtures.js';
 
@@ -15,7 +14,7 @@ const owners = [
   'GE-SET-009', 'GE-INI-007', 'GE-INI-008',
   'GE-PLAN-002', 'GE-PLAN-006', 'GE-PLAN-007', 'GE-PLAN-008', 'GE-PLAN-009', 'GE-PLAN-011', 'GE-PLAN-012', 'GE-PLAN-013', 'GE-PLAN-014',
   'GE-ERT-009', 'GE-ERT-010', 'GE-ERT-011', 'GE-ERT-012', 'GE-ERT-013', 'GE-ERT-014', 'GE-ERT-015', 'GE-ERT-022', 'GE-ERT-023',
-  'GE-DIE-002', 'GE-DIE-003', 'GE-SEC-005', 'GE-SEC-006', 'GE-M2-SCH-001', 'GE-M2-EFX-001',
+  'GE-M2-SCH-001', 'GE-M2-EFX-001',
 ] as const;
 
 describe('M2-3 owner gate — Complete Scheduler and Remaining Core Rules', () => {
@@ -30,8 +29,6 @@ describe('M2-3 owner gate — Complete Scheduler and Remaining Core Rules', () =
       expect(dispatcher.dispatch(state, { actorParticipantId: 'P1', effectId: 'UNKNOWN', effectVersion: '0.1', parameters: {} })).toEqual({ ok: false, state, error: 'EFFECT_UNKNOWN', emitted: [] });
       expect(dispatcher.dispatch(state, { actorParticipantId: 'P1', effectId: 'CARD_EFFECT_BASE_2025_E014', effectVersion: '0.1', parameters: {} })).toMatchObject({ ok: false, error: 'EFFECT_DISABLED' });
       expect(state).toEqual(before);
-    } else if (id.startsWith('GE-DIE-')) {
-      expect(validateManualDie(8)).toBeUndefined(); expect(validateManualDie(id === 'GE-DIE-002' ? 0 : 8)).toBe(id === 'GE-DIE-002' ? 'INVALID_DIE_VALUE' : undefined);
     } else if (id.startsWith('GE-CUBE-')) {
       state.participants.P1!.victoryPoints = 5;
       const placed = applyBacklash(state, 'P1', id === 'GE-CUBE-009' ? 'ARDEN_PD_1' : 'PRESQUE_PD_1', 2);

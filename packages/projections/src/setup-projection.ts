@@ -106,6 +106,13 @@ export interface SetupGameProjection {
     readonly optionCount:number;
     readonly options?:readonly string[];
   };
+  readonly temporaryReveal?: {
+    readonly revealId:string;
+    readonly viewerParticipantId:string;
+    readonly targetParticipantId:string;
+    readonly cardCount:number;
+    readonly cardInstanceIds?:readonly string[];
+  };
   readonly outcome?: NonNullable<NonNullable<SetupGameState['endGame']>['outcome']>;
   readonly viewerPrivateState?: ViewerPrivateStateProjection;
 }
@@ -270,6 +277,11 @@ export const buildSetupGameProjection = (state: SetupGameState, viewer: ActorCon
       optionCount:state.viralChoice.options.length,
       ...(participant.role==='FACILITATOR'||state.viralChoice.chooserParticipantId===viewerParticipantId
         ?{options:[...state.viralChoice.options]}:{})}}),
+    ...(state.temporaryReveal===undefined?{}:{temporaryReveal:{revealId:state.temporaryReveal.id,
+      viewerParticipantId:state.temporaryReveal.viewerParticipantId,targetParticipantId:state.temporaryReveal.targetParticipantId,
+      cardCount:state.temporaryReveal.cardInstanceIds.length,
+      ...(participant.role==='FACILITATOR'||viewerParticipantId===state.temporaryReveal.viewerParticipantId
+        ?{cardInstanceIds:[...state.temporaryReveal.cardInstanceIds]}:{})}}),
     ...(state.endGame?.outcome === undefined ? {} : { outcome: structuredClone(state.endGame.outcome) }),
     ...(viewerPrivateState === undefined ? {} : { viewerPrivateState }),
   };

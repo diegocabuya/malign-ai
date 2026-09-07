@@ -63,7 +63,8 @@ export type SetupCommandType =
   | 'CAST_VETO_VOTE'
   | 'RESOLVE_VETO_ABUSE'
   | 'SUBMIT_M2_EFFECT_CHOICE'
-  | 'SUBMIT_VIRAL_CHOICE';
+  | 'SUBMIT_VIRAL_CHOICE'
+  | 'ACKNOWLEDGE_TEMPORARY_REVEAL';
 
 export interface CreateGamePayload {
   readonly scenarioDefinitionId: 'BASE_2025';
@@ -130,6 +131,7 @@ export type SubmitM2EffectChoicePayload =
   | { readonly continuationId: string; readonly selectedPosition: number }
   | { readonly continuationId: string; readonly selections: Readonly<Record<string, readonly string[]>> };
 export interface SubmitViralChoicePayload { readonly continuationId:string; readonly selection:string }
+export interface AcknowledgeTemporaryRevealPayload { readonly revealId:string }
 
 export type SetupCommandPayload =
   | CreateGamePayload
@@ -146,6 +148,7 @@ export type SetupCommandPayload =
   | ResolveVetoAbusePayload
   | SubmitM2EffectChoicePayload
   | SubmitViralChoicePayload
+  | AcknowledgeTemporaryRevealPayload
   | Record<string, never>;
 
 type SetupEnvelope = CommandEnvelope<SetupCommandType, SetupCommandPayload>;
@@ -186,6 +189,7 @@ const pauseBlockedCommands = new Set<SetupCommandType>([
   'RESOLVE_VETO_ABUSE',
   'SUBMIT_M2_EFFECT_CHOICE',
   'SUBMIT_VIRAL_CHOICE',
+  'ACKNOWLEDGE_TEMPORARY_REVEAL',
 ]);
 
 const reactionDefinitionByEffect: Readonly<Record<string, string>> = {
@@ -392,6 +396,8 @@ export const validateSetupCommandPayload = (
     case 'SUBMIT_VIRAL_CHOICE':
       return hasExactKeys(payload,['continuationId','selection'])&&isNonEmptyString(payload.continuationId)&&isNonEmptyString(payload.selection)
         ?undefined:'INVALID_COMMAND_PAYLOAD';
+    case 'ACKNOWLEDGE_TEMPORARY_REVEAL':
+      return hasExactKeys(payload,['revealId'])&&isNonEmptyString(payload.revealId)?undefined:'INVALID_COMMAND_PAYLOAD';
   }
   return 'INVALID_COMMAND_PAYLOAD';
 };
@@ -974,6 +980,16 @@ export class SetupCommandDispatcher {
         if (options.effectId === 'CARD_EFFECT_BASE_2025_E042' || options.effectId === 'CARD_EFFECT_BASE_2025_E034') result.state.cards[options.sourceCardInstanceId]!.zone = 'REMOVED_FROM_GAME';
         else if (regimeCountry === undefined && !pairBonusEffect && !targetDtEffect) discardWithLifecycle(result.state, options.sourceCardInstanceId);
         applyM2StateToCanonical(working, result.state);
+        let temporaryRevealEvent: SetupGameEvent | undefined;
+        if(options.effectId==='CARD_EFFECT_BASE_2025_E028'){
+          const selectedCardIds=Array.isArray(authoritativeParameters.selectedCardIds)
+            ? authoritativeParameters.selectedCardIds.filter((id):id is string=>typeof id==='string'):[];
+          const targetParticipantId=typeof authoritativeParameters.targetParticipantId==='string'?authoritativeParameters.targetParticipantId:'';
+          working.temporaryReveal={id:`${working.id}:temporary-reveal:${working.version+1}`,viewerParticipantId:options.actorParticipantId,
+            targetParticipantId,cardInstanceIds:selectedCardIds,gameVersion:working.version+1,status:'OPEN'};
+          temporaryRevealEvent=this.appendEvent(working,candidate,'TEMPORARY_REVEAL_OPENED',{revealId:working.temporaryReveal.id,
+            viewerParticipantId:options.actorParticipantId,targetParticipantId,cardCount:selectedCardIds.length},'OWNER_AND_FACILITATOR');
+        }
         if (regimeCountry !== undefined && !continuingFluma) {
           const resolvedSlot = working.actionPlanning[options.actorParticipantId]?.lockedSlots.find(({ sequenceIndex }) =>
             sequenceIndex === working.currentRevealedAction?.sequenceIndex);
@@ -1003,7 +1019,8 @@ export class SetupCommandDispatcher {
         return {
           nextState: working, resultCode: 'M2_EFFECT_EXECUTED',
           resultPayload: { effectId: options.effectId, audit: result.emitted },
-          emittedEventRefs: [event.id, ...(regimeResolvedEvent === undefined ? [] : [regimeResolvedEvent.id])],
+          emittedEventRefs: [...(temporaryRevealEvent === undefined ? [] : [temporaryRevealEvent.id]), event.id,
+            ...(regimeResolvedEvent === undefined ? [] : [regimeResolvedEvent.id])],
         };
       },
     });
@@ -1457,8 +1474,19 @@ export class SetupCommandDispatcher {
       case 'RESOLVE_VETO_ABUSE': return this.resolveVetoAbuse(state, envelope);
       case 'SUBMIT_M2_EFFECT_CHOICE': return this.submitM2EffectChoice(state, envelope);
       case 'SUBMIT_VIRAL_CHOICE': return this.submitViralChoice(state, envelope);
+      case 'ACKNOWLEDGE_TEMPORARY_REVEAL': return this.acknowledgeTemporaryReveal(state, envelope);
       case 'CREATE_GAME': return { error: 'GAME_ALREADY_EXISTS' };
     }
+  }
+
+  private acknowledgeTemporaryReveal(state:SetupGameState,envelope:SetupEnvelope){
+    if(state.phase!=='RESOLUTION_STAGE')return{error:'WRONG_PHASE' as const};
+    const payload=envelope.payload as AcknowledgeTemporaryRevealPayload;const reveal=state.temporaryReveal;
+    if(reveal===undefined||reveal.id!==payload.revealId||reveal.gameVersion!==state.version)return{error:'STALE_CONTINUATION' as const};
+    if(envelope.actorContext.participantId!==reveal.viewerParticipantId)return{error:'CHOICE_NOT_AUTHORIZED' as const};
+    delete state.temporaryReveal;
+    const event=this.appendEvent(state,envelope,'TEMPORARY_REVEAL_CLOSED',{revealId:reveal.id,viewerParticipantId:reveal.viewerParticipantId},'OWNER_AND_FACILITATOR');
+    return{resultCode:'TEMPORARY_REVEAL_CLOSED',resultPayload:{revealId:reveal.id},events:[event]};
   }
 
   private submitViralChoice(state: SetupGameState, envelope: SetupEnvelope) {

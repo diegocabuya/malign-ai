@@ -161,6 +161,8 @@ const canonicalPayloadKeys: Readonly<Record<SetupGameEventType, readonly string[
   VIRAL_SNAPSHOT_CREATED: ['originCount', 'variant'],
   VIRAL_ATTEMPTED: ['originPdId', 'destinationPdId', 'influenceType', 'ownerParticipantId', 'variant', 'rollsConsumed'],
   VIRAL_RESOLVED: ['originPdId', 'destinationPdId', 'influenceType', 'success', 'generated', 'placed', 'removed'],
+  TEMPORARY_REVEAL_OPENED: ['revealId', 'viewerParticipantId', 'targetParticipantId', 'cardCount'],
+  TEMPORARY_REVEAL_CLOSED: ['revealId', 'viewerParticipantId'],
   CAMPAIGN_AGED: ['campaignId', 'row'],
   CAMPAIGN_DISCARDED: ['campaignId'],
   TURN_FLAGS_RESET: [],
