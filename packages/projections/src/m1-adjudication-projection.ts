@@ -71,7 +71,7 @@ const canonicalPayloadKeys: Readonly<Record<SetupGameEventType, readonly string[
   PHASE_CHANGED: ['phase'],
   OPERATIONS_DECK_SUBMITTED: ['participantId', 'count'],
   DECK_SHUFFLED: ['participantId', 'count', 'source'],
-  CARD_DRAWN: ['participantId', 'cardInstanceId', 'drawIndex', 'handSizeAfter'],
+  CARD_DRAWN: ['participantId', 'cardInstanceId', 'drawIndex', 'handSizeAfter', 'protocolTriggered'],
   PLAYER_READY_CHANGED: [
     'participantId',
     'strategyLocked',
@@ -85,7 +85,7 @@ const canonicalPayloadKeys: Readonly<Record<SetupGameEventType, readonly string[
   INITIATIVE_ROLLED: ['rngRequestId', 'source', 'attempt', 'participantId', 'rawValue', 'consumptionOrder'],
   INITIATIVE_ORDER_SET: ['winnerParticipantId', 'order'],
   RESOURCE_CHANGED: ['participantId', 'countryId', 'reason', 'delta', 'balanceAfter'],
-  CARD_MOVED: ['participantId', 'cardInstanceId', 'fromZone', 'toZone'],
+  CARD_MOVED: ['participantId', 'cardInstanceId', 'fromZone', 'toZone', 'reason'],
   ACTION_PLAN_SAVED: ['participantId', 'actionCount'],
   AP_COMMITTED: ['participantId', 'amount', 'balanceAfter'],
   ACTION_PLAN_LOCKED: ['participantId', 'actionCount'],

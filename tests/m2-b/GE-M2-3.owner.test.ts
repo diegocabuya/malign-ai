@@ -11,7 +11,6 @@ import {
 import { m2bState } from './test-fixtures.js';
 
 const owners = [
-  'GE-SET-009', 'GE-INI-007', 'GE-INI-008',
   'GE-PLAN-002', 'GE-PLAN-006', 'GE-PLAN-007', 'GE-PLAN-008', 'GE-PLAN-009', 'GE-PLAN-011', 'GE-PLAN-012', 'GE-PLAN-013', 'GE-PLAN-014',
   'GE-ERT-009', 'GE-ERT-010', 'GE-ERT-011', 'GE-ERT-012', 'GE-ERT-013', 'GE-ERT-014', 'GE-ERT-015', 'GE-ERT-022', 'GE-ERT-023',
   'GE-M2-SCH-001', 'GE-M2-EFX-001',

@@ -821,9 +821,9 @@ export class SetupCommandDispatcher {
           working.cards[options.sourceCardInstanceId]!.zone = 'DISCARD';
           const drawn: string[] = [];
           while (drawn.length < 3 && strategy.operationsDeckOrder.length > 0) {
-            const cardId = strategy.operationsDeckOrder.shift()!; drawn.push(cardId); strategy.handCardInstanceIds.push(cardId);
+            const cardId = strategy.operationsDeckOrder.shift()!; drawn.push(cardId);
             const card = working.cards[cardId]; if (card === undefined) return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
-            card.zone = 'HAND'; delete card.zonePosition;
+            this.resolveDrawnCard(working, candidate, options.actorParticipantId, cardId, { drawIndex: drawn.length });
           }
           strategy.operationsDeckOrder.forEach((id, index) => { const card = working.cards[id]; if (card !== undefined) card.zonePosition = index; });
           const overflow = Math.max(0, strategy.handCardInstanceIds.length - working.handLimit);
@@ -2084,25 +2084,18 @@ export class SetupCommandDispatcher {
     }
     const drawn = shuffled.slice(0, 5);
     const remaining = shuffled.slice(5);
-    for (const cardId of drawn) {
-      const card = state.cards[cardId];
-      if (card === undefined) return { error: 'CARD_NOT_CONTROLLED' as const };
-      card.zone = 'HAND';
-      delete card.zonePosition;
-    }
     remaining.forEach((cardId, index) => {
       const card = state.cards[cardId];
       if (card !== undefined) card.zonePosition = index;
     });
     strategy.operationsDeckOrder = remaining;
-    strategy.handCardInstanceIds = [...starterIds, ...drawn];
+    strategy.handCardInstanceIds = [...starterIds];
+    strategy.discardCardInstanceIds = [];
     strategy.locked = true;
 
-    const events: SetupGameEvent[] = [
-      this.appendEvent(state, envelope, 'DECK_SHUFFLED', { participantId, count: shuffled.length }),
-      ...drawn.map((cardId, index) => this.appendEvent(state, envelope, 'CARD_DRAWN', { participantId, cardInstanceId: cardId, drawIndex: index + 1 })),
-      this.appendEvent(state, envelope, 'PLAYER_READY_CHANGED', { participantId, strategyLocked: true }),
-    ];
+    const events: SetupGameEvent[] = [this.appendEvent(state, envelope, 'DECK_SHUFFLED', { participantId, count: shuffled.length })];
+    drawn.forEach((cardId, index) => events.push(...this.resolveDrawnCard(state, envelope, participantId, cardId, { drawIndex: index + 1 })));
+    events.push(this.appendEvent(state, envelope, 'PLAYER_READY_CHANGED', { participantId, strategyLocked: true }));
     if (canonicalPlayerIds.every((id) => state.strategy[id]?.locked === true)) {
       state.phase = 'INITIATIVE_STAGE';
       events.push(this.appendEvent(state, envelope, 'PHASE_CHANGED', { phase: state.phase }));
@@ -2339,20 +2332,11 @@ export class SetupCommandDispatcher {
         const card = state.cards[cardId];
         if (card === undefined)
           return { error: "CARD_NOT_CONTROLLED" as const };
-        card.zone = "HAND";
-        delete card.zonePosition;
         strategy.operationsDeckOrder.forEach((remainingId, index) => {
           const remaining = state.cards[remainingId];
           if (remaining !== undefined) remaining.zonePosition = index;
         });
-        strategy.handCardInstanceIds.push(cardId);
-        events.push(
-          this.appendEvent(state, envelope, "CARD_DRAWN", {
-            participantId,
-            cardInstanceId: cardId,
-            handSizeAfter: strategy.handCardInstanceIds.length,
-          }),
-        );
+        events.push(...this.resolveDrawnCard(state, envelope, participantId, cardId, {}));
       }
     } catch {
       return { error: "RANDOM_PROVIDER_FAILURE" as const };
@@ -2619,6 +2603,57 @@ export class SetupCommandDispatcher {
       output[swapIndex] = current;
     }
     return output;
+  }
+
+  /** Resolves a single Operations Deck draw, including DEC-028's mandatory
+   * Protocolos de Seguridad interception. The caller controls how many draw
+   * attempts occur; a cancelled Filtraciones draw still consumes one attempt. */
+  private resolveDrawnCard(
+    state: SetupGameState,
+    envelope: CommandEnvelope<string, unknown>,
+    participantId: string,
+    cardId: string,
+    metadata: Readonly<Record<string, number>>,
+  ): SetupGameEvent[] {
+    const strategy = state.strategy[participantId];
+    const card = state.cards[cardId];
+    if (strategy === undefined || card === undefined) throw new Error('Draw references an unknown participant or card');
+    const protocolId = strategy.handCardInstanceIds.find(
+      (candidateId) => state.cards[candidateId]?.definitionId === 'BASE_CARD_094',
+    );
+    const protocolTriggered = card.definitionId === 'BASE_CARD_026' && protocolId !== undefined;
+    delete card.zonePosition;
+
+    if (protocolTriggered) {
+      strategy.handCardInstanceIds = strategy.handCardInstanceIds.filter((candidateId) => candidateId !== protocolId);
+      if (!strategy.discardCardInstanceIds.includes(protocolId)) strategy.discardCardInstanceIds.push(protocolId);
+      strategy.discardCardInstanceIds.push(cardId);
+      const protocol = state.cards[protocolId];
+      if (protocol === undefined) throw new Error('Security Protocol card disappeared during draw resolution');
+      protocol.zone = 'DISCARD';
+      delete protocol.zonePosition;
+      card.zone = 'DISCARD';
+    } else {
+      card.zone = 'HAND';
+      strategy.handCardInstanceIds.push(cardId);
+    }
+
+    const events = [this.appendEvent(state, envelope, 'CARD_DRAWN', {
+      participantId,
+      cardInstanceId: cardId,
+      handSizeAfter: strategy.handCardInstanceIds.length,
+      protocolTriggered,
+      ...metadata,
+    })];
+    if (protocolTriggered) {
+      events.push(this.appendEvent(state, envelope, 'CARD_MOVED', {
+        participantId, cardInstanceId: protocolId, fromZone: 'HAND', toZone: 'DISCARD', reason: 'SECURITY_PROTOCOLS',
+      }));
+      events.push(this.appendEvent(state, envelope, 'CARD_MOVED', {
+        participantId, cardInstanceId: cardId, fromZone: 'OPERATIONS_DECK', toZone: 'DISCARD', reason: 'SECURITY_PROTOCOLS',
+      }));
+    }
+    return events;
   }
 
   private randomInteger(minInclusive: number, maxInclusive: number): number {
