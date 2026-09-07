@@ -1140,7 +1140,9 @@ export class M1AdjudicationEngine {
     }
     const value = calculateCampaignValue(components, [...pairKeys].map(() => 2));
     const country = state.countries[countryId];
-    if (country.resources < value.baseCost) {
+    const componentResourceCost = campaign.assignments.reduce((sum, { definitionId }) => sum
+      + (definitionId === 'BASE_CARD_054' ? 1 : definitionId === 'BASE_CARD_069' ? 3 : 0), 0);
+    if (country.resources < value.baseCost + componentResourceCost) {
       slot.terminalOutcome = 'FAILED_COST';
       this.advanceScheduler(state);
       const failed = this.appendEvent(state, envelope, 'ACTION_RESOLVED', {
@@ -1289,31 +1291,47 @@ export class M1AdjudicationEngine {
     }
 
     const country = state.countries[countryId];
+    const componentCosts = campaign.assignments.flatMap(({ definitionId }) => definitionId === 'BASE_CARD_054' ? [1]
+      : definitionId === 'BASE_CARD_069' ? [3] : []);
+    const componentResourceCost = componentCosts.reduce((sum, cost) => sum + cost, 0);
+    const totalResourceCost = resourceCost + componentResourceCost;
     const plannedBoost = state.adjudication.plannedBoostsByParticipant?.[participantId];
     const boostApplies = plannedBoost?.campaignId === campaign.id && plannedBoost.activationSequenceIndex === slot.sequenceIndex;
-    if (country.resources < resourceCost) {
+    if (country.resources < totalResourceCost) {
       if (boostApplies) delete state.adjudication.plannedBoostsByParticipant?.[participantId];
       return { error: 'COST_PAYMENT_FAILED' };
     }
     const resourceBefore = country.resources;
-    country.resources -= resourceCost;
-    const resourceLedgerId = `${state.id}:resource-ledger:${state.resourceLedger.length + 1}`;
+    country.resources -= totalResourceCost;
+    const resourceLedgerIds: string[] = [];
+    const baseResourceLedgerId = `${state.id}:resource-ledger:${state.resourceLedger.length + 1}`;
     state.resourceLedger.push({
-      id: resourceLedgerId,
+      id: baseResourceLedgerId,
       participantId,
       countryId,
       reason: 'CAMPAIGN_ACTIVATION_COST',
       delta: -resourceCost,
-      balanceAfter: country.resources,
+      balanceAfter: resourceBefore - resourceCost,
       gameVersion: state.version + 1,
     });
+    resourceLedgerIds.push(baseResourceLedgerId);
+    let componentBalance = resourceBefore - resourceCost;
+    for (const componentCost of componentCosts) {
+      componentBalance -= componentCost;
+      const ledgerId = `${state.id}:resource-ledger:${state.resourceLedger.length + 1}`;
+      state.resourceLedger.push({ id: ledgerId, participantId, countryId, reason: 'CAMPAIGN_COMPONENT_COST', delta: -componentCost,
+        balanceAfter: componentBalance, gameVersion: state.version + 1 });
+      resourceLedgerIds.push(ledgerId);
+    }
     const costEvent = this.appendEvent(state, envelope, 'CAMPAIGN_COST_PAID', {
       activationId,
       participantId,
       countryId,
-      amount: resourceCost,
+      amount: totalResourceCost,
+      tierCost: resourceCost,
+      componentCost: componentResourceCost,
       balanceAfter: country.resources,
-      ledgerId: resourceLedgerId,
+      ledgerId: baseResourceLedgerId,
     }, eventRefs.at(-1));
     eventRefs.push(costEvent.id);
 
@@ -1400,14 +1418,14 @@ export class M1AdjudicationEngine {
       effectiveCv,
       baseTier,
       resolutionTier,
-      resourceCost,
+      resourceCost: totalResourceCost,
       rawRoll,
       modifiedRollRaw: normalized.modifiedRollRaw,
       ertRoll: normalized.ertRoll,
       ertResult,
       preStateHash,
       eventRefsBeforeChoice: [...eventRefs],
-        ledgerRefsBeforeChoice: [...coalition.ledgerRefs, resourceLedgerId],
+        ledgerRefsBeforeChoice: [...coalition.ledgerRefs, ...resourceLedgerIds],
     };
     if (resolution.oppositeRemoved > 0 && distinctAttributions.size > 1) {
       const choiceId = `${activationId}:choice:opposite-attribution`;
@@ -1475,7 +1493,7 @@ export class M1AdjudicationEngine {
     }
 
     const automaticSelections = this.automaticAttributionSelections(oppositeStacks, resolution.oppositeRemoved);
-    return this.completeActivation(state, slot, envelope, campaign, continuationBase, automaticSelections, eventRefs, [...coalition.ledgerRefs, resourceLedgerId]);
+    return this.completeActivation(state, slot, envelope, campaign, continuationBase, automaticSelections, eventRefs, [...coalition.ledgerRefs, ...resourceLedgerIds]);
   }
 
   private automaticAttributionSelections(stacks: readonly InfluenceStackState[], removals: number): CountryId[] {

@@ -179,7 +179,7 @@ export interface ResourceLedgerEntry {
   readonly participantId: string | null;
   readonly countryId: CountryId;
   readonly reason: 'SCENARIO_SETUP' | 'TURN_INCOME' | 'CAMPAIGN_ACTIVATION_COST' | 'COALITION_CONTRIBUTION' |
-    'CARD_COST' | 'REGIME_ABILITY_COST' | 'CARD_EFFECT' | 'TRANSFER' | 'DEAL_TRANSFER' | 'ERT_ROLL_BOOST';
+    'CARD_COST' | 'REGIME_ABILITY_COST' | 'CARD_EFFECT' | 'TRANSFER' | 'DEAL_TRANSFER' | 'CAMPAIGN_COMPONENT_COST' | 'ERT_ROLL_BOOST';
   readonly delta: number;
   readonly balanceAfter: number;
   readonly gameVersion: number;
