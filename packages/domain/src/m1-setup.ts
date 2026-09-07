@@ -179,7 +179,7 @@ export interface ResourceLedgerEntry {
   readonly participantId: string | null;
   readonly countryId: CountryId;
   readonly reason: 'SCENARIO_SETUP' | 'TURN_INCOME' | 'CAMPAIGN_ACTIVATION_COST' | 'COALITION_CONTRIBUTION' |
-    'CARD_COST' | 'REGIME_ABILITY_COST' | 'CARD_EFFECT' | 'TRANSFER' | 'ERT_ROLL_BOOST';
+    'CARD_COST' | 'REGIME_ABILITY_COST' | 'CARD_EFFECT' | 'TRANSFER' | 'DEAL_TRANSFER' | 'ERT_ROLL_BOOST';
   readonly delta: number;
   readonly balanceAfter: number;
   readonly gameVersion: number;
@@ -267,6 +267,12 @@ export type SetupGameEventType =
   | 'VETO_RESOLVED'
   | 'VETO_ABUSE_REVIEWED'
   | 'M2_EFFECT_EXECUTED'
+  | 'STARTER_PLAYED'
+  | 'STARTER_REMOVED'
+  | 'RESOURCE_GAINED'
+  | 'DEAL_PROMISED'
+  | 'DEAL_RESOURCE_TRANSFERRED'
+  | 'DEAL_CARD_TRANSFERRED'
   | 'M2_CORE_OPERATION_EXECUTED';
 
 

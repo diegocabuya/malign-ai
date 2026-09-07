@@ -180,6 +180,12 @@ const canonicalPayloadKeys: Readonly<Record<SetupGameEventType, readonly string[
   VETO_ABUSE_REVIEWED: ['windowId', 'participantId', 'decision'],
   M2_EFFECT_EXECUTED: ['effectId', 'actorParticipantId', 'sourceCardInstanceId', 'auditCount'],
   M2_CORE_OPERATION_EXECUTED: ['operation', 'actorParticipantId', 'subjectId'],
+  STARTER_PLAYED: ['participantId', 'cardInstanceId', 'effectId'],
+  STARTER_REMOVED: ['participantId', 'cardInstanceId'],
+  RESOURCE_GAINED: ['participantId', 'countryId', 'delta', 'balanceAfter'],
+  DEAL_PROMISED: ['sourceParticipantId', 'targetParticipantId', 'resourceAmount'],
+  DEAL_RESOURCE_TRANSFERRED: ['sourceParticipantId', 'targetParticipantId', 'amount'],
+  DEAL_CARD_TRANSFERRED: ['sourceParticipantId', 'targetParticipantId', 'cardInstanceId', 'printedCountryOwnerId'],
 };
 
 const facilitatorAuditPayloadKeys: Readonly<Partial<Record<SetupGameEventType, readonly string[]>>> = {

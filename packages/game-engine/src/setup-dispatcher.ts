@@ -64,7 +64,10 @@ export type SetupCommandType =
   | 'RESOLVE_VETO_ABUSE'
   | 'SUBMIT_M2_EFFECT_CHOICE'
   | 'SUBMIT_VIRAL_CHOICE'
-  | 'ACKNOWLEDGE_TEMPORARY_REVEAL';
+  | 'ACKNOWLEDGE_TEMPORARY_REVEAL'
+  | 'RECORD_DEAL_PROMISE'
+  | 'TRANSFER_DEAL_RESOURCES'
+  | 'TRANSFER_DEAL_CARD';
 
 export interface CreateGamePayload {
   readonly scenarioDefinitionId: 'BASE_2025';
@@ -132,6 +135,9 @@ export type SubmitM2EffectChoicePayload =
   | { readonly continuationId: string; readonly selections: Readonly<Record<string, readonly string[]>> };
 export interface SubmitViralChoicePayload { readonly continuationId:string; readonly selection:string }
 export interface AcknowledgeTemporaryRevealPayload { readonly revealId:string }
+export interface RecordDealPromisePayload { readonly targetParticipantId:string; readonly resourceAmount:number }
+export interface TransferDealResourcesPayload { readonly targetParticipantId:string; readonly amount:number }
+export interface TransferDealCardPayload { readonly targetParticipantId:string; readonly cardInstanceId:string }
 
 export type SetupCommandPayload =
   | CreateGamePayload
@@ -149,6 +155,9 @@ export type SetupCommandPayload =
   | SubmitM2EffectChoicePayload
   | SubmitViralChoicePayload
   | AcknowledgeTemporaryRevealPayload
+  | RecordDealPromisePayload
+  | TransferDealResourcesPayload
+  | TransferDealCardPayload
   | Record<string, never>;
 
 type SetupEnvelope = CommandEnvelope<SetupCommandType, SetupCommandPayload>;
@@ -190,6 +199,9 @@ const pauseBlockedCommands = new Set<SetupCommandType>([
   'SUBMIT_M2_EFFECT_CHOICE',
   'SUBMIT_VIRAL_CHOICE',
   'ACKNOWLEDGE_TEMPORARY_REVEAL',
+  'RECORD_DEAL_PROMISE',
+  'TRANSFER_DEAL_RESOURCES',
+  'TRANSFER_DEAL_CARD',
 ]);
 
 const reactionDefinitionByEffect: Readonly<Record<string, string>> = {
@@ -398,6 +410,17 @@ export const validateSetupCommandPayload = (
         ?undefined:'INVALID_COMMAND_PAYLOAD';
     case 'ACKNOWLEDGE_TEMPORARY_REVEAL':
       return hasExactKeys(payload,['revealId'])&&isNonEmptyString(payload.revealId)?undefined:'INVALID_COMMAND_PAYLOAD';
+    case 'RECORD_DEAL_PROMISE':
+      return hasExactKeys(payload,['targetParticipantId','resourceAmount'])&&isNonEmptyString(payload.targetParticipantId)&&
+        Number.isInteger(payload.resourceAmount)&&Number.isFinite(payload.resourceAmount)&&(payload.resourceAmount as number)>=0
+        ?undefined:'INVALID_COMMAND_PAYLOAD';
+    case 'TRANSFER_DEAL_RESOURCES':
+      return hasExactKeys(payload,['targetParticipantId','amount'])&&isNonEmptyString(payload.targetParticipantId)&&
+        Number.isInteger(payload.amount)&&Number.isFinite(payload.amount)&&(payload.amount as number)>0
+        ?undefined:'INVALID_COMMAND_PAYLOAD';
+    case 'TRANSFER_DEAL_CARD':
+      return hasExactKeys(payload,['targetParticipantId','cardInstanceId'])&&isNonEmptyString(payload.targetParticipantId)&&isNonEmptyString(payload.cardInstanceId)
+        ?undefined:'INVALID_COMMAND_PAYLOAD';
   }
   return 'INVALID_COMMAND_PAYLOAD';
 };
@@ -762,7 +785,9 @@ export class SetupCommandDispatcher {
         if (candidate.expectedGameVersion !== before.version) return { error: 'STALE_STATE_VERSION' as const, version: before.version };
         if (before.overlay === 'PAUSED') return { error: 'GAME_PAUSED' as const, version: before.version };
         const actionStageEffect = options.effectId === 'CARD_EFFECT_BASE_2025_E031' || options.effectId === 'CARD_EFFECT_BASE_2025_E053';
-        if (before.phase !== (actionStageEffect ? 'ACTION_STAGE_PLAN' : 'RESOLUTION_STAGE')) return { error: 'WRONG_PHASE' as const, version: before.version };
+        const starterGainPhase = options.effectId === 'CARD_EFFECT_BASE_2025_E042' &&
+          (before.phase === 'ACTION_STAGE_PLAN' || before.phase === 'RESOLUTION_STAGE');
+        if (!starterGainPhase && before.phase !== (actionStageEffect ? 'ACTION_STAGE_PLAN' : 'RESOLUTION_STAGE')) return { error: 'WRONG_PHASE' as const, version: before.version };
         if (before.participants[options.actorParticipantId]?.role !== 'PLAYER') return { error: 'PARTICIPANT_NOT_FOUND' as const, version: before.version };
         const regimeCountryByEffect = {
           REGIME_EFFECT_ARDEN: 'ARDEN', REGIME_EFFECT_FLUMA: 'FLUMA', REGIME_EFFECT_URSARIA: 'URSARIA',
@@ -796,22 +821,41 @@ export class SetupCommandDispatcher {
           const strategy = working.strategy[options.actorParticipantId];
           if (strategy === undefined) return { error: 'PARTICIPANT_NOT_FOUND' as const, version: before.version };
           const sourceCardId = options.sourceCardInstanceId;
-          const handToDiscard = strategy.handCardInstanceIds.filter((id) => id !== sourceCardId);
-          const pool = [...strategy.operationsDeckOrder, ...strategy.discardCardInstanceIds, ...handToDiscard];
+          const remainingHand = strategy.handCardInstanceIds.filter((id) => id !== sourceCardId);
+          const ownDiscard: string[] = [];
+          for (const cardId of remainingHand) {
+            const card = working.cards[cardId];
+            if (card === undefined) return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
+            const printedOwner = working.countries[card.countryOwnerId].controllerParticipantId;
+            if (card.returnToOwnerOnDiscard === true && printedOwner !== undefined && printedOwner !== options.actorParticipantId) {
+              card.controllerParticipantId = printedOwner; card.returnToOwnerOnDiscard = false; card.zone = 'HAND'; delete card.zonePosition;
+              const ownerStrategy = working.strategy[printedOwner];
+              if (ownerStrategy !== undefined && !ownerStrategy.handCardInstanceIds.includes(cardId)) ownerStrategy.handCardInstanceIds.push(cardId);
+            } else if (working.cardDefinitions[card.definitionId]?.starter === true) {
+              card.zone = 'REMOVED_FROM_GAME'; delete card.zonePosition;
+            } else {
+              card.zone = 'DISCARD'; delete card.zonePosition; ownDiscard.push(cardId);
+            }
+          }
+          const pool = [...strategy.operationsDeckOrder, ...strategy.discardCardInstanceIds, ...ownDiscard];
           if (new Set(pool).size !== pool.length) return { error: 'INVALID_EFFECT_INPUT' as const, version: before.version };
           const shuffled = this.shuffle(pool);
-          const drawn = shuffled.slice(0, 10); const remaining = shuffled.slice(10);
-          strategy.handCardInstanceIds = [...drawn]; strategy.discardCardInstanceIds = []; strategy.operationsDeckOrder = [...remaining];
+          strategy.handCardInstanceIds = []; strategy.discardCardInstanceIds = []; strategy.operationsDeckOrder = [...shuffled];
           for (const cardId of pool) {
             const card = working.cards[cardId]; if (card === undefined) return { error: 'CARD_NOT_ELIGIBLE' as const, version: before.version };
-            card.zone = drawn.includes(cardId) ? 'HAND' : 'OPERATIONS_DECK';
-            if (card.zone === 'OPERATIONS_DECK') card.zonePosition = remaining.indexOf(cardId); else delete card.zonePosition;
+            card.zone = 'OPERATIONS_DECK'; card.zonePosition = strategy.operationsDeckOrder.indexOf(cardId);
           }
           const sourceCard = working.cards[sourceCardId]!; sourceCard.zone = 'REMOVED_FROM_GAME'; delete sourceCard.zonePosition;
+          let drawCount = 0;
+          while (strategy.handCardInstanceIds.length < working.handLimit && strategy.operationsDeckOrder.length > 0) {
+            const cardId = strategy.operationsDeckOrder.shift()!; drawCount += 1;
+            this.resolveDrawnCard(working, candidate, options.actorParticipantId, cardId, { drawIndex: drawCount });
+          }
+          strategy.operationsDeckOrder.forEach((id, index) => { const card = working.cards[id]; if (card !== undefined) card.zonePosition = index; });
           const event = this.appendEvent(working, candidate, 'M2_EFFECT_EXECUTED', { effectId: options.effectId,
             actorParticipantId: options.actorParticipantId, sourceCardInstanceId: sourceCardId, auditCount: 0 });
           return { nextState: working, resultCode: 'M2_EFFECT_EXECUTED', resultPayload: { effectId: options.effectId,
-            discardedCount: handToDiscard.length, shuffledCount: pool.length, drawnCount: drawn.length }, emittedEventRefs: [event.id] };
+            discardedCount: ownDiscard.length, shuffledCount: pool.length, drawnCount: drawCount }, emittedEventRefs: [event.id] };
         }
         if (options.effectId === 'CARD_EFFECT_BASE_2025_E045') {
           const strategy = working.strategy[options.actorParticipantId];
@@ -1008,6 +1052,14 @@ export class SetupCommandDispatcher {
           reason: regimeCountry === undefined ? (change.delta < 0 ? 'CARD_COST' : 'CARD_EFFECT') : 'REGIME_ABILITY_COST',
           delta: change.delta, balanceAfter: change.balanceAfter, gameVersion: working.version + 1,
         });
+        const starterEvents: SetupGameEvent[] = [];
+        if (options.effectId === 'CARD_EFFECT_BASE_2025_E042') {
+          starterEvents.push(this.appendEvent(working, candidate, 'STARTER_PLAYED', { participantId: options.actorParticipantId,
+            cardInstanceId: options.sourceCardInstanceId, effectId: options.effectId }));
+          for (const change of resourceChanges) starterEvents.push(this.appendEvent(working, candidate, 'RESOURCE_GAINED', change));
+          starterEvents.push(this.appendEvent(working, candidate, 'STARTER_REMOVED', { participantId: options.actorParticipantId,
+            cardInstanceId: options.sourceCardInstanceId }));
+        }
         const event = this.appendEvent(working, candidate, 'M2_EFFECT_EXECUTED', {
           effectId: options.effectId, actorParticipantId: options.actorParticipantId,
           sourceCardInstanceId: options.sourceCardInstanceId, auditCount: result.emitted.length,
@@ -1019,7 +1071,7 @@ export class SetupCommandDispatcher {
         return {
           nextState: working, resultCode: 'M2_EFFECT_EXECUTED',
           resultPayload: { effectId: options.effectId, audit: result.emitted },
-          emittedEventRefs: [...(temporaryRevealEvent === undefined ? [] : [temporaryRevealEvent.id]), event.id,
+          emittedEventRefs: [...starterEvents.map(({ id }) => id), ...(temporaryRevealEvent === undefined ? [] : [temporaryRevealEvent.id]), event.id,
             ...(regimeResolvedEvent === undefined ? [] : [regimeResolvedEvent.id])],
         };
       },
@@ -1475,6 +1527,9 @@ export class SetupCommandDispatcher {
       case 'SUBMIT_M2_EFFECT_CHOICE': return this.submitM2EffectChoice(state, envelope);
       case 'SUBMIT_VIRAL_CHOICE': return this.submitViralChoice(state, envelope);
       case 'ACKNOWLEDGE_TEMPORARY_REVEAL': return this.acknowledgeTemporaryReveal(state, envelope);
+      case 'RECORD_DEAL_PROMISE': return this.recordDealPromise(state, envelope);
+      case 'TRANSFER_DEAL_RESOURCES': return this.transferDealResources(state, envelope);
+      case 'TRANSFER_DEAL_CARD': return this.transferDealCard(state, envelope);
       case 'CREATE_GAME': return { error: 'GAME_ALREADY_EXISTS' };
     }
   }
@@ -1905,6 +1960,69 @@ export class SetupCommandDispatcher {
     state.adjudication.vpByParticipant[participantId] = 0;
     const event = this.appendEvent(state, envelope, 'PARTICIPANT_JOINED', { participantId });
     return { resultCode: 'PARTICIPANT_JOINED', resultPayload: { participantId }, events: [event] };
+  }
+
+  private negotiationParticipants(state: SetupGameState, envelope: SetupEnvelope, targetParticipantId: string):
+    { readonly ok:true; readonly actorParticipantId:string } | { readonly ok:false; readonly error:AnyEngineErrorCode } {
+    const actorParticipantId = envelope.actorContext.participantId;
+    if (state.phase !== 'INITIATIVE_STAGE' && state.phase !== 'ACTION_STAGE_PLAN') return { ok:false, error: 'WRONG_PHASE' };
+    if (actorParticipantId === undefined || actorParticipantId === targetParticipantId || state.participants[targetParticipantId]?.role !== 'PLAYER') {
+      return { ok:false, error: 'INVALID_EFFECT_INPUT' };
+    }
+    if (state.phase === 'ACTION_STAGE_PLAN' && state.actionPlanning[actorParticipantId]?.locked === true) {
+      return { ok:false, error: 'ACTION_PLAN_LOCKED' };
+    }
+    return { ok:true, actorParticipantId };
+  }
+
+  private recordDealPromise(state: SetupGameState, envelope: SetupEnvelope) {
+    const payload = envelope.payload as RecordDealPromisePayload;
+    const participants = this.negotiationParticipants(state, envelope, payload.targetParticipantId);
+    if (!participants.ok) return { error:participants.error };
+    const event = this.appendEvent(state, envelope, 'DEAL_PROMISED', {
+      sourceParticipantId: participants.actorParticipantId, targetParticipantId: payload.targetParticipantId,
+      resourceAmount: payload.resourceAmount,
+    });
+    return { resultCode: 'DEAL_PROMISE_RECORDED', events: [event] };
+  }
+
+  private transferDealResources(state: SetupGameState, envelope: SetupEnvelope) {
+    const payload = envelope.payload as TransferDealResourcesPayload;
+    const participants = this.negotiationParticipants(state, envelope, payload.targetParticipantId);
+    if (!participants.ok) return { error:participants.error };
+    const sourceSeat = state.seats[participants.actorParticipantId]; const targetSeat = state.seats[payload.targetParticipantId];
+    if (sourceSeat === undefined || targetSeat === undefined) return { error: 'INVALID_EFFECT_INPUT' as const };
+    const source = state.countries[sourceSeat.countryId]; const target = state.countries[targetSeat.countryId];
+    if (source.resources < payload.amount) return { error: 'INSUFFICIENT_RESOURCES' as const };
+    source.resources -= payload.amount; target.resources += payload.amount;
+    state.resourceLedger.push({ id: `${state.id}:resource-ledger:${state.resourceLedger.length + 1}`,
+      participantId: participants.actorParticipantId, countryId: sourceSeat.countryId, reason: 'DEAL_TRANSFER', delta: -payload.amount,
+      balanceAfter: source.resources, gameVersion: state.version + 1 });
+    state.resourceLedger.push({ id: `${state.id}:resource-ledger:${state.resourceLedger.length + 1}`,
+      participantId: payload.targetParticipantId, countryId: targetSeat.countryId, reason: 'DEAL_TRANSFER', delta: payload.amount,
+      balanceAfter: target.resources, gameVersion: state.version + 1 });
+    const event = this.appendEvent(state, envelope, 'DEAL_RESOURCE_TRANSFERRED', {
+      sourceParticipantId: participants.actorParticipantId, targetParticipantId: payload.targetParticipantId, amount: payload.amount,
+    });
+    return { resultCode: 'DEAL_RESOURCES_TRANSFERRED', events: [event] };
+  }
+
+  private transferDealCard(state: SetupGameState, envelope: SetupEnvelope) {
+    const payload = envelope.payload as TransferDealCardPayload;
+    const participants = this.negotiationParticipants(state, envelope, payload.targetParticipantId);
+    if (!participants.ok) return { error:participants.error };
+    const sourceStrategy = state.strategy[participants.actorParticipantId]; const targetStrategy = state.strategy[payload.targetParticipantId];
+    const card = state.cards[payload.cardInstanceId];
+    if (sourceStrategy === undefined || targetStrategy === undefined || card?.controllerParticipantId !== participants.actorParticipantId ||
+        card.zone !== 'HAND' || !sourceStrategy.handCardInstanceIds.includes(card.id)) return { error: 'CARD_WRONG_ZONE' as const };
+    if (targetStrategy.handCardInstanceIds.length >= state.handLimit) return { error: 'CARD_NOT_ELIGIBLE' as const };
+    sourceStrategy.handCardInstanceIds = sourceStrategy.handCardInstanceIds.filter((id) => id !== card.id);
+    targetStrategy.handCardInstanceIds.push(card.id); card.controllerParticipantId = payload.targetParticipantId; card.returnToOwnerOnDiscard = false;
+    const event = this.appendEvent(state, envelope, 'DEAL_CARD_TRANSFERRED', {
+      sourceParticipantId: participants.actorParticipantId, targetParticipantId: payload.targetParticipantId, cardInstanceId: card.id,
+      printedCountryOwnerId: card.countryOwnerId,
+    }, 'OWNER_AND_FACILITATOR');
+    return { resultCode: 'DEAL_CARD_TRANSFERRED', events: [event] };
   }
 
   private assignSeat(state: SetupGameState, envelope: SetupEnvelope) {
