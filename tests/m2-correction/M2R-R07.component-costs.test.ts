@@ -12,7 +12,7 @@ const activationCostEntries = (serial: 54 | 69, resources = 10) => {
 };
 
 describe('M2R-R07 — approved campaign-component resource costs', () => {
-  it('charges Military Exercises as the MEDIUM tier cost plus one component resource', () => {
+  it('GE-ERT-009 charges Military Exercises as the valid MEDIUM tier cost plus one component resource', () => {
     const { before, result, after } = activationCostEntries(54);
     expect(result).toMatchObject({ status: 'RESOLVED', resultCode: 'CAMPAIGN_ACTIVATION_COMPLETED' });
     expect(before.countries.ARDEN.resources - after.countries.ARDEN.resources).toBe(3);
@@ -25,7 +25,7 @@ describe('M2R-R07 — approved campaign-component resource costs', () => {
     expect(after.adjudication.traces.at(-1)).toMatchObject({ baseCv: 9, baseTier: 'MEDIUM', resourceCost: 3 });
   });
 
-  it('charges Military Mobilization as the MEDIUM tier cost plus three component resources', () => {
+  it('GE-ERT-010 charges Military Mobilization as the valid MEDIUM tier cost plus three component resources', () => {
     const { before, result, after } = activationCostEntries(69);
     expect(result).toMatchObject({ status: 'RESOLVED', resultCode: 'CAMPAIGN_ACTIVATION_COMPLETED' });
     expect(before.countries.ARDEN.resources - after.countries.ARDEN.resources).toBe(5);

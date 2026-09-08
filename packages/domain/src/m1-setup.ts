@@ -132,6 +132,7 @@ export interface ConstructCampaignPlanPayload {
 export interface ActivateCampaignPlanPayload {
   readonly campaignId: string;
   readonly requestedTargetPdId?: string;
+  readonly useCoreModifier?: boolean;
 }
 
 export interface PlayBoostPlanPayload {
@@ -179,7 +180,7 @@ export interface ResourceLedgerEntry {
   readonly participantId: string | null;
   readonly countryId: CountryId;
   readonly reason: 'SCENARIO_SETUP' | 'TURN_INCOME' | 'CAMPAIGN_ACTIVATION_COST' | 'COALITION_CONTRIBUTION' |
-    'CARD_COST' | 'REGIME_ABILITY_COST' | 'CARD_EFFECT' | 'TRANSFER' | 'DEAL_TRANSFER' | 'CAMPAIGN_COMPONENT_COST' | 'ERT_ROLL_BOOST';
+    'CARD_COST' | 'REGIME_ABILITY_COST' | 'CARD_EFFECT' | 'TRANSFER' | 'DEAL_TRANSFER' | 'CAMPAIGN_COMPONENT_COST' | 'ERT_ROLL_BOOST' | 'CORE_ROLL_MODIFIER';
   readonly delta: number;
   readonly balanceAfter: number;
   readonly gameVersion: number;
@@ -334,6 +335,7 @@ export interface SetupGameState {
   vetoAbuseReviewByWindowParticipant?: Record<string, 'ALLOW' | 'REJECT'>;
   m2Audit?: M2BAuditRecord[];
   regimeAbilityUsedByParticipant?: Record<string, boolean>;
+  coreModifierUsedByParticipant?: Record<string, boolean>;
   flumaRegimeByParticipant?: Record<string, { active: boolean; processedSpendIds: string[] }>;
   m2TurnResourceLedgerStartIndex?: number;
   m2CoreScheduler?: M2CoreSchedulerContinuation;

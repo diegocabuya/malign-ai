@@ -16,7 +16,8 @@ export const buildM2StateFromCanonical = (state: SetupGameState): M2BState => ({
       id: participant.id, countryId: seat.countryId, resources: state.countries[seat.countryId].resources,
       victoryPoints: state.adjudication.vpByParticipant[participant.id] ?? 0,
       cardIds: Object.values(state.cards).filter(({ controllerParticipantId }) => controllerParticipantId === participant.id).map(({ id }) => id).sort(),
-      regimeAbilityUsed: state.regimeAbilityUsedByParticipant?.[participant.id] ?? false, coreModifierUsed: false,
+      regimeAbilityUsed: state.regimeAbilityUsedByParticipant?.[participant.id] ?? false,
+      coreModifierUsed: state.coreModifierUsedByParticipant?.[participant.id] ?? false,
     }];
   })),
   cards: Object.fromEntries(Object.values(state.cards).filter(({ controllerParticipantId }) => controllerParticipantId !== undefined).map((card) => [card.id, {
@@ -39,7 +40,8 @@ export const buildM2StateFromCanonical = (state: SetupGameState): M2BState => ({
     if (entry.participantId === null || entry.delta >= 0) return [];
     const reason = entry.reason === 'CAMPAIGN_ACTIVATION_COST' ? 'CAMPAIGN_COST'
       : entry.reason === 'COALITION_CONTRIBUTION' ? 'COALITION_CONTRIBUTION'
-        : entry.reason === 'CARD_COST' ? 'CARD_COST' : undefined;
+        : entry.reason === 'CARD_COST' ? 'CARD_COST'
+          : entry.reason === 'CORE_ROLL_MODIFIER' ? 'CORE_MODIFIER' : undefined;
     return reason === undefined ? [] : [{ id: entry.id, participantId: entry.participantId, amount: -entry.delta, reason }];
   }),
   flumaRegime: structuredClone(state.flumaRegimeByParticipant?.[
@@ -49,10 +51,12 @@ export const buildM2StateFromCanonical = (state: SetupGameState): M2BState => ({
 
 export const applyM2StateToCanonical = (target: SetupGameState, source: M2BState): void => {
   target.regimeAbilityUsedByParticipant ??= {};
+  target.coreModifierUsedByParticipant ??= {};
   for (const participant of Object.values(source.participants)) {
     target.countries[participant.countryId].resources = participant.resources;
     target.adjudication.vpByParticipant[participant.id] = participant.victoryPoints;
     target.regimeAbilityUsedByParticipant[participant.id] = participant.regimeAbilityUsed;
+    target.coreModifierUsedByParticipant[participant.id] = participant.coreModifierUsed;
   }
   for (const card of Object.values(source.cards)) {
     const canonical = target.cards[card.id]; if (canonical === undefined) continue;

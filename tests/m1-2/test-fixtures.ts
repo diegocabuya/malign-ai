@@ -121,6 +121,7 @@ export const adjudicationHarness = (options: {
   readonly diceMode?: DiceMode;
   readonly includeNarrative?: boolean;
   readonly boost?: boolean;
+  readonly coreModifier?: boolean;
 } = {}): AdjudicationHarness => {
   const testHarness = harness({ states: [planningState(options.diceMode)], bindings: trustedBindings() });
   for (const participantId of ['F1', ...PLAYER_IDS]) {
@@ -187,7 +188,11 @@ export const adjudicationHarness = (options: {
     {
       sequenceIndex: options.boost === true ? 3 : 2,
       actionType: 'ACTIVATE_CAMPAIGN' as const,
-      actionPayload: { campaignId: FULL_CAMPAIGN.campaign_id, requestedTargetPdId: targetPd },
+      actionPayload: {
+        campaignId: FULL_CAMPAIGN.campaign_id,
+        requestedTargetPdId: targetPd,
+        ...(options.coreModifier === true ? { useCoreModifier: true } : {}),
+      },
     },
   ];
   const p1Plan = savePlan(testHarness, 'P1', slots);

@@ -1366,3 +1366,28 @@ DEC-075 autoriza exclusivamente documentación. No autoriza M2 ni ninguna subeta
 - M3 permanece **NOT AUTHORIZED**.
 
 **ESTADO:** `APPROVED — M2-7 IMPLEMENTATION AUTHORIZATION ONLY`
+
+---
+
+## DEC-088 — Resolución de IQ-M2-018 y fixtures de costes de componentes de campaña
+
+**FECHA:** 2026-09-07
+**TEMA:** Precedencia entre los IV oficiales aprobados y dos fixtures ERT estructuralmente imposibles.
+
+**DECISIÓN:**
+
+- La delegación expresa del Product Owner para decidir la resolución autoriza cerrar exclusivamente `IQ-M2-018`.
+- Prevalecen el Card Registry aprobado mediante DEC-077 y las reglas estructurales del Adjudication Engine: `BASE_CARD_054` y `BASE_CARD_069` conservan IV 6 en `METHOD` y `AMPLIFIER`; no se altera ningún IV, slot ni definition aprobada.
+- Una campaña válida que contiene cualquiera de esas cartas tiene como mínimo `base_cv=7`; por tanto, los owners `GE-ERT-009` y `GE-ERT-010` se ejecutan con campañas base `MEDIUM`.
+- `GE-ERT-009` cobra exactamente `2` Resources por tier MEDIUM más `1` por Ejercicios Militares, total `3`.
+- `GE-ERT-010` cobra exactamente `2` Resources por tier MEDIUM más `3` por Movilización Militar, total `5`.
+- El coste de tier y el coste de componente permanecen en ledgers separados; el evento y el trace conservan el total auditable.
+- La palabra `LOW` y las expectativas derivadas `1+1`/`1+3` del fixture histórico quedan superseded sólo para esos dos casos imposibles. El documento oracle histórico permanece sin reescritura.
+- DEC-088 no altera la ERT, los límites de tier, los demás casos del oracle, el registry ni las decisiones anteriores.
+- DEC-088 resuelve `IQ-M2-018`; no resuelve `IQ-M2-017`, no aprueba M2 global y no autoriza M3.
+
+**JUSTIFICACIÓN:** Mantener simultáneamente una campaña válida y el tier LOW era imposible con los IV oficiales. Preservar datos aprobados y derivar MEDIUM mediante la regla general evita fabricar una excepción o degradar el registry.
+
+**IMPACTO:** `GE-ERT-009/010` pasan a evidencia integrada con totales 3 y 5. El resto del alcance de corrección continúa sin expansión de milestone.
+
+**ESTADO:** `APPROVED — IQ-M2-018 RESOLVED`

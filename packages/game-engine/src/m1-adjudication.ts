@@ -138,6 +138,7 @@ const gameplayPayloadForHash = (state: SetupGameState, version = state.version) 
   strategy: state.strategy,
   secretVictoryObjectives: state.secretVictoryObjectives,
   currentRevealedAction: state.currentRevealedAction ?? null,
+  coreModifierUsedByParticipant: state.coreModifierUsedByParticipant ?? {},
   campaigns: state.adjudication.campaigns,
   influenceStacks: [...state.adjudication.influenceStacks].sort((left, right) =>
     `${left.pdId}:${left.type}:${left.attributionCountryId}`.localeCompare(
@@ -463,11 +464,30 @@ export const replayM1Events = (
         const countryId = String(payload.countryId) as CountryId;
         const participantId = String(payload.participantId);
         const balanceAfter = Number(payload.balanceAfter);
+        const tierCost = Number(payload.tierCost ?? payload.amount);
+        const componentCosts = String(payload.componentCosts ?? '').split('|').filter((value) => value.length > 0).map(Number);
+        const componentLedgerIds = String(payload.componentLedgerIds ?? '').split('|').filter((value) => value.length > 0);
+        const coreModifierCost = Number(payload.coreModifierCost ?? 0);
+        const coreModifierLedgerId = String(payload.coreModifierLedgerId ?? '');
         state.countries[countryId].resources = balanceAfter;
+        let ledgerBalance = balanceAfter + componentCosts.reduce((sum, cost) => sum + cost, 0) + coreModifierCost;
         state.resourceLedger.push({
           id: String(payload.ledgerId), participantId, countryId, reason: 'CAMPAIGN_ACTIVATION_COST',
-          delta: -Number(payload.amount), balanceAfter, gameVersion: event.gameVersion,
+          delta: -tierCost, balanceAfter: ledgerBalance, gameVersion: event.gameVersion,
         });
+        componentCosts.forEach((cost, index) => {
+          ledgerBalance -= cost;
+          state.resourceLedger.push({ id: componentLedgerIds[index] ?? `${payload.ledgerId}:component:${index + 1}`,
+            participantId, countryId, reason: 'CAMPAIGN_COMPONENT_COST', delta: -cost, balanceAfter: ledgerBalance,
+            gameVersion: event.gameVersion });
+        });
+        if (coreModifierCost > 0) {
+          ledgerBalance -= coreModifierCost;
+          state.resourceLedger.push({ id: coreModifierLedgerId || `${payload.ledgerId}:core`, participantId, countryId,
+            reason: 'CORE_ROLL_MODIFIER', delta: -coreModifierCost, balanceAfter: ledgerBalance, gameVersion: event.gameVersion });
+          state.coreModifierUsedByParticipant ??= {};
+          state.coreModifierUsedByParticipant[participantId] = true;
+        }
         break;
       }
       case 'DIE_ROLLED':
@@ -1140,9 +1160,13 @@ export class M1AdjudicationEngine {
     }
     const value = calculateCampaignValue(components, [...pairKeys].map(() => 2));
     const country = state.countries[countryId];
+    const coreModifierRequested = 'useCoreModifier' in payload && payload.useCoreModifier === true;
+    if (coreModifierRequested && state.coreModifierUsedByParticipant?.[participantId] === true) {
+      return { error: 'ROLL_MODIFIER_ALREADY_USED' };
+    }
     const componentResourceCost = campaign.assignments.reduce((sum, { definitionId }) => sum
       + (definitionId === 'BASE_CARD_054' ? 1 : definitionId === 'BASE_CARD_069' ? 3 : 0), 0);
-    if (country.resources < value.baseCost + componentResourceCost) {
+    if (country.resources < value.baseCost + componentResourceCost + (coreModifierRequested ? 2 : 0)) {
       slot.terminalOutcome = 'FAILED_COST';
       this.advanceScheduler(state);
       const failed = this.appendEvent(state, envelope, 'ACTION_RESOLVED', {
@@ -1172,6 +1196,7 @@ export class M1AdjudicationEngine {
       baseTier: value.baseTier,
       resolutionTier: value.resolutionTier,
       resourceCost: value.baseCost,
+      coreModifierRequested,
       preStateHash,
       eventRefsBeforeNarrative: [...eventRefs],
     };
@@ -1267,6 +1292,7 @@ export class M1AdjudicationEngine {
       effectiveCv: baseEffectiveCv,
       baseTier,
       resourceCost,
+      coreModifierRequested = false,
       preStateHash,
     } = narrativeContinuation;
     const effectiveCv = baseEffectiveCv + coalition.bonus;
@@ -1294,7 +1320,11 @@ export class M1AdjudicationEngine {
     const componentCosts = campaign.assignments.flatMap(({ definitionId }) => definitionId === 'BASE_CARD_054' ? [1]
       : definitionId === 'BASE_CARD_069' ? [3] : []);
     const componentResourceCost = componentCosts.reduce((sum, cost) => sum + cost, 0);
-    const totalResourceCost = resourceCost + componentResourceCost;
+    if (coreModifierRequested && state.coreModifierUsedByParticipant?.[participantId] === true) {
+      return { error: 'ROLL_MODIFIER_ALREADY_USED' };
+    }
+    const coreModifierCost = coreModifierRequested ? 2 : 0;
+    const totalResourceCost = resourceCost + componentResourceCost + coreModifierCost;
     const plannedBoost = state.adjudication.plannedBoostsByParticipant?.[participantId];
     const boostApplies = plannedBoost?.campaignId === campaign.id && plannedBoost.activationSequenceIndex === slot.sequenceIndex;
     if (country.resources < totalResourceCost) {
@@ -1304,6 +1334,7 @@ export class M1AdjudicationEngine {
     const resourceBefore = country.resources;
     country.resources -= totalResourceCost;
     const resourceLedgerIds: string[] = [];
+    const componentLedgerIds: string[] = [];
     const baseResourceLedgerId = `${state.id}:resource-ledger:${state.resourceLedger.length + 1}`;
     state.resourceLedger.push({
       id: baseResourceLedgerId,
@@ -1322,6 +1353,18 @@ export class M1AdjudicationEngine {
       state.resourceLedger.push({ id: ledgerId, participantId, countryId, reason: 'CAMPAIGN_COMPONENT_COST', delta: -componentCost,
         balanceAfter: componentBalance, gameVersion: state.version + 1 });
       resourceLedgerIds.push(ledgerId);
+      componentLedgerIds.push(ledgerId);
+    }
+    let coreModifierLedgerId = '';
+    if (coreModifierRequested) {
+      componentBalance -= coreModifierCost;
+      const ledgerId = `${state.id}:resource-ledger:${state.resourceLedger.length + 1}`;
+      state.resourceLedger.push({ id: ledgerId, participantId, countryId, reason: 'CORE_ROLL_MODIFIER', delta: -coreModifierCost,
+        balanceAfter: componentBalance, gameVersion: state.version + 1 });
+      resourceLedgerIds.push(ledgerId);
+      coreModifierLedgerId = ledgerId;
+      state.coreModifierUsedByParticipant ??= {};
+      state.coreModifierUsedByParticipant[participantId] = true;
     }
     const costEvent = this.appendEvent(state, envelope, 'CAMPAIGN_COST_PAID', {
       activationId,
@@ -1330,6 +1373,10 @@ export class M1AdjudicationEngine {
       amount: totalResourceCost,
       tierCost: resourceCost,
       componentCost: componentResourceCost,
+      coreModifierCost,
+      componentCosts: componentCosts.join('|'),
+      componentLedgerIds: componentLedgerIds.join('|'),
+      coreModifierLedgerId,
       balanceAfter: country.resources,
       ledgerId: baseResourceLedgerId,
     }, eventRefs.at(-1));
@@ -1354,7 +1401,8 @@ export class M1AdjudicationEngine {
     else try { rawRoll = this.randomInteger(1, 10); } catch { return { error: 'RANDOM_PROVIDER_FAILURE' }; }
     const legitimacyBefore = state.adjudication.legitimacyByPd[targetPdId] ?? null;
     const legitimacyModifier = legitimacyBefore === participantId ? 1 : 0;
-    const normalized = normalizeErtRoll(rawRoll + legitimacyModifier + boostModifier);
+    const coreModifier = coreModifierRequested ? 1 : 0;
+    const normalized = normalizeErtRoll(rawRoll + legitimacyModifier + boostModifier + coreModifier);
     const dieRollId = `${state.id}:die-roll:${state.adjudication.dieRolls.length + 1}`;
     const rngRequestId = manualRoll === undefined ? `${state.id}:rng:campaign:${state.adjudication.dieRolls.length + 1}` : undefined;
     state.adjudication.dieRolls.push({
@@ -1378,6 +1426,7 @@ export class M1AdjudicationEngine {
       submittedByParticipantId: manualRoll?.submitterParticipantId ?? '',
       legitimacyModifier,
       boostModifier,
+      coreModifier,
       modifiedRollRaw: normalized.modifiedRollRaw,
       ertRoll: normalized.ertRoll,
     }, eventRefs.at(-1));

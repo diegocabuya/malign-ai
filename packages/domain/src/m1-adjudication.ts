@@ -89,6 +89,7 @@ export interface NarrativeContinuationState {
   readonly baseTier: 'LOW' | 'MEDIUM' | 'HIGH';
   readonly resolutionTier: 'LOW' | 'MEDIUM' | 'HIGH';
   readonly resourceCost: number;
+  readonly coreModifierRequested?: boolean;
   readonly preStateHash: string;
   readonly eventRefsBeforeNarrative: readonly string[];
 }

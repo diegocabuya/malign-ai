@@ -262,9 +262,10 @@ const isConstructPlanPayload = (value: unknown): boolean =>
   (!Object.hasOwn(value, 'amplifierCardInstanceId') || isNonEmptyString(value.amplifierCardInstanceId));
 
 const isActivatePlanPayload = (value: unknown): boolean =>
-  hasExactKeys(value, ['campaignId'], ['requestedTargetPdId']) &&
+  hasExactKeys(value, ['campaignId'], ['requestedTargetPdId', 'useCoreModifier']) &&
   isNonEmptyString(value.campaignId) &&
-  (!Object.hasOwn(value, 'requestedTargetPdId') || isNonEmptyString(value.requestedTargetPdId));
+  (!Object.hasOwn(value, 'requestedTargetPdId') || isNonEmptyString(value.requestedTargetPdId)) &&
+  (!Object.hasOwn(value, 'useCoreModifier') || typeof value.useCoreModifier === 'boolean');
 
 const isPlayBoostPlanPayload = (value: unknown): boolean =>
   hasExactKeys(value, ['cardInstanceId', 'campaignId', 'activationSequenceIndex']) && isNonEmptyString(value.cardInstanceId) &&

@@ -147,7 +147,7 @@ describe('M12-R02 — truthful narrative provenance', () => {
     expect(event?.causationId).toBe(state?.events[state.events.indexOf(event!) - 1]?.id);
   });
 
-  it('suspends serializably when narrative is absent without cost, RNG, trace, or invented text', () => {
+  it('GE-M2-SCH-001 — suspends serializably without cost, RNG, trace, double reveal, or invented text', () => {
     const testHarness = adjudicationHarness({ includeNarrative: false });
     runConstruct(testHarness);
     const before = testHarness.store.snapshot(GAME_ID);
@@ -171,7 +171,7 @@ describe('M12-R02 — truthful narrative provenance', () => {
       .toEqual(after?.adjudication.pendingResolution);
   });
 
-  it('accepts player narrative only through the authenticated application boundary', () => {
+  it('GE-M2-SCH-001 — resumes the exact suspended slot through the authenticated application boundary', () => {
     const testHarness = adjudicationHarness({ includeNarrative: false });
     runConstruct(testHarness);
     runActivation(testHarness);

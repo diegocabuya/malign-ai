@@ -482,7 +482,7 @@ export const runM2BScheduler = <T>(
   const order: number[] = [];
   for (let index = startIndex; index < orderedSlots.length; index += 1) {
     const slot = orderedSlots[index]; if (slot === undefined) break; order.push(index);
-    if (execute(slot, index) === 'SUSPENDED') return { nextIndex: index, status: 'SUSPENDED', executionOrder: order };
+    if (execute(slot, index) === 'SUSPENDED') return { nextIndex: index + 1, status: 'SUSPENDED', executionOrder: order };
   }
   return { nextIndex: orderedSlots.length, status: 'COMPLETE', executionOrder: order };
 };

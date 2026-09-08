@@ -204,13 +204,12 @@
 - **Question:** ¿debe prevalecer la identidad explícita `FLUMA_PD_1/2` del Scenario Data Spec o la semántica nominal Liberty/Workers fijada por los casos del Acceptance Spec?
 - **Status:** **OPEN — requiere resolución normativa; sólo esta porción queda detenida**.
 
-## IQ-M2-018 — GE-ERT-009/010 LOW-tier fixture versus approved component IV — OPEN
+## IQ-M2-018 — GE-ERT-009/010 LOW-tier fixture versus approved component IV — RESOLVED
 
 - **Affected scope:** únicamente el fixture y el total esperado de `GE-ERT-009` y `GE-ERT-010`; la implementación del coste adicional de componente y los demás casos ERT pueden continuar.
 - **Acceptance Spec v0.1 §8.8:** ambos casos exigen una campaña base `LOW`; `GE-ERT-009` espera `1 tier + 1 component` para Ejercicios Militares y `GE-ERT-010` espera `1 + 3` para Movilización Militar.
 - **Card Component System Spec v0.1, seriales 54 y 69:** ambas cartas tienen IV `METHOD=6` y `AMPLIFIER=6`; además fija respectivamente los costes adicionales `+1` y `+3` por activación.
 - **Registry aprobado mediante DEC-077:** `CARD_DEF_BASE_2025_D054` y `CARD_DEF_BASE_2025_D069` preservan exactamente esos IV 6/6 y costes 1/3.
 - **Adjudication Engine Spec v0.1 §§21.1–21.3:** una campaña válida requiere Intent y Method, el Intent mínimo aprobado aporta IV 1, `base_cv=7…11` es `MEDIUM` y el coste adicional se suma al coste del tier. Por tanto, cualquier campaña válida que use una de estas cartas tiene como mínimo `base_cv=7` y no puede ser `LOW`.
-- **Comportamiento no ambiguo implementado:** el engine conserva los IV aprobados, deriva el tier del CV real y cobra el coste del tier más `+1`/`+3` en ledgers separados; regresiones con campañas válidas MEDIUM prueban totales 3 y 5 y fallo atómico por fondos insuficientes. No se marcan `GE-ERT-009/010` como satisfechos ni se modifica el oracle.
-- **Question:** ¿debe corregirse la expectativa/fixture de `GE-ERT-009/010` a una campaña válida MEDIUM (totales `2+1` y `2+3`), o existe otra fuente normativa aprobada que autorice una estructura/IV diferente para esos dos casos?
-- **Status:** **OPEN — contradicción normativa; sólo `GE-ERT-009/010` quedan detenidos**.
+- **Resolución DEC-088:** prevalecen los IV 6/6 del registry aprobado y las reglas estructurales de campaña. Los owners conservan sus IDs y se ejecutan con campañas válidas MEDIUM; `GE-ERT-009` cobra `2 tier + 1 component` y `GE-ERT-010` cobra `2 tier + 3 component`, con ledgers separados y total auditable. La palabra `LOW` y los totales derivados `1+1`/`1+3` quedan superseded únicamente para esos dos fixtures imposibles; el oracle histórico no se reescribe.
+- **Status:** **RESOLVED mediante DEC-088**.

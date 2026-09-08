@@ -486,7 +486,7 @@ describe('M2R-R01 canonical state integration seam', () => {
       idempotencyKey:'FLUMA-FORWARD-K2'})).toMatchObject({status:'REJECTED',error:{code:'SCHEDULER_COMPLETE'}});
   });
 
-  it('inventories exactly 59 registry effects and fails closed for known unimplemented handlers', () => {
+  it('GE-M2-EFX-001/GE-ERT-022 — inventories all effects and executes every registered pair exactly once', () => {
     expect(M2_EFFECT_MANIFEST).toHaveLength(59);
     expect(new Set(M2_EFFECT_MANIFEST.map(({ effectId }) => effectId)).size).toBe(59);
     const registry = JSON.parse(readFileSync(new URL('../../docs/normative/MALIGN_AI_CARD_REGISTRY_SNAPSHOT_v0.1.json', import.meta.url), 'utf8')) as {
@@ -528,7 +528,7 @@ describe('M2R-R01 canonical state integration seam', () => {
     expect(testHarness.store.snapshot(state.id)).toEqual(before);
   });
 
-  it('resolves E021 through one durable voluntary response per other active player and applies committed contributors to effective CV', () => {
+  it('GE-ERT-014 — rejects an unfunded coalition contribution and keeps the durable window open', () => {
     const testHarness = adjudicationHarness({ serials: [FULL_CAMPAIGN.intent.serial, FULL_CAMPAIGN.method.serial, 42] });
     runConstruct(testHarness);
     const seeded = testHarness.store.snapshot(GAME_ID)!; seeded.countries.URSARIA.resources = 0;
